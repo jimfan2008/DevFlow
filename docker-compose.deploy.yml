@@ -1,0 +1,106 @@
+# =============================================================================
+# DevFlow Docker Compose - Full Deployment (验证用)
+# =============================================================================
+version: "3.8"
+
+services:
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devflow-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=DevFlow
+      - APP_DEBUG=false
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - JWT_SECRET=devflow-jwt-secret-for-deployment-testing-2026
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=60
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
+      - POSTGRES_USER=devflow_user
+      - POSTGRES_PASSWORD=devflow_password
+      - POSTGRES_DB=devflow_db
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - REDIS_URL=redis://redis:6379/0
+      - FRONTEND_URL=http://localhost
+      - DB_POOL_SIZE=10
+      - DB_MAX_OVERFLOW=20
+      - DB_POOL_TIMEOUT=30
+      - ENABLE_REDIS_CACHE=true
+      - ENABLE_METRICS=true
+      - LOG_LEVEL=INFO
+      - RUN_MIGRATIONS=1
+      - LLM_API_BASE=http://host.docker.internal:8642
+      - HERMES_API_BASE=${HERMES_API_BASE:-http://10.28.83.151:8000/v1}
+      - HERMES_API_KEY=${HERMES_API_KEY:-placeholder}
+      - HERMES_MODEL=${HERMES_MODEL:-qwen3.6-35b-4.75bit}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - devflow-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: devflow-postgres
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_USER=devflow_user
+      - POSTGRES_PASSWORD=devflow_password
+      - POSTGRES_DB=devflow_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U devflow_user -d devflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+volumes:
+  postgres_data:
+    name: devflow_postgres_data
+  redis_data:
+    name: devflow_redis_data
+
+networks:
+  devflow-network:
+    name: devflow-network
+    driver: bridge

@@ -1,0 +1,22 @@
+{
+  "ecommerce_project": {
+    "id": "project_ecommerce_001",
+    "name": "电商平台开发项目",
+    "slug": "ecommerce-platform",
+    "description": "一个完整的电商平台，包含商品管理、购物车、订单系统、支付集成等模块",
+    "creator_id": "user_owner_001",
+    "tech_stack": ["Python", "FastAPI", "PostgreSQL", "Redis", "Vue.js"],
+    "deadline": "2026-06-30",
+    "status": "active"
+  },
+  "todo_app_project": {
+    "id": "project_todo_001",
+    "name": "待办事项应用",
+    "slug": "todo-app",
+    "description": "简单的待办事项管理应用",
+    "creator_id": "user_owner_001",
+    "tech_stack": ["Node.js", "Express", "MongoDB"],
+    "deadline": "2026-05-31",
+    "status": "completed"
+  }
+}

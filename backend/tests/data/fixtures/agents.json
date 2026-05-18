@@ -1,0 +1,70 @@
+{
+  "opencode_agent": {
+    "id": "agent_opencode_001",
+    "name": "OpenCode Agent 1",
+    "agent_type": "opencode",
+    "status": "online",
+    "api_endpoint": "http://localhost:8080/agents/opencode",
+    "config": {
+      "capabilities": ["coding", "refactoring", "debugging"],
+      "max_concurrent_tasks": 3,
+      "current_load": 0
+    }
+  },
+  "cursor_agent": {
+    "id": "agent_cursor_001",
+    "name": "Cursor Agent 1",
+    "agent_type": "cursor",
+    "status": "online",
+    "api_endpoint": "http://localhost:8080/agents/cursor",
+    "config": {
+      "capabilities": ["coding", "deployment", "integration"],
+      "max_concurrent_tasks": 2,
+      "current_load": 1
+    }
+  },
+  "claude_code_agent": {
+    "id": "agent_claude_001",
+    "name": "Claude Code Agent 1",
+    "agent_type": "claude_code",
+    "status": "online",
+    "api_endpoint": "http://localhost:8080/agents/claude",
+    "config": {
+      "capabilities": ["test_case_writing", "code_review", "analysis"],
+      "max_concurrent_tasks": 4,
+      "current_load": 0
+    }
+  },
+  "codebuddy_agent": {
+    "id": "agent_codebuddy_001",
+    "name": "CodeBuddy Agent 1",
+    "agent_type": "codebuddy",
+    "status": "online",
+    "api_endpoint": "http://localhost:8080/agents/codebuddy",
+    "config": {
+      "capabilities": ["test_case_writing", "deployment", "documentation"],
+      "max_concurrent_tasks": 3,
+      "current_load": 0
+    }
+  },
+  "busy_agent": {
+    "id": "agent_busy_001",
+    "name": "Busy Agent",
+    "agent_type": "opencode",
+    "status": "busy",
+    "api_endpoint": "http://localhost:8080/agents/busy",
+    "config": {
+      "capabilities": ["coding"],
+      "max_concurrent_tasks": 1,
+      "current_load": 1
+    }
+  },
+  "offline_agent": {
+    "id": "agent_offline_001",
+    "name": "Offline Agent",
+    "agent_type": "cursor",
+    "status": "offline",
+    "api_endpoint": null,
+    "config": null
+  }
+}

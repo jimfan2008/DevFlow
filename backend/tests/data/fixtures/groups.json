@@ -1,0 +1,40 @@
+{
+  "test_groups": [
+    {
+      "name": "技术架构讨论组",
+      "description": "讨论项目的技术架构设计方案",
+      "members": ["architect", "developer", "tech-lead"]
+    },
+    {
+      "name": "产品需求评审组",
+      "description": "评审和讨论产品需求",
+      "members": ["product-manager", "ui-designer", "qa-engineer"]
+    },
+    {
+      "name": "DevFlow核心开发组",
+      "description": "DevFlow项目的核心开发团队",
+      "members": ["hermes", "architect", "developer"]
+    }
+  ],
+  "test_messages": [
+    {
+      "sender": "user",
+      "role": "user",
+      "content": "我们需要讨论一下微服务架构的可行性",
+      "metadata": {"type": "user_message"}
+    },
+    {
+      "sender": "architect",
+      "role": "assistant",
+      "content": "好的，让我分析一下当前项目的规模和复杂度...",
+      "metadata": {"type": "discussion_response"}
+    }
+  ],
+  "test_meeting_topic": "讨论系统架构选型：单体 vs 微服务",
+  "test_host_agent": "architect",
+  "test_meeting_rules": [
+    "每个发言者不得超过3分钟",
+    "需要提供具体的技术方案对比",
+    "最终需要达成共识"
+  ]
+}

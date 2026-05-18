@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    container_name: devflow-e2e-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/devflow.db
+      - JWT_SECRET=e2e-test-jwt-secret-key
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=30
+      - SECRET_KEY=e2e-test-secret-key
+      - APP_DEBUG=false
+      - FRONTEND_URL=http://localhost:3000
+    volumes:
+      - devflow_e2e_data:/app/data
+    command: >
+      sh -c "python docker/init_tables.py &&
+      uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+volumes:
+  devflow_e2e_data:
+
+networks:
+  default:
+    name: devflow-e2e-network
+    driver: bridge

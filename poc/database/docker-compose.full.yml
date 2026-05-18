@@ -1,0 +1,97 @@
+version: "3.8"
+
+services:
+  # PostgreSQL 15 数据库服务
+  postgres:
+    image: postgres:15-alpine
+    container_name: devflow-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-devflow_user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-devflow_password}
+      - POSTGRES_DB=${POSTGRES_DB:-devflow_db}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-devflow_user} -d ${POSTGRES_DB:-devflow_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  # Redis 7 缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-devflow_redis_password}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-devflow_redis_password}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  # FastAPI 应用服务
+  fastapi:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devflow-fastapi
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=DevFlow
+      - APP_DEBUG=true
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - JWT_SECRET=${JWT_SECRET:-devflow-jwt-secret-key-change-in-production}
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=30
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-devflow_user}:${POSTGRES_PASSWORD:-devflow_password}@postgres:5432/${POSTGRES_DB:-devflow_db}
+      - DB_POOL_SIZE=10
+      - DB_MAX_OVERFLOW=20
+      - DB_POOL_TIMEOUT=30
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-devflow_redis_password}@redis:6379/0
+      - REDIS_POOL_SIZE=10
+    env_file:
+      - ../*.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - devflow-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  devflow-network:
+    driver: bridge

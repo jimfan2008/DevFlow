@@ -1,0 +1,18 @@
+{
+  "ecommerce_requirement_v1": {
+    "id": "req_ecommerce_v1",
+    "project_id": "project_ecommerce_001",
+    "content": "## 电商平台需求\n\n### 核心功能模块\n1. **用户管理** - 用户注册、登录、个人信息管理\n2. **商品管理** - 商品CRUD、分类管理、库存管理\n3. **购物车** - 添加商品、修改数量、删除商品\n4. **订单系统** - 创建订单、订单状态管理、订单历史\n5. **支付集成** - 支付宝、微信支付对接\n\n### 技术要求\n- 后端：Python + FastAPI\n- 前端：Vue.js + Element Plus\n- 数据库：PostgreSQL + Redis缓存\n- 部署：Docker容器化\n\n### 验收标准\n1. 所有功能模块可用\n2. 单元测试覆盖率 >= 80%\n3. 接口响应时间 < 500ms\n4. 支持1000并发用户",
+    "version": 1,
+    "is_locked": false,
+    "confirmed_at": null
+  },
+  "ecommerce_requirement_locked": {
+    "id": "req_ecommerce_locked",
+    "project_id": "project_ecommerce_001",
+    "content": "## 电商平台需求 (已确认)\n\n### 核心功能模块\n1. **用户管理** - 用户注册、登录\n2. **商品管理** - 商品CRUD\n3. **购物车** - 基本功能\n4. **订单系统** - 基础功能\n\n### 验收标准\n1. 功能完整可用\n2. 单元测试覆盖率 >= 70%",
+    "version": 2,
+    "is_locked": true,
+    "confirmed_at": "2026-05-01T10:00:00Z"
+  }
+}

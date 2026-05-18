@@ -1,0 +1,346 @@
+# =============================================================================
+# DevFlow Docker Compose - Development Environment
+# =============================================================================
+# Purpose: Local development with hot-reload, debug mode, and full tooling
+# Usage: docker-compose -f docker-compose.dev.yml up
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI Application (Development)
+  # ---------------------------------------------------------------------------
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: devflow-fastapi-dev
+    # Development-specific ports - host for local access
+    ports:
+      - "8000:8000"
+      - "8001:8000"  # Second port for parallel runs
+    environment:
+      # App configuration - debug enabled
+      - APP_NAME=DevFlow-Dev
+      - APP_DEBUG=true
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      # JWT - use test secret
+      - JWT_SECRET=dev-jwt-secret-for-local-development-use-only-must-change
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=30
+      # Database URLs - development databases
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db_dev
+      - REDIS_URL=redis://redis:6379/0
+      # Pool configuration for dev
+      - DB_POOL_SIZE=5
+      - DB_MAX_OVERFLOW=10
+      - DB_POOL_TIMEOUT=30
+      # Feature flags for development
+      - ENABLE_REDIS_CACHE=true
+      - ENABLE_METRICS=true
+      - LOG_LEVEL=DEBUG
+    # Development mode: hot reload and development server
+    command: >
+      uvicorn main:app 
+      --host 0.0.0.0 
+      --port 8000 
+      --reload 
+      --reload-exclude "**/__pycache__"
+      --reload-exclude "**/.venv"
+      --log-level debug
+    # Development volumes - bind mount source code
+    volumes:
+      - .:/app
+      - /app/.venv
+      - /app/__pycache__
+    # Dependencies - start after postgres is healthy
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Restart policy - never restart in dev
+    restart: "no"
+    # Development logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    # Network configuration
+    networks:
+      - devflow-dev-network
+    # Development-specific labels
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=fastapi"
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: devflow-postgres-dev
+    # Development port mapping - allow local connections
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=devflow_user
+      - POSTGRES_PASSWORD=devflow_password
+      - POSTGRES_DB=devflow_db_dev
+      # Development-specific settings
+      - PGDATABASE=devflow_db_dev
+    # Development data volume - persists across restarts
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      # Development seed data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+      # Development configuration override
+      - ./docker/postgres/dev.conf:/etc/postgresql.conf:ro
+    # Health check - critical for depends_on
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devflow_user -d devflow_db_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    # Restart policy - always restart in dev
+    restart: "always"
+    # Logging
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Network
+    networks:
+      - devflow-dev-network
+    # Labels
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=postgres"
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache Server
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis-dev
+    ports:
+      - "6379:6379"
+    environment:
+      - REDIS_MAXMEMORY=256mb
+      - REDIS_MAXMEMORY-POLICY=allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_dev_data:/data
+      # Redis configuration for development
+      - ./docker/redis/dev.conf:/usr/local/etc/redis/redis.conf:ro
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: "always"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=redis"
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy (Development)
+  # ---------------------------------------------------------------------------
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: devflow-celery-worker-dev
+    command: celery -A app.tasks worker --loglevel=info --concurrency=2
+    environment:
+      - APP_DEBUG=true
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db_dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=celery-worker"
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: devflow-celery-beat-dev
+    command: celery -A app.tasks beat --loglevel=info
+    environment:
+      - APP_DEBUG=true
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db_dev
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=celery-beat"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: devflow-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_BASE_URL=http://localhost:80/api
+    command: npm run dev -- --host 0.0.0.0
+    restart: "no"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=frontend"
+
+  gitea-db:
+    image: postgres:16-alpine
+    container_name: devflow-gitea-db-dev
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=gitea
+      - POSTGRES_PASSWORD=gitea_password
+      - POSTGRES_DB=gitea
+    volumes:
+      - gitea_db_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitea -d gitea"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: "always"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=gitea-db"
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: devflow-gitea-dev
+    ports:
+      - "3000:3000"
+      - "2222:22"
+    environment:
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=gitea-db:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD=gitea_password
+      - GITEA__server__ROOT_URL=http://localhost:3000
+    volumes:
+      - gitea_dev_data:/data
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+    restart: "always"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=gitea"
+
+  nginx:
+    image: nginx:alpine
+    container_name: devflow-nginx-dev
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/dev.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    environment:
+      - NGINX_WORKER_PROCESSES=auto
+      - NGINX_WORKER_CONNECTIONS=1024
+    depends_on:
+      - fastapi
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+        compress: "true"
+    networks:
+      - devflow-dev-network
+    labels:
+      - "com.devflow.environment=development"
+      - "com.devflow.service=nginx"
+
+# =============================================================================
+# Volumes - Data Persistence
+# =============================================================================
+volumes:
+  postgres_dev_data:
+    name: devflow_postgres_dev_data
+    driver: local
+  redis_dev_data:
+    name: devflow_redis_dev_data
+    driver: local
+  gitea_db_dev_data:
+    name: devflow_gitea_db_dev_data
+    driver: local
+  gitea_dev_data:
+    name: devflow_gitea_dev_data
+    driver: local
+
+# =============================================================================
+# Networks - Isolated Development Network
+# =============================================================================
+networks:
+  devflow-dev-network:
+    name: devflow-dev-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.name: devflow-dev-bridge

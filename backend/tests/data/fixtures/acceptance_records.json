@@ -1,0 +1,20 @@
+{
+  "passed_acceptance": {
+    "id": "accept_pass_001",
+    "task_execution_id": "exec_success_001",
+    "result": "pass",
+    "problem_details": null,
+    "reviewer": "Hermes Agent"
+  },
+  "failed_acceptance": {
+    "id": "accept_fail_001",
+    "task_execution_id": "exec_running_001",
+    "result": "fail",
+    "problem_details": {
+      "coverage": "测试覆盖率仅为 65%，要求 >= 80%",
+      "bugs": ["接口缺少参数校验", "异常处理不完整"],
+      "suggestions": ["补充边界条件测试", "添加参数验证"]
+    },
+    "reviewer": "Hermes Agent"
+  }
+}

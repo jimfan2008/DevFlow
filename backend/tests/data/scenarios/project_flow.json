@@ -1,0 +1,65 @@
+{
+  "name": "完整项目生命周期场景",
+  "description": "从项目创建到最终验收的完整AI Agent协同工作流",
+  "steps": [
+    {
+      "order": 1,
+      "action": "create_project",
+      "description": "人类用户创建项目并提交初始需求",
+      "expected_status": "项目创建成功，Hermes Agent 开始需求沟通"
+    },
+    {
+      "order": 2,
+      "action": "hermes_requirement_dialog",
+      "description": "Hermes Agent 与人类用户进行需求沟通确认",
+      "expected_status": "生成结构化需求文档"
+    },
+    {
+      "order": 3,
+      "action": "confirm_requirement",
+      "description": "人类用户确认需求文档，锁定需求",
+      "expected_status": "需求已锁定，触发任务拆解"
+    },
+    {
+      "order": 4,
+      "action": "decompose_tasks",
+      "description": "Hermes Agent 按开发流程拆解任务",
+      "expected_status": "生成 DAG 任务依赖图"
+    },
+    {
+      "order": 5,
+      "action": "assign_agents",
+      "description": "Hermes Agent 将任务分配给编程 Agent",
+      "expected_status": "任务状态变为 assigned"
+    },
+    {
+      "order": 6,
+      "action": "execute_tasks",
+      "description": "编程 Agent 执行分配的任务",
+      "expected_status": "任务状态变为 executing"
+    },
+    {
+      "order": 7,
+      "action": "deliver_results",
+      "description": "编程 Agent 交付任务成果",
+      "expected_status": "任务状态变为 delivered"
+    },
+    {
+      "order": 8,
+      "action": "acceptance_check",
+      "description": "Hermes Agent 对交付成果进行自动化验收",
+      "expected_status": "验收通过或驳回"
+    },
+    {
+      "order": 9,
+      "action": "notify_completion",
+      "description": "所有任务验收通过后，通知人类用户",
+      "expected_status": "项目完成通知已发送"
+    }
+  ],
+  "validation_rules": {
+    "cross_agent_validation": "前后相邻任务必须分配给不同的 Agent",
+    "dependency_validation": "下游任务必须等待上游任务验收通过",
+    "acceptance_validation": "验收驳回的任务必须重新执行"
+  }
+}

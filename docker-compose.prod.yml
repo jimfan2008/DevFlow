@@ -1,0 +1,410 @@
+# =============================================================================
+# DevFlow Docker Compose - Production Environment
+# =============================================================================
+# Purpose: Production deployment with isolation, health checks, logging, and resilience
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # FastAPI Application (Production)
+  # =============================================================================
+  # - Multi-stage build from Dockerfile
+  # - Resource limits configured
+  # - Health checks enabled
+  # - Logging configured for production
+  # =============================================================================
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      # Build arguments for dynamic configuration
+      args:
+        - APP_VERSION=${APP_VERSION:-1.0.0}
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+    container_name: devflow-fastapi-prod
+    # Production - no port exposure, use nginx or load balancer
+    # ports:
+    #   - "8000:8000"
+    environment:
+      # Application configuration
+      - APP_NAME=${APP_NAME:-DevFlow}
+      - APP_DEBUG=${APP_DEBUG:-false}
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      # JWT - must be set via secrets
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-30}
+      # Database configuration
+      - DATABASE_URL=${DATABASE_URL}
+      # Redis configuration
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      # Connection pool settings
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-20}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-30}
+      - DB_POOL_TIMEOUT=${DB_POOL_TIMEOUT:-30}
+      # Feature flags
+      - ENABLE_REDIS_CACHE=${ENABLE_REDIS_CACHE:-true}
+      - ENABLE_METRICS=${ENABLE_METRICS:-true}
+      # Logging configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      # Performance tuning
+      - WORKERS=${GUNICORN_WORKERS:-4}
+      - WORKER_TIMEOUT=${GUNICORN_TIMEOUT:-120}
+    env_file:
+      - .env.production
+    # Health check - critical for production reliability
+    healthcheck:
+      test: ["CMD", "python", "-c", 
+        "import httpx; import sys; sys.exit(0 if httpx.get('http://localhost:8000/health', timeout=5).status_code == 200 else 1)"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      disable: false
+    # Resource limits - prevent resource exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    # Production restart policy
+    restart: unless-stopped
+    # Production logging - structured JSON format
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+        labels: "app.name,container.name"
+        tag: "{{.Name}}-{{.ID}}"
+    # Dependencies
+    depends_on:
+      postgres:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_healthy
+        restart: true
+    # Network configuration
+    networks:
+      - devflow-prod-network
+      - devflow-internal-network
+    # Deployment labels
+    labels:
+      - "com.devflow.environment=production"
+      - "com.devflow.service=fastapi"
+      - "com.devflow.version=${APP_VERSION}"
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    # Read-only root filesystem (optional, uncomment if supported)
+    # read_only: true
+    # tmpfs:
+    #   - /tmp:size=64M,mode=1777
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database (Production)
+  # =============================================================================
+  # - Optimized configuration for production
+  # - Persistent storage with proper backups
+  # - Replication support (commented out for simplicity)
+  # =============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: devflow-postgres-prod
+    # Production - no port exposure, internal only
+    # ports:
+    #   - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-devflow_db}
+      # Production-specific settings
+      - PGDATABASE=${POSTGRES_DB:-devflow_db}
+      - PGUSER=${POSTGRES_USER}
+      - PGPASSWORD=${POSTGRES_PASSWORD}
+    # Persistent storage - external volume
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - postgres_prod_backups:/backups
+      # Production configuration
+      - ./docker/postgres/prod.conf:/etc/postgresql.conf:ro
+      # Initialization script (one-time)
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    # Health check - production-critical
+    healthcheck:
+      test: ["CMD-SHELL", 
+        "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-devflow_db} && pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        compress: "true"
+        labels: "app.name,container.name"
+    # Network - internal only
+    networks:
+      - devflow-prod-network
+      - devflow-internal-network
+    labels:
+      - "com.devflow.environment=production"
+      - "com.devflow.service=postgres"
+
+  # ---------------------------------------------------------------------------
+  # Redis Cache Server (Production)
+  # =============================================================================
+  # - Optimized for production workloads
+  # - Persistence enabled
+  # - Memory management configured
+  # =============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis-prod
+    # Production - no port exposure
+    # ports:
+    #   - "6379:6379"
+    environment:
+      - REDIS_MAXMEMORY=${REDIS_MAXMEMORY:-512mb}
+      - REDIS_MAXMEMORY-POLICY=${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory ${REDIS_MAXMEMORY:-512mb} 
+      --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+      --protected-mode yes
+    volumes:
+      - redis_prod_data:/data
+      - redis_prod_backups:/backups
+      # Production configuration
+      - ./docker/redis/prod.conf:/usr/local/etc/redis/redis.conf:ro
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
+    networks:
+      - devflow-prod-network
+      - devflow-internal-network
+    labels:
+      - "com.devflow.environment=production"
+      - "com.devflow.service=redis"
+
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy (Production)
+  # =============================================================================
+  # - SSL termination
+  # - Rate limiting
+  # - Caching
+  # - Load balancing (if multiple fastapi instances)
+  # =============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: devflow-nginx-prod
+    # Production ports
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Main nginx configuration
+      - ./docker/nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      # SSL certificates
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      # Rate limiting configurations
+      - ./docker/nginx/rate-limit.conf:/etc/nginx/conf.d/rate-limit.conf:ro
+      # Static files
+      - ./frontend:/usr/share/nginx/html:ro
+    environment:
+      - NGINX_WORKER_PROCESSES=${NGINX_WORKER_PROCESSES:-auto}
+      - NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-1024}
+      - SSL_CERTIFICATE_PATH=/etc/nginx/ssl/fullchain.pem
+      - SSL_KEY_PATH=/etc/nginx/ssl/privkey.pem
+    depends_on:
+      fastapi:
+        condition: service_healthy
+        restart: true
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        compress: "true"
+        tags: "nginx,${HOSTNAME}"
+    networks:
+      - devflow-prod-network
+      - devflow-public-network
+    labels:
+      - "com.devflow.environment=production"
+      - "com.devflow.service=nginx"
+
+  # ---------------------------------------------------------------------------
+  # Monitoring Stack (Optional but recommended)
+  # =============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: devflow-prometheus-prod
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - devflow-monitoring-network
+    labels:
+      - "com.devflow.environment=production"
+      - "com.devflow.service=prometheus"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: devflow-grafana-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-clock-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - devflow-monitoring-network
+    labels:
+      - "com.devflow.environment=production"
+      - "com.devflow.service=grafana"
+
+# =============================================================================
+# Volumes - Production Data Persistence
+# =============================================================================
+volumes:
+  postgres_prod_data:
+    name: devflow_postgres_prod_data
+    driver: local
+  postgres_prod_backups:
+    name: devflow_postgres_prod_backups
+    driver: local
+  redis_prod_data:
+    name: devflow_redis_prod_data
+    driver: local
+  redis_prod_backups:
+    name: devflow_redis_prod_backups
+    driver: local
+  prometheus_data:
+    name: devflow_prometheus_data
+    driver: local
+  grafana_data:
+    name: devflow_grafana_data
+    driver: local
+
+# =============================================================================
+# Networks - Production Network Segmentation
+# =============================================================================
+networks:
+  devflow-prod-network:
+    name: devflow-prod-network
+    driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+
+  devflow-internal-network:
+    name: devflow-internal-network
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+          gateway: 172.21.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"
+
+  devflow-public-network:
+    name: devflow-public-network
+    driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.22.0.0/24
+          gateway: 172.22.0.1
+    driver_opts:
+      com.docker.network.bridge.name: devflow-public-bridge
+
+  devflow-monitoring-network:
+    name: devflow-monitoring-network
+    driver: bridge
+    internal: false
+    ipam:
+      config:
+        - subnet: 172.23.0.0/24
+          gateway: 172.23.0.1
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"

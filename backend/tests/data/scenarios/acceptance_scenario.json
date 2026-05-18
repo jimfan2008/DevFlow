@@ -1,0 +1,67 @@
+{
+  "name": "成果验收场景",
+  "description": "任务交付后的自动化验收流程",
+  "dimensions": [
+    {
+      "name": "测试用例验收",
+      "criteria": {
+        "coverage": 80,
+        "naming_convention": "test_* 或 *_test.py",
+        "boundary_tests": true
+      }
+    },
+    {
+      "name": "功能代码验收",
+      "criteria": {
+        "syntax_valid": true,
+        "requirement_match": true,
+        "security_checks": true,
+        "code_quality": "lint-free"
+      }
+    },
+    {
+      "name": "测试报告验收",
+      "criteria": {
+        "completeness": true,
+        "problem_records": true,
+        "execution_summary": true
+      }
+    },
+    {
+      "name": "部署环境验收",
+      "criteria": {
+        "availability": true,
+        "compliance": true,
+        "accessibility": true
+      }
+    }
+  ],
+  "rejection_samples": [
+    {
+      "type": "low_coverage",
+      "expected_result": "fail",
+      "details": {
+        "coverage": 65,
+        "issues": ["覆盖率低于阈值", "缺少边界条件测试"]
+      }
+    },
+    {
+      "type": "syntax_error",
+      "expected_result": "fail",
+      "details": {
+        "issues": ["Python语法错误", "模块导入失败"]
+      }
+    }
+  ],
+  "passing_samples": [
+    {
+      "type": "full_pass",
+      "expected_result": "pass",
+      "details": {
+        "coverage": 85,
+        "all_tests_passed": true,
+        "no_lint_errors": true
+      }
+    }
+  ]
+}

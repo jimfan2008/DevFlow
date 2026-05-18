@@ -1,0 +1,36 @@
+{
+  "test_cases": [
+    {
+      "name": "single_chat_basic",
+      "input": "What is the capital of France?",
+      "expected_output": "Paris"
+    },
+    {
+      "name": "single_chat_python",
+      "input": "What is Python?",
+      "expected_output": "Python is a high-level programming language..."
+    },
+    {
+      "name": "multi_turn_name",
+      "inputs": [
+        "My name is Alice",
+        "What's my name?"
+      ],
+      "expected_outputs": [
+        "Hello Alice",
+        "Your name is Alice"
+      ]
+    },
+    {
+      "name": "system_prompt_sql",
+      "system_prompt": "You are a SQL expert. Only answer database questions.",
+      "input": "How do I write a JOIN query?",
+      "expected_keywords": ["JOIN", "SQL", "table"]
+    }
+  ],
+  "batch_test_prompts": [
+    "Explain recursion",
+    "What is a hash table?",
+    "How does garbage collection work?"
+  ]
+}

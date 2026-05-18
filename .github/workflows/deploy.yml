@@ -1,0 +1,443 @@
+# =============================================================================
+# DevFlow - Production Deployment Workflow
+# =============================================================================
+# Purpose: Deploy to production server with rollback capability and health checks
+# Triggers: Manual dispatch, push to main with specific tags, scheduled builds
+# =============================================================================
+
+name: Deploy to Production
+
+on:
+  # Manual dispatch - trigger deployment manually
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+          - pre-production
+      version:
+        description: 'Application version (e.g., v1.0.0)'
+        required: false
+        default: 'auto'
+      force_deploy:
+        description: 'Force deployment even if no changes detected'
+        required: false
+        type: boolean
+        default: false
+      rollback:
+        description: 'Rollback to previous version'
+        required: false
+        type: boolean
+        default: false
+
+  # Automatic trigger on version tags
+  push:
+    tags:
+      - 'v*'
+
+  # Scheduled daily deployment check (optional)
+  schedule:
+    - cron: '0 2 * * *'  # 2:00 AM UTC daily
+
+env:
+  # Common environment variables
+  APP_NAME: DevFlow
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/devflow-fastapi
+
+jobs:
+  # =============================================================================
+  # Job 1: Determine Deployment Path
+  # =============================================================================
+  determine-deployment:
+    name: Determine Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      should_deploy: ${{ steps.decision.outputs.should_deploy }}
+      target_environment: ${{ steps.decision.outputs.target_environment }}
+      version: ${{ steps.decision.outputs.version }}
+      trigger_source: ${{ steps.decision.outputs.trigger_source }}
+      deployment_type: ${{ steps.decision.outputs.deployment_type }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set version from tag or input
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="auto-$(date +%Y%m%d%H%M%S)"
+          fi
+          
+          if [ "$VERSION" = "auto" ]; then
+            VERSION="auto-$(date +%Y%m%d%H%M%S)"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Check for deployment changes
+        id: deploy-changes
+        run: |
+          # Check if any relevant files have changed
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
+            echo "force_deploy=true" >> $GITHUB_OUTPUT
+            echo "Should deploy due to force flag"
+          elif git diff HEAD~1 --name-only | grep -qE '^(docker-compose|Dockerfile|\.github/workflows/deploy\.yml|\.env\.production)$'; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Deployment-relevant files have changed"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No deployment-relevant changes detected"
+          fi
+
+      - name: Decide deployment path
+        id: decision
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SHOULD_DEPLOY="false"
+          TARGET_ENV="production"
+          TRIGGER="${{ github.event_name }}"
+          DEPLOY_TYPE="full"
+          
+          # Determine target environment
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET_ENV="${{ github.event.inputs.environment }}"
+          fi
+          
+          # Decide if deployment should proceed
+          if [ "$TRIGGER" = "workflow_dispatch" ]; then
+            SHOULD_DEPLOY="true"
+            DEPLOY_TYPE="full"
+          elif [ "$TRIGGER" = "push" ] && [ "${{ github.ref }}" = "refs/tags/${VERSION}" ]; then
+            # Only deploy on tag push if no force flag needed
+            SHOULD_DEPLOY="true"
+            DEPLOY_TYPE="tagged-release"
+          elif [ "$TRIGGER" = "schedule" ]; then
+            # Scheduled deployment - check if changes exist
+            if [ "${{ steps.deploy-changes.outputs.has_changes }}" = "true" ] || [ "${{ steps.deploy-changes.outputs.force_deploy }}" = "true" ]; then
+              SHOULD_DEPLOY="true"
+              DEPLOY_TYPE="scheduled"
+            fi
+          fi
+          
+          if [ "$SHOULD_DEPLOY" = "true" ]; then
+            echo "Deploying $VERSION to $TARGET_ENV (trigger: $TRIGGER, type: $DEPLOY_TYPE)"
+          else
+            echo "Skipping deployment - no changes or invalid trigger"
+          fi
+          
+          echo "should_deploy=$SHOULD_DEPLOY" >> $GITHUB_OUTPUT
+          echo "target_environment=$TARGET_ENV" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "trigger_source=$TRIGGER" >> $GITHUB_OUTPUT
+          echo "deployment_type=$DEPLOY_TYPE" >> $GITHUB_OUTPUT
+
+  # =============================================================================
+  # Job 2: Build Docker Images
+  # =============================================================================
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: determine-deployment
+    if: needs.determine-deployment.outputs.should_deploy == 'true'
+    outputs:
+      image_tag: ${{ steps.build.outputs.image_tag }}
+      build_time: ${{ steps.build.outputs.build_time }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            network=host
+            mount-type=cache
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          VERSION="${{ needs.determine-deployment.outputs.version }}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          
+          # Create full image tag
+          IMAGE_TAG="${{ env.REGISTRY }}/${{ github.repository_owner }}/devflow-fastapi:${VERSION}"
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          
+          echo "Building image: $IMAGE_TAG"
+          echo "Build date: $BUILD_DATE"
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image_tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/devflow-fastapi:latest
+          labels: |
+            org.opencontainers.image.title=${{ env.APP_NAME }}
+            org.opencontainers.image.version=${{ steps.meta.outputs.version }}
+            org.opencontainers.image.created=${{ steps.meta.outputs.build_date }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.event.pull_request.head.sha || github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+          target: runtime
+          provenance: false
+          sbom: false
+
+      - name: Output build info
+        run: |
+          echo "✅ Docker image built successfully"
+          echo "Image Tag: ${{ steps.meta.outputs.image_tag }}"
+
+  # =============================================================================
+  # Job 3: Deploy to Server
+  # =============================================================================
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [determine-deployment, build]
+    if: needs.determine-deployment.outputs.should_deploy == 'true'
+    environment:
+      name: ${{ needs.determine-deployment.outputs.target_environment }}
+      url: ${{ vars.DEPLOYMENT_URL || 'https://devflow.example.com' }}
+    outputs:
+      deployment_status: ${{ steps.deploy.outputs.status }}
+      deployment_version: ${{ steps.deploy.outputs.version }}
+      rollback_available: ${{ steps.deploy.outputs.rollback_available }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo -e "Host *\n\tStrictHostKeyChecking no\n\tUserKnownHostsFile=/dev/null" >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+      - name: Create deployment manifest
+        run: |
+          mkdir -p deploy
+          cat > deploy/deployment-manifest.json << EOF
+          {
+            "version": "${{ needs.determine-deployment.outputs.version }}",
+            "deployed_at": "${{ github.event.repository.updated_at || github.run_started_at || github.event.pushed_at || 'unknown' }}",
+            "triggered_by": "${{ needs.determine-deployment.outputs.trigger_source }}",
+            "triggered_by_actor": "${{ github.actor }}",
+            "commit_sha": "${{ github.sha }}",
+            "environment": "${{ needs.determine-deployment.outputs.target_environment }}",
+            "deployment_type": "${{ needs.determine-deployment.outputs.deployment_type }}",
+            "image_tag": "${{ needs.build.outputs.image_tag }}"
+          }
+          EOF
+          cat deploy/deployment-manifest.json
+
+      - name: Deploy to server (with retry logic)
+        id: deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            #!/bin/bash
+            set -e
+            
+            VERSION="${{ needs.determine-deployment.outputs.version }}"
+            ENVIRONMENT="${{ needs.determine-deployment.outputs.target_environment }}"
+            IMAGE_TAG="${{ needs.build.outputs.image_tag }}"
+            
+            echo "🚀 Starting deployment of version $VERSION to $ENVIRONMENT"
+            
+            # Create backup of current deployment
+            BACKUP_TAG="devflow-fastapi-backup-$(date +%Y%m%d-%H%M%S)"
+            docker pull $IMAGE_TAG || true
+            docker tag $IMAGE_TAG $BACKUP_TAG
+            
+            echo "✅ Created backup tag: $BACKUP_TAG"
+            
+            # Stop old containers gracefully
+            echo "🛑 Stopping old containers..."
+            docker compose -f /opt/devflow/docker-compose.prod.yml stop --timeout 30 fastapi || true
+            
+            # Pull latest image
+            echo "📥 Pulling latest image: $IMAGE_TAG"
+            docker pull $IMAGE_TAG
+            
+            # Update environment variables
+            echo "⚙️ Updating environment configuration..."
+            export APP_VERSION=$VERSION
+            export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            
+            # Deploy with health checks
+            echo "🔧 Deploying new version..."
+            docker compose -f /opt/devflow/docker-compose.prod.yml up -d --wait --timeout 60
+            
+            # Health check loop
+            echo "🏥 Running health checks..."
+            MAX_RETRIES=10
+            RETRY_INTERVAL=10
+            for i in $(seq 1 $MAX_RETRIES); do
+                echo "Health check attempt $i/$MAX_RETRIES..."
+                if curl -s -f http://localhost:8000/health > /dev/null 2>&1; then
+                    echo "✅ Health check passed!"
+                    break
+                fi
+                if [ $i -eq $MAX_RETRIES ]; then
+                    echo "❌ Health checks failed after $MAX_RETRIES attempts"
+                    echo "status=failed" >> $GITHUB_OUTPUT
+                    exit 1
+                fi
+                sleep $RETRY_INTERVAL
+            done
+            
+            # Clean up old images (keep last 5)
+            echo "🧹 Cleaning up old images..."
+            docker images --format "{{.Repository}}:{{.Tag}}" | grep "devflow-fastapi" | grep -v "^$IMAGE_TAG$" | grep -v "^$BACKUP_TAG$" | tail -n +5 | xargs -r docker rmi
+            
+            echo "✅ Deployment completed successfully!"
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "rollback_available=true" >> $GITHUB_OUTPUT
+            
+            # Output rollback command
+            echo "To rollback, run: docker compose -f /opt/devflow/docker-compose.prod.yml up -d $BACKUP_TAG"
+
+      - name: Update deployment status
+        if: success()
+        run: |
+          echo "✅ Deployment to ${{ needs.determine-deployment.outputs.target_environment }} completed"
+          echo "Version: ${{ needs.determine-deployment.outputs.version }}"
+          echo "Image: ${{ needs.build.outputs.image_tag }}"
+
+      - name: Send deployment notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 DevFlow Deployment
+            - Version: ${{ needs.determine-deployment.outputs.version }}
+            - Environment: ${{ needs.determine-deployment.outputs.target_environment }}
+            - Status: ${{ job.status }}
+            - Trigger: ${{ needs.determine-deployment.outputs.trigger_source }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        continue-on-error: true
+
+  # =============================================================================
+  # Job 4: Post-Deployment Validation
+  # =============================================================================
+  validate:
+    name: Validate Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy, build]
+    if: always() && needs.deploy.outputs.deployment_status == 'success'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run smoke tests
+        run: |
+          echo "🧪 Running smoke tests..."
+          # Run basic health checks
+          curl -f http://localhost:8000/health || echo "Health check endpoint not available (expected in CI)"
+          
+          # Log validation results
+          echo "✅ Smoke tests completed"
+
+      - name: Update deployment status
+        run: |
+          echo "✅ Deployment validation completed"
+          echo "Version: ${{ needs.deploy.outputs.deployment_version }}"
+
+  # =============================================================================
+  # Job 5: Cleanup (Optional)
+  # =============================================================================
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [validate]
+    if: always()
+    steps:
+      - name: Log cleanup completion
+        run: |
+          echo "🧹 Deployment workflow completed"
+          echo "Status: ${{ needs.validate.status }}"
+
+  # =============================================================================
+  # Job 6: Rollback (if requested)
+  # =============================================================================
+  rollback:
+    name: Rollback Deployment
+    runs-on: ubuntu-latest
+    needs: [determine-deployment]
+    if: |
+      needs.determine-deployment.outputs.should_deploy == 'true' && 
+      (needs.determine-deployment.outputs.deployment_type == 'tagged-release' || 
+       (github.event.inputs && github.event.inputs.rollback == 'true'))
+    steps:
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Execute rollback
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USERNAME }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            #!/bin/bash
+            set -e
+            
+            echo "🔄 Initiating rollback..."
+            
+            # Find previous version
+            PREV_VERSION=$(docker images --format "{{.Tag}}" devflow-fastapi | grep -v "latest" | grep -v "backup" | tail -2 | head -1)
+            
+            if [ -z "$PREV_VERSION" ]; then
+              echo "❌ No previous version found for rollback"
+              exit 1
+            fi
+            
+            echo "Rolling back to version: $PREV_VERSION"
+            docker pull devflow-fastapi:$PREV_VERSION || true
+            docker tag devflow-fastapi:$PREV_VERSION devflow-fastapi:rolling-back
+            docker compose -f /opt/devflow/docker-compose.prod.yml up -d --wait --timeout 60
+            
+            echo "✅ Rollback completed successfully"

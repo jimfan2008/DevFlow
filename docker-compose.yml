@@ -1,0 +1,207 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: devflow-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+    environment:
+      - NGINX_WORKER_PROCESSES=auto
+      - NGINX_WORKER_CONNECTIONS=1024
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devflow-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=DevFlow
+      - APP_DEBUG=false
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=30
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+      - HERMES_API_BASE=${HERMES_API_BASE:-http://10.28.83.151:8000/v1}
+      - HERMES_API_KEY=${HERMES_API_KEY:-placeholder}
+      - HERMES_MODEL=${HERMES_MODEL:-qwen3.6-35b-4.75bit}
+      - GITEA_URL=http://gitea:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - devflow-network
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devflow-celery-worker
+    command: celery -A app.tasks worker --loglevel=info --concurrency=4
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: devflow-celery-beat
+    command: celery -A app.tasks beat --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: build
+    container_name: devflow-frontend
+    restart: "no"
+    networks:
+      - devflow-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: devflow-postgres
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_USER=devflow_user
+      - POSTGRES_PASSWORD=devflow_password
+      - POSTGRES_DB=devflow_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U devflow_user -d devflow_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: devflow-gitea
+    ports:
+      - "3000:3000"
+      - "2222:22"
+    environment:
+      - GITEA__database__DB_TYPE=postgres
+      - GITEA__database__HOST=gitea-db:5432
+      - GITEA__database__NAME=gitea
+      - GITEA__database__USER=gitea
+      - GITEA__database__PASSWD=gitea_password
+      - GITEA__server__ROOT_URL=http://localhost:3000
+    volumes:
+      - gitea_data:/data
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  gitea-db:
+    image: postgres:16-alpine
+    container_name: devflow-gitea-db
+    environment:
+      - POSTGRES_USER=gitea
+      - POSTGRES_PASSWORD=gitea_password
+      - POSTGRES_DB=gitea
+    volumes:
+      - gitea_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitea -d gitea"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  gitea_data:
+  gitea_db_data:
+  frontend_dist:
+
+networks:
+  default:
+    name: devflow-network
+    driver: bridge

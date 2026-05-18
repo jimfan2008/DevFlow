@@ -1,0 +1,22 @@
+{
+  "successful_execution": {
+    "id": "exec_success_001",
+    "task_id": "task_delivered",
+    "agent_id": "agent_opencode_001",
+    "status": "completed",
+    "started_at": "2026-05-10T08:00:00Z",
+    "completed_at": "2026-05-10T12:00:00Z",
+    "result_summary": "用户管理模块开发完成，包含完整的API接口",
+    "output_files": ["src/services/user_service.py", "src/api/users.py", "tests/test_users.py"]
+  },
+  "in_progress_execution": {
+    "id": "exec_running_001",
+    "task_id": "task_test_cases",
+    "agent_id": "agent_claude_001",
+    "status": "executing",
+    "started_at": "2026-05-15T09:00:00Z",
+    "completed_at": null,
+    "result_summary": "正在编写测试用例...",
+    "output_files": []
+  }
+}

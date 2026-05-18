@@ -1,0 +1,29 @@
+{
+  "test_user": {
+    "id": "user_test_001",
+    "username": "test_user",
+    "email": "test@example.com",
+    "password": "test123456",
+    "full_name": "Test User",
+    "role": "member",
+    "is_active": true
+  },
+  "test_admin": {
+    "id": "user_admin_001",
+    "username": "admin",
+    "email": "admin@example.com",
+    "password": "admin123",
+    "full_name": "Admin User",
+    "role": "admin",
+    "is_active": true
+  },
+  "project_owner": {
+    "id": "user_owner_001",
+    "username": "project_owner",
+    "email": "owner@example.com",
+    "password": "owner123",
+    "full_name": "Project Owner",
+    "role": "member",
+    "is_active": true
+  }
+}

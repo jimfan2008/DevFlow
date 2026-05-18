@@ -1,0 +1,73 @@
+{
+  "user_management_task": {
+    "id": "task_user_management",
+    "project_id": "project_ecommerce_001",
+    "name": "用户管理模块开发",
+    "description": "实现用户注册、登录、个人信息管理功能",
+    "type": "coding",
+    "priority": "high",
+    "agent_type": "opencode",
+    "assignee_agent_id": null,
+    "status": "pending",
+    "acceptance_criteria": "1. 用户可注册新账号\n2. 用户可登录/登出\n3. 密码使用bcrypt加密\n4. JWT Token认证",
+    "is_blocked": false,
+    "blocked_by_count": 0
+  },
+  "product_management_task": {
+    "id": "task_product_management",
+    "project_id": "project_ecommerce_001",
+    "name": "商品管理模块开发",
+    "description": "实现商品CRUD、分类管理、库存管理功能",
+    "type": "coding",
+    "priority": "high",
+    "agent_type": "opencode",
+    "assignee_agent_id": "agent_opencode_001",
+    "status": "assigned",
+    "acceptance_criteria": "1. 商品CRUD完整\n2. 支持分类管理\n3. 库存同步更新",
+    "is_blocked": false,
+    "blocked_by_count": 0
+  },
+  "test_case_writing_task": {
+    "id": "task_test_cases",
+    "project_id": "project_ecommerce_001",
+    "name": "编写单元测试用例",
+    "description": "为所有接口编写单元测试",
+    "type": "test_case_writing",
+    "priority": "medium",
+    "agent_type": "claude_code",
+    "assignee_agent_id": "agent_claude_001",
+    "status": "executing",
+    "acceptance_criteria": "1. 覆盖率 >= 80%\n2. 测试用例命名规范\n3. 包含边界测试",
+    "is_blocked": false,
+    "blocked_by_count": 0
+  },
+  "deployment_task": {
+    "id": "task_deployment",
+    "project_id": "project_ecommerce_001",
+    "name": "生产环境部署",
+    "description": "搭建Docker化部署环境",
+    "type": "deployment",
+    "priority": "high",
+    "agent_type": "cursor",
+    "assignee_agent_id": null,
+    "status": "pending",
+    "acceptance_criteria": "1. Docker Compose配置\n2. Nginx反向代理\n3. 数据库备份策略",
+    "is_blocked": true,
+    "blocked_by_count": 1
+  },
+  "delivered_task": {
+    "id": "task_delivered",
+    "project_id": "project_ecommerce_001",
+    "name": "已交付的任务",
+    "description": "已完成并交付的测试任务",
+    "type": "coding",
+    "priority": "low",
+    "agent_type": "opencode",
+    "assignee_agent_id": "agent_opencode_001",
+    "status": "delivered",
+    "acceptance_criteria": "功能正常运行",
+    "is_blocked": false,
+    "blocked_by_count": 0,
+    "result_summary": "代码已提交，包含完整的单元测试"
+  }
+}

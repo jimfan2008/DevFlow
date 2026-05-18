@@ -1,0 +1,20 @@
+{
+  "user_product_dep": {
+    "id": "dep_user_product",
+    "source_task_id": "task_product_management",
+    "target_task_id": "task_user_management",
+    "dependency_type": "blocks"
+  },
+  "test_dep": {
+    "id": "dep_test",
+    "source_task_id": "task_test_cases",
+    "target_task_id": "task_product_management",
+    "dependency_type": "blocks"
+  },
+  "deploy_dep": {
+    "id": "dep_deploy",
+    "source_task_id": "task_deployment",
+    "target_task_id": "task_test_cases",
+    "dependency_type": "blocks"
+  }
+}
