@@ -21,10 +21,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     projects = relationship("Project", back_populates="creator", foreign_keys="Project.creator_id")
-    assigned_tasks = relationship("Task", back_populates="assignee", foreign_keys="Task.assignee_id")
-    created_tasks = relationship("Task", back_populates="creator", foreign_keys="Task.creator_id")
     comments = relationship("Comment", back_populates="user")
-    inbox_items = relationship("InboxItem", back_populates="user")
     notifications = relationship("Notification", back_populates="user")
 
     __table_args__ = (

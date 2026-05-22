@@ -11,7 +11,7 @@ ACCESS_TOKEN_EXPIRE_SECONDS = 86400
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return pwd_context.hash(password[:72])
 
 
 get_password_hash = hash_password
@@ -36,6 +36,8 @@ def create_refresh_token(user_id: str) -> str:
 
 
 def decode_token(token: str) -> Optional[Dict[str, Any]]:
+    if not token:
+        return None
     try:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
     except (ExpiredSignatureError, JWTError):

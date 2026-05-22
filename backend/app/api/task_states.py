@@ -12,7 +12,7 @@ from app.services.task_state_service import TaskStateService
 from app.services.skill_schedule_service import SkillScheduleService
 from app.models.enums import TaskStatus
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 class SkillAssignRequest(BaseModel):

@@ -4,14 +4,15 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, Set, List
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from app.database import get_db, SessionLocal
 from app.services.conversation_coordinator import coordinator
 from app.services.group_service import GroupService
+from app.services.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 class ConnectionManager:
@@ -197,6 +198,47 @@ async def handle_send_message(group_id: str, content: str, sender_id: str):
 
     finally:
         _close_service(db)
+
+
+notification_connections: Dict[str, WebSocket] = {}
+
+
+@router.websocket("/notifications")
+async def websocket_notifications(websocket: WebSocket, token: str = Query(default="")):
+    user_id = None
+    try:
+        db = SessionLocal()
+        auth_service = AuthService(db=db)
+        user_id = auth_service.verify_token(token, token_type="access")
+        db.close()
+    except Exception:
+        pass
+
+    if not user_id:
+        await websocket.close(code=4001, reason="Invalid token")
+        return
+
+    client_id = str(uuid.uuid4())
+    await websocket.accept()
+    notification_connections[client_id] = websocket
+    logger.info(f"Notification WS connected: user_id={user_id}, client={client_id}")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                msg_type = message.get("type")
+                if msg_type == "ping":
+                    await websocket.send_json({"type": "pong"})
+                elif msg_type == "subscribe":
+                    await websocket.send_json({"type": "subscribed", "channel": message.get("channel", "all")})
+            except json.JSONDecodeError:
+                pass
+    except WebSocketDisconnect:
+        logger.info(f"Notification WS disconnected: client={client_id}")
+    finally:
+        notification_connections.pop(client_id, None)
 
 
 async def handle_meeting_intervention(group_id: str, content: str, sender_id: str):

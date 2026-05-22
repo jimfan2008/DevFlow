@@ -1,0 +1,80 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: devflow-postgres
+    ports:
+      - "15432:5432"
+    environment:
+      - POSTGRES_USER=devflow_user
+      - POSTGRES_PASSWORD=devflow_password
+      - POSTGRES_DB=devflow_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U devflow_user -d devflow_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: devflow-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: devflow-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_NAME=DevFlow
+      - APP_DEBUG=true
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - FRONTEND_URL=http://localhost:5173
+      - JWT_SECRET=dev-jwt-secret-key-change-in-production
+      - JWT_ALGORITHM=HS256
+      - JWT_EXPIRE_MINUTES=30
+      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/2
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - devflow-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  devflow-network:
+    name: devflow-network
+    driver: bridge

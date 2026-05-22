@@ -19,14 +19,24 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useWebSocketStore } from '@/stores/useWebSocketStore'
 import AppHeader from '@/components/common/AppHeader.vue'
 import AppSidebar from '@/components/common/AppSidebar.vue'
 import NotificationContainer from '@/components/inbox/NotificationContainer.vue'
 
 const authStore = useAuthStore()
+const wsStore = useWebSocketStore()
 const isLoggedIn = computed(() => authStore.isAuthenticated)
+
+watch(isLoggedIn, (val) => {
+  if (val && authStore.accessToken) {
+    wsStore.connect(authStore.accessToken)
+  } else {
+    wsStore.disconnect()
+  }
+}, { immediate: true })
 </script>
 
 <style lang="scss">

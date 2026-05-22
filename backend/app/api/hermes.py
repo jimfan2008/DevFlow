@@ -12,7 +12,7 @@ from app.services.gateway_health import check_gateway_health
 import logging
 
 logger = logging.getLogger("devflow.hermes")
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.get("/hermes/health", response_model=dict)
@@ -39,6 +39,25 @@ async def hermes_health(
             if health.get("healthy"):
                 overall_healthy = True
         else:
+            # Agent has no port in config, try HERMES_API_BASE fallback
+            if settings.HERMES_API_BASE and not overall_healthy:
+                try:
+                    resp = httpx.get(
+                        f"{settings.HERMES_API_BASE.rstrip('/v1').rstrip('/')}/health",
+                        timeout=5.0,
+                    )
+                    is_healthy = resp.status_code == 200
+                    results.append({
+                        "agent_id": agent.id,
+                        "name": agent.name,
+                        "healthy": is_healthy,
+                        "port": None,
+                    })
+                    if is_healthy:
+                        overall_healthy = True
+                    continue
+                except Exception:
+                    pass
             results.append({
                 "agent_id": agent.id,
                 "name": agent.name,
@@ -157,12 +176,17 @@ def hermes_status(
     else:
         agent_info = None
 
+    connected = hermes_agent.status == "online" if hermes_agent else False
+
     return {
         "code": 0,
         "message": "success",
         "data": {
+            "connected": connected,
+            "mode": "online" if connected else "offline",
+            "version": (getattr(hermes_agent, 'version', None) or "0.0.0") if hermes_agent else "0.0.0",
+            "capabilities": [],
             "agent": agent_info,
-            "connected": hermes_agent.status == "online" if hermes_agent else False,
         },
     }
 

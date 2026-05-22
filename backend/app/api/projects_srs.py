@@ -18,7 +18,7 @@ from app.schemas.project_srs import (
     ProjectCompleteResponse,
 )
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.get("", response_model=dict)
@@ -36,8 +36,9 @@ def list_projects(
                 {
                     "id": p.id,
                     "name": p.name,
-                    "slug": p.slug,
+                    "slug": p.slug if hasattr(p, 'slug') else p.name.lower().replace(" ", "-"),
                     "description": p.description,
+                    "status": p.status if hasattr(p, 'status') else "draft",
                     "created_at": p.created_at.isoformat() if p.created_at else None,
                 }
                 for p in projects
@@ -61,7 +62,7 @@ def create_project(
     project = Project(
         id=str(uuid.uuid4()),
         name=data.name,
-        slug=data.name.lower().replace(" ", "-").replace("_", "-")[:100],
+        slug=data.name.lower().replace(" ", "-").replace("_", "-"),
         description=data.description or "",
         creator_id=current_user.id,
     )

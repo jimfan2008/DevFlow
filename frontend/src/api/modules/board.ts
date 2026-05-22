@@ -3,10 +3,10 @@ import type { ApiResponse, PaginatedResponse, BoardDetail as BoardDetailType, Bo
 
 export const boardApi = {
   create(data: BoardCreateRequest) {
-    return apiClient.post<ApiResponse<BoardDetailType>>('/boards/', data)
+    return apiClient.post<ApiResponse<BoardDetailType>>('/boards', data)
   },
   list(params?: { page?: number; page_size?: number; order_by?: string; order_dir?: string }) {
-    return apiClient.get<PaginatedResponse<BoardListItem>>('/boards/', { params })
+    return apiClient.get<PaginatedResponse<BoardListItem>>('/boards', { params })
   },
   detail(boardId: string) {
     return apiClient.get<ApiResponse<BoardDetailType>>(`/boards/${boardId}`)

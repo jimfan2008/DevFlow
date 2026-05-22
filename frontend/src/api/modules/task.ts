@@ -3,13 +3,13 @@ import type { ApiResponse, PaginatedResponse, TaskFull, TaskBasic, TaskCreateReq
 
 export const taskApi = {
   create(data: TaskCreateRequest) {
-    return apiClient.post<ApiResponse<TaskFull>>('/tasks/', data)
+    return apiClient.post<ApiResponse<TaskFull>>('/tasks', data)
   },
   list(params?: { board_id?: string; column_id?: string; status?: string; assignee_id?: string; priority?: string; tags?: string; search?: string; created_after?: string; due_before?: string; page?: number; page_size?: number }) {
-    return apiClient.get<PaginatedResponse<TaskBasic>>('/tasks/', { params })
+    return apiClient.get<PaginatedResponse<TaskBasic>>('/tasks', { params })
   },
   byBoard(boardId: string, params?: { page_size?: number }) {
-    return apiClient.get<ApiResponse<TaskBasic[]>>('/tasks/', { params: { board_id: boardId, ...(params || {}), page_size: params?.page_size || 200 } })
+    return apiClient.get<ApiResponse<TaskBasic[]>>('/tasks', { params: { board_id: boardId, ...(params || {}), page_size: params?.page_size || 200 } })
   },
   detail(taskId: string) {
     return apiClient.get<ApiResponse<TaskFull>>(`/tasks/${taskId}`)
@@ -59,12 +59,12 @@ export const attachmentApi = {
 
 export const dependencyApi = {
   create(taskId: string, data: DependencyCreateRequest) {
-    return apiClient.post<ApiResponse<{ id: string; task_id: string; predecessor_id: string; created_at: string }>>(`/tasks/${taskId}/dependencies`, data)
+    return apiClient.post<ApiResponse<{ id: string; task_id: string; predecessor_id: string; created_at: string }>>(`/tasks/${taskId}/depend`, data)
   },
   list(taskId: string, type?: 'predecessors' | 'successors') {
-    return apiClient.get<ApiResponse<TaskBrief[]>>(`/tasks/${taskId}/dependencies`, { params: { type } })
+    return apiClient.get<ApiResponse<TaskBrief[]>>(`/tasks/${taskId}/depend`, { params: { type } })
   },
-  delete(dependencyId: string) {
-    return apiClient.delete<ApiResponse<null>>(`/dependencies/${dependencyId}`)
+  delete(taskId: string, targetId: string) {
+    return apiClient.delete<ApiResponse<null>>(`/tasks/${taskId}/depend/${targetId}`)
   },
 }

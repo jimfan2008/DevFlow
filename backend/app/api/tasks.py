@@ -17,7 +17,7 @@ from app.schemas.task import (
     TaskCreate, TaskUpdate, TaskStatusUpdate, TaskMoveRequest,
 )
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 def _task_service(db: Session, current_user) -> TaskService:
@@ -33,7 +33,7 @@ def _attachment_service(db: Session, current_user) -> AttachmentService:
 
 
 # ── 任务 CRUD ────────────────────────────────────────────
-@router.post("/", tags=["tasks"])
+@router.post("", tags=["tasks"])
 def create_task(
     data: TaskCreate,
     current_user=Depends(get_current_user),
@@ -43,15 +43,16 @@ def create_task(
     try:
         service = _task_service(db, current_user)
         result = service.create_task(
-            board_id=data.board_id,
-            title=data.title,
+            project_id=data.project_id or "",
+            name=data.name or data.title or "",
+            type=data.type or "coding",
             description=data.description,
-            status=data.status or "todo",
+            status=data.status or "pending",
             priority=data.priority or "medium",
-            assignee_id=data.assignee_id,
-            due_date=data.due_date,
-            estimated_hours=data.estimated_hours,
-            column_id=data.column_id,
+            agent_type_preference=data.agent_type_preference,
+            assignee_agent_id=data.assignee_id,
+            acceptance_criteria=data.acceptance_criteria,
+            deadline=data.deadline or data.due_date,
         )
         return {
             "code": 0,
@@ -62,8 +63,9 @@ def create_task(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/", tags=["tasks"])
+@router.get("", tags=["tasks"])
 def list_tasks(
+    project_id: str = Query(None),
     board_id: str = Query(None),
     status: str = Query(None),
     assignee_id: str = Query(None),
@@ -79,7 +81,8 @@ def list_tasks(
             "code": 0,
             "message": "success",
             "data": service.list_tasks(
-                board_id, status, assignee_id, page, per_page
+                project_id=project_id or board_id, status=status,
+                assignee_agent_id=assignee_id, page=page, per_page=per_page
             ),
         }
     except Exception as e:

@@ -113,12 +113,13 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchCurrentUser() {
     if (!accessToken.value) return
     try {
-      const res = await authApi.me()
-      if (res.data) {
+      const res = await authApi.me() as any
+      if (res?.data?.user) {
+        user.value = res.data.user
+      } else if (res?.data) {
         user.value = res.data
       }
     } catch {
-      // Token 可能过期，由响应拦截器处理
     }
   }
 

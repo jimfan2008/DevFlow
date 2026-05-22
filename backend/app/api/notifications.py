@@ -7,7 +7,7 @@ from app.models.user import User
 from app.services.notification_service import NotificationService
 from app.schemas.notification import NotificationCreate
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.get("", response_model=dict)

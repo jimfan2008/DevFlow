@@ -14,7 +14,7 @@ from app.models.user import User
 import logging
 
 logger = logging.getLogger("devflow.auth")
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.post("/register", tags=["auth"])
@@ -39,17 +39,19 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
                 "tokens": result["tokens"],
             },
         }
-    except UserAlreadyExists as e:
-        raise HTTPException(status_code=400, detail={"error_code": e.error_code, "message": e.detail})
+    except UserAlreadyExists:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/login", tags=["auth"])
 def login(data: LoginRequest, db: Session = Depends(get_db)):
+    username = data.username or data.email
+    if not username:
+        raise HTTPException(status_code=422, detail="username or email is required")
     auth_service = AuthService(db=db)
     try:
-        username = data.username or data.email
         result = auth_service.login(
             username_or_email=username,
             password=data.password,
@@ -62,12 +64,8 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
                 "tokens": result["tokens"],
             },
         }
-    except AuthUserNotFoundError as e:
-        raise HTTPException(status_code=401, detail={"error_code": e.error_code, "message": e.detail})
-    except AuthPasswordError as e:
-        raise HTTPException(status_code=401, detail={"error_code": e.error_code, "message": e.detail})
-    except InvalidCredentials as e:
-        raise HTTPException(status_code=401, detail={"error_code": e.error_code, "message": e.detail})
+    except (AuthUserNotFoundError, AuthPasswordError, InvalidCredentials):
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -91,8 +89,6 @@ def update_me(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if data.full_name is not None:
-        user.full_name = data.full_name
     if data.avatar_url is not None:
         user.avatar_url = data.avatar_url
 
@@ -115,8 +111,6 @@ def update_me_patch(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if data.full_name is not None:
-        user.full_name = data.full_name
     if data.avatar_url is not None:
         user.avatar_url = data.avatar_url
 

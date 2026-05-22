@@ -18,14 +18,14 @@ from app.models.task import Task
 
 from datetime import datetime, timezone, timedelta
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 def _get_service(db: Session, current_user):
     return BoardService(db=db, current_user_id=current_user.id)
 
 
-@router.post("/", tags=["boards"])
+@router.post("", tags=["boards"])
 def create_board(
     data: BoardCreate,
     current_user=Depends(get_current_user),
@@ -50,7 +50,7 @@ def create_board(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/", tags=["boards"])
+@router.get("", tags=["boards"])
 def list_boards(
     project_id: str = Query(None),
     current_user=Depends(get_current_user),
@@ -264,9 +264,8 @@ def get_workload_trend(
     try:
         start_date = datetime.now(timezone.utc) - timedelta(days=days)
         tasks = db.query(Task).filter(
-            Task.board_id == board_id,
+            Task.project_id == board_id,
             Task.created_at >= start_date,
-            Task.status != "done",
         ).all()
 
         trend = []
@@ -278,8 +277,8 @@ def get_workload_trend(
             ]
             trend.append({
                 "date": day.isoformat(),
-                "created": len([t for t in day_tasks if t.status != "done"]),
-                "completed": len([t for t in day_tasks if t.status == "done"]),
+                "created": len([t for t in day_tasks if t.status not in ("accepted", "delivered")]),
+                "completed": len([t for t in day_tasks if t.status in ("accepted", "delivered")]),
             })
         return {
             "code": 0,

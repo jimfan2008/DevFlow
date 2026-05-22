@@ -77,11 +77,14 @@ export const useRequirementStore = defineStore('requirement', () => {
     error.value = null
     try {
       const res = await projectSrsApi.create({ name, description }) as any
-      if (res?.data?.project) {
+      // apiClient 响应拦截器展平了 response，res 就是解包后的数据
+      // 原始响应是 {code: 0, message: "success", data: {project: {id, name}}}
+      const proj = res?.data?.project ?? res?.project
+      if (proj) {
         const newProject: ProjectItem = {
-          id: res.data.project.id,
-          name: res.data.project.name,
-          slug: res.data.project.slug,
+          id: proj.id,
+          name: proj.name,
+          slug: proj.slug ?? '',
           description,
         }
         projects.value.push(newProject)
@@ -89,6 +92,7 @@ export const useRequirementStore = defineStore('requirement', () => {
       }
     } catch (e: any) {
       error.value = e.message || '创建项目失败'
+      ElMessage.error(e.message || '创建项目失败')
     } finally {
       loading.value = false
     }

@@ -349,6 +349,9 @@ async function handleCreateProject() {
     selectedProjectId.value = project.id
     store.selectProject(project.id)
     setTimeout(() => handleStartChat(), 300)
+  } else {
+    // API 调用失败或响应结构不符：给出明确提示
+    ElMessage.error(store.error || '创建项目失败，请重试')
   }
 }
 
@@ -447,7 +450,7 @@ async function handleDecompose() {
 }
 
 function handleClearChat() {
-  store.chatMessages.value = []
+  store.chatMessages.splice(0, store.chatMessages.length)
   chatQuestions.value = []
   chatRound.value = 0
   setTimeout(() => handleStartChat(), 200)

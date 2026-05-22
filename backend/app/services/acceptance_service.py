@@ -83,13 +83,10 @@ class AcceptanceService:
         return suggestions
 
     def final_acceptance(self, project_id: str) -> dict:
-        """全项目最终验收 - 验证所有任务均验收通过。"""
-        from app.models.board import Board
-
-        tasks = self.db.query(Task).join(Board).filter(Board.project_id == project_id).all()
+        tasks = self.db.query(Task).filter(Task.project_id == project_id).all()
 
         total = len(tasks)
-        pending = [t for t in tasks if t.status not in ("done", "accepted")]
+        pending = [t for t in tasks if t.status not in ("accepted", "delivered")]
         rejected = [t for t in tasks if t.status == "rejected"]
 
         passed_all = len(pending) == 0 and len(rejected) == 0
@@ -99,6 +96,6 @@ class AcceptanceService:
             "total_tasks": total,
             "pending_tasks": len(pending),
             "rejected_tasks": len(rejected),
-            "pending_details": [{"id": t.id, "title": t.title, "status": t.status} for t in pending[:20]],
-            "rejected_details": [{"id": t.id, "title": t.title, "status": t.status} for t in rejected[:20]],
+            "pending_details": [{"id": t.id, "name": t.name, "status": t.status} for t in pending[:20]],
+            "rejected_details": [{"id": t.id, "name": t.name, "status": t.status} for t in rejected[:20]],
         }

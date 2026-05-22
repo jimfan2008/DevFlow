@@ -5,12 +5,11 @@ services:
     image: nginx:alpine
     container_name: devflow-nginx
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     volumes:
-      - ./docker/nginx/prod.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
-      - frontend_dist:/usr/share/nginx/html:ro
+      - ./docker/nginx/dev.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
     environment:
       - NGINX_WORKER_PROCESSES=auto
       - NGINX_WORKER_CONNECTIONS=1024
@@ -34,16 +33,18 @@ services:
       - APP_DEBUG=false
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
+      - FRONTEND_URL=http://localhost
+      - JWT_SECRET=dev-jwt-secret-key-change-in-production
       - JWT_ALGORITHM=HS256
       - JWT_EXPIRE_MINUTES=30
       - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - HERMES_API_BASE=${HERMES_API_BASE:-http://10.28.83.151:8000/v1}
-      - HERMES_API_KEY=${HERMES_API_KEY:-placeholder}
-      - HERMES_MODEL=${HERMES_MODEL:-qwen3.6-35b-4.75bit}
       - GITEA_URL=http://gitea:3000
+      - HERMES_PROFILES_PATH=/hermes-home
+    volumes:
+      - /c/Users/Lenovo/AppData/Local/hermes:/hermes-home:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
@@ -55,11 +56,11 @@ services:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
     networks:
       - devflow-network
 
@@ -69,7 +70,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
     container_name: devflow-celery-worker
-    command: celery -A app.tasks worker --loglevel=info --concurrency=4
+    command: celery -A app.tasks worker --loglevel=info --concurrency=2
     environment:
       - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
       - REDIS_URL=redis://redis:6379/0
@@ -92,7 +93,7 @@ services:
       dockerfile: Dockerfile
       target: runtime
     container_name: devflow-celery-beat
-    command: celery -A app.tasks beat --loglevel=info
+    command: celery -A app.tasks beat --loglevel=info -s /tmp/celerybeat-schedule
     environment:
       - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
       - REDIS_URL=redis://redis:6379/0
@@ -112,7 +113,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: build
-    container_name: devflow-frontend
+    container_name: devflow-frontend-builder
+    volumes:
+      - frontend_dist:/app/dist
     restart: "no"
     networks:
       - devflow-network
@@ -128,6 +131,7 @@ services:
       - POSTGRES_DB=devflow_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U devflow_user -d devflow_db"]
       interval: 10s
@@ -167,6 +171,8 @@ services:
       - GITEA__database__USER=gitea
       - GITEA__database__PASSWD=gitea_password
       - GITEA__server__ROOT_URL=http://localhost:3000
+      - GITEA__server__DOMAIN=localhost
+      - GITEA__server__HTTP_PORT=3000
     volumes:
       - gitea_data:/data
     depends_on:
@@ -202,6 +208,6 @@ volumes:
   frontend_dist:
 
 networks:
-  default:
+  devflow-network:
     name: devflow-network
     driver: bridge

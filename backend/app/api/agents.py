@@ -18,7 +18,7 @@ from app.schemas.agent import (
 import logging
 
 logger = logging.getLogger("devflow.agents")
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.get("/agents", response_model=dict)
@@ -72,12 +72,14 @@ def get_agent_detail(
 def delete_agent(
     agent_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ):
     agent = db.query(Agent).filter(Agent.id == agent_id).first()
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
+    from app.models.hermes_skill import HermesSkill
+    db.query(HermesSkill).filter(HermesSkill.hermes_agent_id == agent_id).delete()
     db.query(AgentHeartbeat).filter(AgentHeartbeat.agent_id == agent_id).delete()
     db.delete(agent)
     db.commit()
@@ -204,3 +206,83 @@ def update_agent_status(
         "message": "success",
         "data": {"agent": agent.to_dict()},
     }
+
+
+@router.post("/agents/scan-profile", response_model=dict)
+async def scan_profiles(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        result = await sync_profiles_to_db(db)
+        return {"code": 0, "message": "success", "data": result}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to scan profiles: {str(e)}")
+
+
+@router.post("/agents/{agent_id}/discover-skills", response_model=dict)
+async def discover_agent_skills(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    skills = db.query(HermesSkill).filter(HermesSkill.hermes_agent_id == agent_id).all()
+    return {"code": 0, "message": "success", "data": {"discovered": [s.to_dict() for s in skills], "total": len(skills)}}
+
+
+@router.post("/agents/assign", response_model=dict)
+def assign_task_to_agent(
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.task import Task
+    task_id = data.get("task_id")
+    agent_id = data.get("agent_id")
+    if not task_id or not agent_id:
+        raise HTTPException(status_code=400, detail="task_id and agent_id are required")
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    task.assignee_id = agent_id
+    db.commit()
+    return {"code": 0, "message": "success", "data": {"execution_id": task_id, "status": "assigned"}}
+
+
+@router.post("/agents/auto-assign/{task_id}", response_model=dict)
+def auto_assign_task(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from app.models.task import Task
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    online_agent = db.query(Agent).filter(Agent.status == "online").first()
+    if not online_agent:
+        raise HTTPException(status_code=400, detail="No online agent available")
+    task.assignee_id = online_agent.id
+    db.commit()
+    return {"code": 0, "message": "success", "data": {"execution_id": task_id, "status": "assigned"}}
+
+
+@router.get("/agents/{agent_id}/load", response_model=dict)
+def get_agent_load(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    latest = db.query(AgentHeartbeat).filter(AgentHeartbeat.agent_id == agent_id).order_by(AgentHeartbeat.heartbeat_at.desc()).first()
+    load_level = latest.load_level if latest else 0
+    return {"code": 0, "message": "success", "data": {"load": {"agent_id": agent_id, "load_level": load_level, "status": agent.status}}}

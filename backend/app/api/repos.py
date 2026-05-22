@@ -10,7 +10,7 @@ from app.schemas.repo import (
     PullRequestCreate, PullRequestResponse, CommitResponse,
 )
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.get("", response_model=dict)

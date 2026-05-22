@@ -86,7 +86,8 @@ async function handleLogin() {
   try {
     await authStore.login({ email: form.email, password: form.password })
     ElMessage.success('登录成功')
-    router.push({ name: 'BoardList' })
+    const redirect = router.currentRoute.value.query.redirect as string
+    router.push(redirect || { name: 'ProjectList' })
   } catch (e: any) {
     ElMessage.error(e.message || '登录失败，请重试')
   }

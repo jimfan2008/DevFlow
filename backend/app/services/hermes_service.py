@@ -68,10 +68,11 @@ class HermesService:
                 temperature=0.7,
             )
         except HermesUnavailableError as e:
-            return self._unavailable_response(str(e))
+            logger.warning(f"LLM unavailable, using local fallback: {e}")
+            return self._local_chat_fallback(message, project_context)
         except Exception as e:
             logger.error(f"AI chat failed: {e}")
-            return self._unavailable_response()
+            return self._local_chat_fallback(message, project_context)
 
         reply = result.get("reply", "")
         fuzzy = result.get("fuzzy_points", [])
@@ -108,10 +109,11 @@ class HermesService:
             if not reply or len(reply.strip()) < 10:
                 reply = self._default_intro()
         except HermesUnavailableError as e:
-            return self._unavailable_response(str(e))
+            logger.warning(f"LLM unavailable for intro, using default: {e}")
+            reply = self._default_intro()
         except Exception as e:
             logger.error(f"Intro failed: {e}")
-            return self._unavailable_response()
+            reply = self._default_intro()
 
         questions = ["我想开发一个电商平台", "我需要一个企业管理系统", "我想做一个移动端App"]
         return {"reply": reply, "questions": questions, "snapshot": {}, "phase": "initial"}
@@ -121,6 +123,71 @@ class HermesService:
         if detail:
             msg += f"。{detail}"
         return {"reply": msg, "questions": [], "snapshot": {}, "phase": "initial"}
+
+    def _local_chat_fallback(self, message: str, project_context: Optional[str] = None) -> dict:
+        import re
+        text = message.strip()
+        keywords_tech = ["web", "api", "数据库", "前端", "后端", "微服务", "docker", "k8s", "python", "java", "react", "vue"]
+        keywords_feature = ["登录", "注册", "搜索", "支付", "上传", "通知", "权限", "导出", "报表", "看板"]
+        found_tech = [k for k in keywords_tech if k.lower() in text.lower()]
+        found_feature = [k for k in keywords_feature if k in text]
+
+        if len(text) < 5:
+            reply = "请详细描述一下你的项目需求，比如：项目类型、目标用户、核心功能、技术偏好等。"
+            questions = ["我想开发一个Web应用", "我需要一个企业管理系统", "我想做一个移动端App"]
+            return {"reply": reply, "questions": questions, "snapshot": {}, "phase": "initial"}
+
+        reply_parts = []
+        fuzzy = []
+        summary = {}
+
+        if project_context:
+            summary["项目名称"] = project_context
+
+        if found_tech:
+            reply_parts.append(f"我注意到你提到了技术相关内容：{', '.join(found_tech)}。")
+            summary["技术栈"] = found_tech
+        else:
+            fuzzy.append("你倾向使用什么技术栈？")
+
+        if found_feature:
+            reply_parts.append(f"你提到的功能点包括：{', '.join(found_feature)}。")
+            summary["功能"] = found_feature
+        else:
+            fuzzy.append("项目的核心功能有哪些？")
+
+        if "用户" in text or "客户" in text:
+            reply_parts.append("目标用户方面，你能更具体地描述用户画像吗？")
+        else:
+            fuzzy.append("目标用户是谁？")
+
+        if "规模" not in text and "大小" not in text and "量级" not in text:
+            fuzzy.append("预期的用户规模和并发量级？")
+
+        if len(text) > 50:
+            phase = "discussing"
+            reply_parts.append("你的描述比较详细，我正在梳理需求要点。")
+        elif len(text) > 100:
+            phase = "summarizing"
+            reply_parts.append("信息已经比较充分了，可以考虑提交需求文档。")
+        else:
+            phase = "initial"
+            reply_parts.append("请继续补充更多细节，帮助我更准确地理解你的需求。")
+
+        if not reply_parts:
+            reply_parts.append(f"收到你的需求描述。让我来分析一下关键要点。")
+
+        reply = " ".join(reply_parts)
+        questions = fuzzy[:5] if fuzzy else []
+        if phase == "summarizing" and not questions:
+            questions = ["提交需求并生成文档", "我还想补充一些细节"]
+
+        return {
+            "reply": reply,
+            "questions": questions,
+            "snapshot": summary,
+            "phase": phase,
+        }
 
     def _default_intro(self) -> str:
         return (

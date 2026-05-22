@@ -25,6 +25,24 @@ apiClient.interceptors.response.use(
     return response.data
   },
   (error) => {
+    const responseData = error.response?.data
+
+    if (responseData?.message || responseData?.code) {
+      const normalizedError = new Error(responseData.message || error.message || 'Request failed')
+      ;(normalizedError as any).code = responseData.code
+      ;(normalizedError as any).details = responseData.details
+      ;(normalizedError as any).status = error.response?.status
+
+      if (error.response?.status === 401) {
+        const currentPath = window.location.pathname
+        if (currentPath !== '/login' && currentPath !== '/register') {
+          localStorage.removeItem('access_token')
+          localStorage.removeItem('refresh_token')
+          window.location.href = '/login'
+        }
+      }
+      return Promise.reject(normalizedError)
+    }
     if (error.response?.status === 401) {
       const currentPath = window.location.pathname
       if (currentPath !== '/login' && currentPath !== '/register') {

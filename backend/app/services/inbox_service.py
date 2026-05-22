@@ -123,42 +123,39 @@ class InboxService:
         InboxItem, Notification, Task, User = self._import_models()
         now = datetime.now(timezone.utc)
         tasks = self.db.query(Task).filter(
-            Task.assignee_id == user_id,
-            Task.status != "done",
-            Task.due_date != None
+            Task.assignee_agent_id == user_id,
+            Task.status != "accepted",
+            Task.deadline != None
         ).all()
         reminders = []
         for task in tasks:
-            if task.due_date:
-                days_remaining = (task.due_date - now).days
+            if task.deadline:
+                days_remaining = (task.deadline - now).days
                 if days_remaining <= 0:
                     reminders.append({
                         "task_id": task.id,
-                        "task_title": task.title,
-                        "due_date": task.due_date.isoformat(),
+                        "task_name": task.name,
+                        "deadline": task.deadline.isoformat(),
                         "days_remaining": days_remaining,
                         "priority": task.priority,
-                        "assignee_id": task.assignee_id,
                         "level": "urgent",
                     })
                 elif days_remaining <= 1:
                     reminders.append({
                         "task_id": task.id,
-                        "task_title": task.title,
-                        "due_date": task.due_date.isoformat(),
+                        "task_name": task.name,
+                        "deadline": task.deadline.isoformat(),
                         "days_remaining": days_remaining,
                         "priority": task.priority,
-                        "assignee_id": task.assignee_id,
                         "level": "soon",
                     })
                 elif days_remaining <= 3:
                     reminders.append({
                         "task_id": task.id,
-                        "task_title": task.title,
-                        "due_date": task.due_date.isoformat(),
+                        "task_name": task.name,
+                        "deadline": task.deadline.isoformat(),
                         "days_remaining": days_remaining,
                         "priority": task.priority,
-                        "assignee_id": task.assignee_id,
                         "level": "upcoming",
                     })
         return reminders
@@ -183,7 +180,7 @@ class InboxService:
             user_id=user_id,
             task_id=task_id,
             type="watched",
-            title=f"开始关注: {task.title}",
+            title=f"开始关注: {task.name}",
             content="",
             is_read=False,
             created_at=datetime.now(timezone.utc),
@@ -199,6 +196,6 @@ class InboxService:
             Task, = self._import_models()[2:3]
             task = self.db.query(Task).filter(Task.id == item.task_id).first()
             if task:
-                d["task_title"] = task.title
+                d["task_name"] = task.name
                 d["task_status"] = task.status
         return d

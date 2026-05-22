@@ -6,7 +6,7 @@ from app.database import get_db
 from app.services.comment_service import CommentService
 from app.api.deps import get_current_user
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.post("/{task_id}/comments", tags=["comments"])
 def create_comment(task_id: str, data: dict, current_user = Depends(get_current_user), db: Session = Depends(get_db)):

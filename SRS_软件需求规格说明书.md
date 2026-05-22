@@ -73,7 +73,7 @@
 
 ### 1.1 目的
 
-本文档定义 DevFlow 项目管理平台 (MVP) 的功能需求、非功能需求及系统架构，核心聚焦于“AI 自动化完成软件开发项目”的核心目标，作为开发团队实施和测试验收的依据。
+本文档定义 DevFlow 项目管理平台的功能需求、非功能需求及系统架构，核心聚焦于“AI 自动化完成软件开发项目”的核心目标，作为开发团队实施和测试验收的依据。
 
 ### 1.2 范围
 
@@ -583,33 +583,59 @@ DevFlow 平台必须将所有代码及成果提交到本地部署的 Gitea 代�
   -   支持自定义仓库名称（需管理员审核）
   -   仓库创建成功后，自动关联项目信息
 
-#### 3.3.2 分支策略（Git Flow）
+#### 3.3.2 分支管理（推荐使用 git worktree）
 
-DevFlow 采用 Git Flow 分支策略，确保代码的有序开发和稳定发布：
+DevFlow 在仓库层面仍采用 Git Flow 的分支模型（如 `main`, `develop`, `feature/*`, `release/*`, `hotfix/*`），但推荐开发者在本地并行工作时使用 `git worktree`，以便在不频繁切换分支的情况下同时在多个分支上并行开发、运行测试或构建。
 
-| 分支类型     | 命名规范       | 用途                                      | 来源分支    | 合并目标       |
-| -------- | ---------- | --------------------------------------- | ------- | ---------- |
-| **main** | `main`     | 生产环境主分支，始终保持可发布状态                     | -       | 仅接受 `release`/`hotfix` 合并 |
-| **develop** | `develop`  | 开发分支，集成最新开发成果                       | 初始从 main 创建，之后独立演化 | release    |
-| **feature** | `feature/*`  | 功能开发分支，每个新功能一个分支                      | develop | develop    |
-| **release** | `release/*`  | 发布准备分支，用于发布前测试和修复                     | develop | main + develop |
-| **hotfix**  | `hotfix/*`   | 紧急修复分支，用于生产环境问题修复                      | main    | main + develop |
-| **bugfix**  | `bugfix/*`   | 常规 Bug 修复分支                          | develop | develop    |
+核心要点：
+- 保持远端仓库的分支命名规范（见上文 Git Flow 类型），用于 CI/PR 策略和分支保护。
+- 在本地同时工作于多个分支时，用 `git worktree` 创建独立工作目录，每个工作目录对应一个分支，避免频繁 `checkout` 导致的脏工作树和构建缓存冲突。
 
--   功能描述:   系统自动管理 Git Flow 分支生命周期
--   分支创建规则:  
-  1.  **功能开发**: 开发者从 `develop` 创建 `feature/<功能名称>` 分支
-  2.  **发布准备**: 从 `develop` 创建 `release/<版本号>` 分支
-  3.  **紧急修复**: 从 `main` 创建 `hotfix/<问题描述>` 分支
--   分支保护规则:  
-  -   `main` 分支：禁止直接推送，必须通过 Pull Request 合并
-  -   `develop` 分支：禁止直接推送，必须通过 Pull Request 合并
-  -   `feature/*`、`release/*`、`hotfix/*` 分支：允许直接推送（开发阶段）
--   输出:   分支按 Git Flow 规范创建和合并
--   业务规则:  
-  -   每个功能/修复必须有独立分支
-  -   分支命名必须符合规范（前缀必须正确）
-  -   合并前必须通过代码审查（PR）
+常用命令示例：
+
+- 从远端检出并为已有分支创建 worktree：
+
+```bash
+git fetch origin
+git worktree add ../worktrees/feature-123 feature/feature-123
+```
+
+- 基于某个分支创建并同时新建本地分支（例如从 `develop` 衍生）：
+
+```bash
+git fetch origin
+git worktree add -b feature/awesome ../worktrees/feature-awesome origin/develop
+```
+
+- 列出当前仓库的所有 worktree：
+
+```bash
+git worktree list
+```
+
+- 删除并清理某个 worktree（在确保不再使用后）：
+
+```bash
+git worktree remove ../worktrees/feature-awesome
+git branch -d feature/awesome      # 如需同时删除本地分支
+```
+
+- 将本地分支推送到远端并设置上游：
+
+```bash
+git push -u origin feature/awesome
+```
+
+推荐实践与注意事项：
+
+- 命名规范：Worktree 的目录名建议包含分支类型和编号，例如 `worktrees/feature-123`，便于识别和清理。
+- 工作目录位置：不要在原仓库（工作树）内部创建新的 worktree，建议放在仓库外部的 `../worktrees/...` 或专用目录。
+- 并发提交：避免在多个 worktree 同时针对同一分支并发提交，可能导致冲突或复杂的历史。每个 worktree 最好对应唯一分支。
+- 清理：完成分支合并并确认不再需要本地工作目录时，使用 `git worktree remove` 清理；随后可删除本地分支并推送删除到远端（如需要）。
+- CI/PR：Pull Request 流程不受 worktree 影响，仍通过远端分支创建 PR 并在 CI 中运行。
+- 链接文件：`git worktree` 会在 `.git/worktrees/` 中登记信息，不要手工删除该目录下文件以免造成仓库损坏。
+
+采用 `git worktree` 能显著提升本地多分支开发效率，尤其适合需要同时运行多个版本的本地构建/测试场景。DevFlow 将在服务端继续使用分支保护、PR 审核与 CI 校验策略以保障代码质量。
 
 #### 3.3.3 代码提交规范
 

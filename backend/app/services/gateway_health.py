@@ -1,5 +1,6 @@
 import httpx
 import asyncio
+import os
 import logging
 from typing import Dict, Optional
 from app.config import settings
@@ -11,7 +12,8 @@ _HEALTH_CHECK_INTERVAL = 30
 
 
 async def check_gateway_health(port: int, api_key: str = None, timeout: float = 5.0) -> dict:
-    url = f"http://localhost:{port}/health"
+    host = os.environ.get("HERMES_GATEWAY_HOST", "localhost")
+    url = f"http://{host}:{port}/health"
     headers = {}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"

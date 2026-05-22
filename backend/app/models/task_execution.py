@@ -21,12 +21,11 @@ class TaskExecution(Base):
     problem_details = Column(JSON, nullable=True)
     delivered_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
-    task = relationship("Task", back_populates="executions")
+    task = relationship("Task")
     agent = relationship("Agent")
-    acceptance_records = relationship("AcceptanceRecord", back_populates="execution", cascade="all, delete-orphan")
 
     def to_dict(self):
         return {

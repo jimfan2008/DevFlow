@@ -51,7 +51,7 @@ class Task(Base):
         Index("idx_tasks_assigned_skill", "assigned_by_skill_id"),
         CheckConstraint("priority IN ('high','medium','low')", name="ck_tasks_priority"),
         CheckConstraint(
-            "status IN ('pending','assigned','running','delivered','accepted','failed','rejected','reassigned')",
+            "status IN ('pending','assigned','running','in_progress','delivered','accepted','failed','rejected','reassigned')",
             name="ck_tasks_status",
         ),
         CheckConstraint("progress >= 0 AND progress <= 100", name="ck_tasks_progress"),

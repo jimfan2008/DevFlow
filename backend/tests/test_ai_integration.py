@@ -5,6 +5,7 @@ TDD: 测试项目创建、需求协同、任务拆解、Agent 分配、验收的
 """
 
 import pytest
+import json
 from datetime import datetime, timezone
 from app.models.project import Project
 from app.models.requirement import Requirement
@@ -15,15 +16,12 @@ from app.models.acceptance_record import AcceptanceRecord
 
 
 class TestProjectCreationWorkflow:
-    """项目创建工作流测试"""
 
     @pytest.mark.asyncio
     async def test_create_project_with_initial_requirement(self, db_session, test_project_owner):
-        """测试创建项目并提交初始需求"""
         project = Project(
             id="project_integration_001",
             name="AI 测试项目",
-            slug="ai-test-project",
             description="集成测试项目",
             creator_id=test_project_owner.id,
         )
@@ -47,28 +45,24 @@ class TestProjectCreationWorkflow:
         assert requirement.is_locked is False
 
     @pytest.mark.asyncio
-    async def test_project_cannot_create_duplicate_slug(self, db_session, test_project_owner):
-        """测试项目 slug 唯一性约束"""
+    async def test_project_cannot_create_duplicate_name(self, db_session, test_project_owner):
         project1 = Project(
             id="project_unique_1",
             name="唯一名称项目",
-            slug="unique-project-1",
             description="第一个项目",
             creator_id=test_project_owner.id,
         )
         db_session.add(project1)
         db_session.commit()
 
-        projects = db_session.query(Project).filter(Project.slug == "unique-project-1").all()
+        projects = db_session.query(Project).filter(Project.name == "唯一名称项目").all()
         assert len(projects) == 1
 
 
 class TestRequirementCollaboration:
-    """需求协同工作流测试"""
 
     @pytest.mark.asyncio
     async def test_requirement_iteration_before_lock(self, db_session, test_project):
-        """测试需求锁定前的多轮迭代"""
         req_v1 = Requirement(
             id="req_iter_v1",
             project_id=test_project.id,
@@ -107,7 +101,6 @@ class TestRequirementCollaboration:
 
     @pytest.mark.asyncio
     async def test_locked_requirement_triggers_decomposition(self, db_session, locked_requirement):
-        """测试需求锁定后应触发任务拆解"""
         assert locked_requirement.is_locked is True
         assert locked_requirement.confirmed_at is not None
 
@@ -116,11 +109,9 @@ class TestRequirementCollaboration:
 
 
 class TestTaskDecompositionWorkflow:
-    """任务拆解工作流测试"""
 
     @pytest.mark.asyncio
-    async def test_decompose_by_development_phases(self, db_session, test_board, test_column, test_user):
-        """测试按开发流程拆解任务"""
+    async def test_decompose_by_development_phases(self, db_session, test_project, test_user):
         phases = [
             ("需求分析", "claude_code"),
             ("测试用例编写", "claude_code"),
@@ -134,13 +125,12 @@ class TestTaskDecompositionWorkflow:
         for i, (name, agent_type) in enumerate(phases):
             task = Task(
                 id=f"task_phase_{i}",
-                title=name,
-                board_id=test_board.id,
-                column_id=test_column.id,
-                status="todo",
-                agent_type=agent_type,
+                name=name,
+                project_id=test_project.id,
+                status="pending",
+                type="coding",
+                agent_type_preference=agent_type,
                 priority="high" if i in [0, 2, 5] else "medium",
-                creator_id=test_user.id,
             )
             tasks.append(task)
             db_session.add(task)
@@ -148,39 +138,35 @@ class TestTaskDecompositionWorkflow:
         db_session.commit()
 
         assert len(tasks) == 6
-        agent_types = [t.agent_type for t in tasks]
+        agent_types = [t.agent_type_preference for t in tasks]
         assert "opencode" in agent_types
         assert "claude_code" in agent_types
         assert "cursor" in agent_types
 
     @pytest.mark.asyncio
-    async def test_task_dependencies_form_dag(self, db_session, test_board, test_column, test_user):
-        """测试任务依赖关系构成 DAG"""
+    async def test_task_dependencies_form_dag(self, db_session, test_project, test_user):
         from app.models.dependency import TaskDependency
 
         task_analysis = Task(
             id="task_dag_analysis",
-            title="需求分析",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            creator_id=test_user.id,
+            name="需求分析",
+            project_id=test_project.id,
+            status="pending",
+            type="analysis",
         )
         task_coding = Task(
             id="task_dag_coding",
-            title="功能编码",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            creator_id=test_user.id,
+            name="功能编码",
+            project_id=test_project.id,
+            status="pending",
+            type="coding",
         )
         task_test = Task(
             id="task_dag_test",
-            title="单元测试",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            creator_id=test_user.id,
+            name="单元测试",
+            project_id=test_project.id,
+            status="pending",
+            type="testing",
         )
         db_session.add_all([task_analysis, task_coding, task_test])
         db_session.commit()
@@ -188,12 +174,10 @@ class TestTaskDecompositionWorkflow:
         dep1 = TaskDependency(
             source_task_id=task_coding.id,
             target_task_id=task_analysis.id,
-            dependency_type="blocks",
         )
         dep2 = TaskDependency(
             source_task_id=task_test.id,
             target_task_id=task_coding.id,
-            dependency_type="blocks",
         )
         db_session.add_all([dep1, dep2])
         db_session.commit()
@@ -203,85 +187,74 @@ class TestTaskDecompositionWorkflow:
 
 
 class TestAgentAssignmentWorkflow:
-    """Agent 任务分配工作流测试"""
 
     @pytest.mark.asyncio
-    async def test_assign_task_to_matching_agent(self, db_session, test_board, test_column, test_user, all_agents):
-        """测试按任务类型分配给匹配的 Agent"""
+    async def test_assign_task_to_matching_agent(self, db_session, test_project, test_user, all_agents):
         coding_task = Task(
             id="task_assign_coding",
-            title="编码任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="opencode",
-            creator_id=test_user.id,
+            name="编码任务",
+            project_id=test_project.id,
+            status="pending",
+            type="coding",
+            agent_type_preference="opencode",
         )
         db_session.add(coding_task)
         db_session.commit()
 
-        assert coding_task.agent_type == "opencode"
+        assert coding_task.agent_type_preference == "opencode"
         assert all_agents["opencode_agent"].agent_type == "opencode"
 
     @pytest.mark.asyncio
-    async def test_test_task_to_claude_agent(self, db_session, test_board, test_column, test_user, claude_agent):
-        """测试测试用例任务分配给 claude_code"""
+    async def test_test_task_to_claude_agent(self, db_session, test_project, test_user, claude_agent):
         test_task = Task(
             id="task_assign_test",
-            title="测试用例编写",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="claude_code",
-            creator_id=test_user.id,
+            name="测试用例编写",
+            project_id=test_project.id,
+            status="pending",
+            type="testing",
+            agent_type_preference="claude_code",
         )
         db_session.add(test_task)
         db_session.commit()
 
-        assert test_task.agent_type == claude_agent.agent_type
+        assert test_task.agent_type_preference == claude_agent.agent_type
 
     @pytest.mark.asyncio
-    async def test_consecutive_tasks_different_agents(self, db_session, test_board, test_column, test_user, all_agents):
-        """测试前后任务分配给不同 Agent（交叉验证）"""
+    async def test_consecutive_tasks_different_agents(self, db_session, test_project, test_user, all_agents):
         task_coding = Task(
             id="task_cross_coding",
-            title="编码任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="opencode",
-            creator_id=test_user.id,
+            name="编码任务",
+            project_id=test_project.id,
+            status="pending",
+            type="coding",
+            agent_type_preference="opencode",
         )
         task_test = Task(
             id="task_cross_test",
-            title="测试任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="claude_code",
-            creator_id=test_user.id,
+            name="测试任务",
+            project_id=test_project.id,
+            status="pending",
+            type="testing",
+            agent_type_preference="claude_code",
         )
         db_session.add_all([task_coding, task_test])
         db_session.commit()
 
-        assert task_coding.agent_type != task_test.agent_type
+        assert task_coding.agent_type_preference != task_test.agent_type_preference
 
 
 class TestAcceptanceWorkflowIntegration:
-    """验收工作流集成测试"""
 
     @pytest.mark.asyncio
-    async def test_full_acceptance_workflow_pass(self, db_session, test_board, test_column, test_user, opencode_agent):
-        """测试完整验收通过流程"""
+    async def test_full_acceptance_workflow_pass(self, db_session, test_project, test_user, opencode_agent):
         task = Task(
             id="task_accept_pass_flow",
-            title="验收通过测试任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="done",
-            agent_type="opencode",
+            name="验收通过测试任务",
+            project_id=test_project.id,
+            status="delivered",
+            type="coding",
+            assignee_agent_id=opencode_agent.id,
             acceptance_criteria="功能可用",
-            creator_id=test_user.id,
         )
         db_session.add(task)
         db_session.commit()
@@ -300,34 +273,32 @@ class TestAcceptanceWorkflowIntegration:
 
         acceptance = AcceptanceRecord(
             id="accept_flow_pass",
-            task_execution_id=execution.id,
-            result="pass",
-            reviewer="Hermes Agent",
+            task_id=task.id,
+            reviewer_agent_id=opencode_agent.id,
+            result="accepted",
         )
         db_session.add(acceptance)
         db_session.commit()
         db_session.refresh(acceptance)
 
-        assert acceptance.result == "pass"
+        assert acceptance.result == "accepted"
 
-        task.status = "done"
+        task.status = "accepted"
         db_session.commit()
         db_session.refresh(task)
 
-        assert task.status == "done"
+        assert task.status == "accepted"
 
     @pytest.mark.asyncio
-    async def test_full_acceptance_workflow_reject(self, db_session, test_board, test_column, test_user, opencode_agent):
-        """测试完整验收驳回流程"""
+    async def test_full_acceptance_workflow_reject(self, db_session, test_project, test_user, opencode_agent):
         task = Task(
             id="task_accept_reject_flow",
-            title="验收驳回测试任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="in_progress",
-            agent_type="opencode",
+            name="验收驳回测试任务",
+            project_id=test_project.id,
+            status="running",
+            type="coding",
+            assignee_agent_id=opencode_agent.id,
             acceptance_criteria="覆盖率 >= 80%",
-            creator_id=test_user.id,
         )
         db_session.add(task)
         db_session.commit()
@@ -346,121 +317,101 @@ class TestAcceptanceWorkflowIntegration:
 
         acceptance = AcceptanceRecord(
             id="accept_flow_reject",
-            task_execution_id=execution.id,
-            result="fail",
-            problem_details={
+            task_id=task.id,
+            reviewer_agent_id=opencode_agent.id,
+            result="rejected",
+            problem_details=json.dumps({
                 "coverage": "覆盖率 65% < 80%",
                 "suggestions": ["补充测试用例"]
-            },
-            reviewer="Hermes Agent",
+            }),
         )
         db_session.add(acceptance)
         db_session.commit()
         db_session.refresh(acceptance)
 
-        assert acceptance.result == "fail"
-        assert "suggestions" in acceptance.problem_details
+        assert acceptance.result == "rejected"
+        details = json.loads(acceptance.problem_details) if acceptance.problem_details else {}
+        assert "suggestions" in details
 
-        task.status = "in_progress"
+        task.status = "failed"
         db_session.commit()
         db_session.refresh(task)
 
-        assert task.status == "in_progress"
+        assert task.status == "failed"
 
 
 class TestDownstreamTaskTriggering:
-    """下游任务触发测试"""
 
     @pytest.mark.asyncio
-    async def test_downstream_task_after_upstream(self, db_session, test_board, test_column, test_user, all_agents):
-        """测试下游任务在上游任务完成后可开始"""
+    async def test_downstream_task_after_upstream(self, db_session, test_project, test_user, all_agents):
         upstream = Task(
             id="task_upstream_complete",
-            title="已完成上游",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="done",
-            creator_id=test_user.id,
+            name="已完成上游",
+            project_id=test_project.id,
+            status="accepted",
+            type="coding",
         )
         downstream = Task(
             id="task_downstream_ready",
-            title="可执行下游",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            creator_id=test_user.id,
+            name="可执行下游",
+            project_id=test_project.id,
+            status="pending",
+            type="coding",
         )
         db_session.add_all([upstream, downstream])
         db_session.commit()
 
-        if upstream.status == "done":
-            downstream.status = "todo"
+        if upstream.status == "accepted":
+            downstream.status = "pending"
         db_session.commit()
         db_session.refresh(downstream)
 
-        assert downstream.status == "todo"
+        assert downstream.status == "pending"
 
 
 class TestMultipleAgentCoordination:
-    """多 Agent 协同测试"""
 
     @pytest.mark.asyncio
-    async def test_different_agents_for_different_task_types(self, db_session, test_board, test_column, test_user, all_agents):
-        """测试不同类型任务分配给不同 Agent"""
+    async def test_different_agents_for_different_task_types(self, db_session, test_project, test_user, all_agents):
         coding_task = Task(
             id="task_multi_coding",
-            title="编码任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="opencode",
-            creator_id=test_user.id,
+            name="编码任务",
+            project_id=test_project.id,
+            status="pending",
+            type="coding",
+            agent_type_preference="opencode",
         )
         test_task = Task(
             id="task_multi_test",
-            title="测试任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="claude_code",
-            creator_id=test_user.id,
+            name="测试任务",
+            project_id=test_project.id,
+            status="pending",
+            type="testing",
+            agent_type_preference="claude_code",
         )
         deploy_task = Task(
             id="task_multi_deploy",
-            title="部署任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="cursor",
-            creator_id=test_user.id,
+            name="部署任务",
+            project_id=test_project.id,
+            status="pending",
+            type="deployment",
+            agent_type_preference="cursor",
         )
         db_session.add_all([coding_task, test_task, deploy_task])
         db_session.commit()
 
-        assert coding_task.agent_type == "opencode"
-        assert test_task.agent_type == "claude_code"
-        assert deploy_task.agent_type == "cursor"
+        assert coding_task.agent_type_preference == "opencode"
+        assert test_task.agent_type_preference == "claude_code"
+        assert deploy_task.agent_type_preference == "cursor"
 
 
 class TestRequirementToTasksFlow:
-    """需求到任务的完整流程测试"""
 
     @pytest.mark.asyncio
-    async def test_requirement_to_tasks_pipeline(self, db_session, test_board, test_column, test_user, test_project_owner):
-        """测试完整的需求到任务流程"""
-        project = Project(
-            id="project_pipeline_test",
-            name="流程测试项目",
-            slug="pipeline-test",
-            description="测试完整流程",
-            creator_id=test_project_owner.id,
-        )
-        db_session.add(project)
-        db_session.commit()
-
+    async def test_requirement_to_tasks_pipeline(self, db_session, test_project, test_user, test_project_owner):
         requirement = Requirement(
             id="req_pipeline",
-            project_id=project.id,
+            project_id=test_project.id,
             content="## 需求\n\n1. 用户管理\n2. 商品管理\n\n### 验收标准\n- 测试覆盖率 >= 70%",
             version=1,
             is_locked=True,
@@ -472,11 +423,10 @@ class TestRequirementToTasksFlow:
         tasks = [
             Task(
                 id=f"task_pipeline_{i}",
-                title=f"子任务 {i+1}",
-                board_id=test_board.id,
-                column_id=test_column.id,
-                status="todo",
-                creator_id=test_user.id,
+                name=f"子任务 {i+1}",
+                project_id=test_project.id,
+                status="pending",
+                type="coding",
             )
             for i in range(3)
         ]
@@ -487,4 +437,4 @@ class TestRequirementToTasksFlow:
         assert requirement.is_locked is True
         assert len(tasks) == 3
         for task in tasks:
-            assert task.status == "todo"
+            assert task.status == "pending"

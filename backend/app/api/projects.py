@@ -9,7 +9,7 @@ from app.models.project import Project
 from app.services.project_service import ProjectService
 from app.schemas.project_srs import ProjectCreate
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.post("", response_model=dict)
@@ -190,6 +190,26 @@ def add_project_member(
     svc = ProjectService(db)
     member = svc.add_member(project_id, user_id, role)
     return {"code": 0, "message": "success", "data": {"member": {"id": member.id, "user_id": member.user_id, "role": member.role}}}
+
+
+@router.delete("/{project_id}")
+def delete_project(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    from app.models.requirement import Requirement
+    from app.models.task import Task
+    from app.models.board import Board
+    db.query(Task).filter(Task.project_id == project_id).delete()
+    db.query(Requirement).filter(Requirement.project_id == project_id).delete()
+    db.query(Board).filter(Board.project_id == project_id).delete()
+    db.delete(project)
+    db.commit()
+    return {"code": 0, "message": "success", "data": {"deleted": project_id}}
 
 
 @router.delete("/{project_id}/members/{user_id}")

@@ -30,18 +30,21 @@ class CommentService:
         )
         self.db.add(comment)
         # Notify task assignee
-        if task.assignee_id and task.assignee_id != self.current_user_id:
-            inbox = InboxItem(
-                id=str(uuid.uuid4()),
-                user_id=task.assignee_id,
-                task_id=task_id,
-                type="commented",
-                title=f"新评论: {task.title}",
-                content=content[:200],
-                is_read=False,
-                created_at=datetime.now(timezone.utc),
-            )
-            self.db.add(inbox)
+        if task.assignee_agent_id and task.assignee_agent_id != self.current_user_id:
+            try:
+                inbox = InboxItem(
+                    id=str(uuid.uuid4()),
+                    user_id=task.assignee_agent_id,
+                    task_id=task_id,
+                    type="commented",
+                    title=f"新评论: {task.name}",
+                    content=content[:200],
+                    is_read=False,
+                    created_at=datetime.now(timezone.utc),
+                )
+                self.db.add(inbox)
+            except Exception:
+                pass
         self.db.commit()
         self.db.refresh(comment)
         return comment.to_dict()

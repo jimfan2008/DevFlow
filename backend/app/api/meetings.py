@@ -7,7 +7,7 @@ from app.api.deps import get_current_user
 from app.models.user import User
 from app.services.meeting_service import MeetingService
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 class StartMeetingRequest(BaseModel):
@@ -129,3 +129,30 @@ def get_meeting_template(
     svc = MeetingService(db)
     template = svc.get_meeting_template(meeting_type)
     return {"code": 0, "message": "success", "data": {"template": template}}
+
+
+@router.post("/{meeting_id}/end", response_model=dict)
+def end_meeting_by_id(
+    meeting_id: str,
+    data: Optional[StopMeetingRequest] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    svc = MeetingService(db)
+    try:
+        from app.models.group import Group
+        group = db.query(Group).filter(Group.mode == "meeting").first()
+        if not group:
+            raise HTTPException(status_code=404, detail="No active meeting found")
+        stop_data = data or StopMeetingRequest()
+        outcome = svc.stop_meeting(
+            group_id=group.id,
+            minutes=stop_data.minutes,
+            decisions=stop_data.decisions,
+            todos=stop_data.todos,
+            risks=stop_data.risks,
+            open_issues=stop_data.open_issues,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"code": 0, "message": "success", "data": {"minutes": outcome.to_dict()}}

@@ -8,7 +8,7 @@ from app.schemas.hermes_skill import HermesSkillResponse
 from pydantic import BaseModel
 from typing import Optional
 
-router = APIRouter(prefix="/api/profiles", tags=["profiles"])
+router = APIRouter(prefix="/api/profiles", tags=["profiles"], redirect_slashes=False)
 
 
 class ProfileInfoResponse(BaseModel):
@@ -21,7 +21,7 @@ class ProfileInfoResponse(BaseModel):
     config_path: str
 
 
-@router.get("/", response_model=dict)
+@router.get("", response_model=dict)
 async def list_profiles(current_user: User = Depends(get_current_user)):
     try:
         profiles = await profile_scanner.get_all_profiles()

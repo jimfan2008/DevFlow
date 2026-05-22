@@ -13,26 +13,23 @@ class WorkloadService:
         from app.models.task import Task
         from app.models.board import Board
         from app.models.user import User
-        return Task, Board, User
+        from app.models.agent import Agent
+        return Task, Board, User, Agent
 
-    def get_workload(self, board_id: str, user_id: str = None) -> dict:
-        Task, Board, User = self._import_models()
-        board = self.db.query(Board).filter(Board.id == board_id).first()
-        if not board:
-            raise ValueError("看板不存在")
-        query = self.db.query(Task).filter(Task.board_id == board_id)
+    def get_workload(self, project_id: str, user_id: str = None) -> dict:
+        Task, Board, User, Agent = self._import_models()
+        query = self.db.query(Task).filter(Task.project_id == project_id)
         if user_id:
-            query = query.filter(Task.assignee_id == user_id)
+            query = query.filter(Task.assignee_agent_id == user_id)
         tasks = query.all()
-        # Group by assignee
         user_tasks = {}
         for task in tasks:
-            uid = task.assignee_id or "unassigned"
+            uid = task.assignee_agent_id or "unassigned"
             if uid not in user_tasks:
-                user_tasks[uid] = {"todo": 0, "in_progress": 0, "review": 0, "done": 0, "total": 0}
-            user_tasks[uid][task.status] = user_tasks[uid].get(task.status, 0) + 1
+                user_tasks[uid] = {"pending": 0, "assigned": 0, "running": 0, "delivered": 0, "accepted": 0, "total": 0}
+            status_key = task.status if task.status in user_tasks[uid] else "pending"
+            user_tasks[uid][status_key] = user_tasks[uid].get(status_key, 0) + 1
             user_tasks[uid]["total"] += 1
-        # Build member list
         member_list = []
         for uid, counts in user_tasks.items():
             total = counts["total"]
@@ -47,31 +44,22 @@ class WorkloadService:
                 member["has_alert"] = True
                 member["alert_level"] = "yellow" if total <= 10 else "red"
             member["task_breakdown"] = {k: v for k, v in counts.items() if k != "total"}
-            # Get user details
             if uid != "unassigned":
-                user = self.db.query(User).filter(User.id == uid).first()
-                if user:
-                    member["username"] = user.username
-                    member["email"] = user.email
-                    member["full_name"] = user.full_name
+                agent = self.db.query(Agent).filter(Agent.id == uid).first()
+                if agent:
+                    member["name"] = agent.name
+                    member["agent_type"] = agent.agent_type
             else:
-                member["username"] = "未分配"
-                member["email"] = ""
-                member["full_name"] = None
+                member["name"] = "未分配"
             member_list.append(member)
-        # Team stats
         total_tasks = len(tasks)
         total_members = len([m for m in member_list if m["user_id"] != "unassigned"])
         avg_load = total_tasks / max(total_members, 1)
         status_dist = {"idle": 0, "normal": 0, "busy": 0, "overloaded": 0}
         for m in member_list:
             s = m["status"]
-            if s == "idle":
-                status_dist["idle"] += 1
-            elif s == "normal":
-                status_dist["normal"] += 1
-            elif s == "busy":
-                status_dist["busy"] += 1
+            if s in status_dist:
+                status_dist[s] += 1
             else:
                 status_dist["overloaded"] += 1
         return {
@@ -85,38 +73,37 @@ class WorkloadService:
         }
 
     def auto_assign_task(self, task_id: str) -> dict:
-        Task, Board, User = self._import_models()
+        Task, Board, User, Agent = self._import_models()
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError("任务不存在")
-        # Find members with lowest load
-        all_users = self.db.query(User).filter(User.is_active == True).all()
+        all_agents = self.db.query(Agent).filter(Agent.status == "online").all()
         min_load = float("inf")
-        best_user = None
-        for user in all_users:
+        best_agent = None
+        for agent in all_agents:
             count = self.db.query(Task).filter(
-                Task.assignee_id == user.id,
-                Task.status != "done"
+                Task.assignee_agent_id == agent.id,
+                Task.status.in_(["pending", "assigned", "running"])
             ).count()
             if count < min_load:
                 min_load = count
-                best_user = user
-        if best_user:
-            task.assignee_id = best_user.id
+                best_agent = agent
+        if best_agent:
+            task.assignee_agent_id = best_agent.id
+            task.status = "assigned"
             self.db.commit()
             self.db.refresh(task)
-            return {"task": self._task_to_dict(task), "assigned_to": best_user.id}
-        raise ValueError("没有可用成员")
+            return {"task_id": task.id, "assigned_to": best_agent.id}
+        raise ValueError("没有可用Agent")
 
     def _task_to_dict(self, task):
         return {
             "id": task.id,
-            "title": task.title,
-            "board_id": task.board_id,
+            "name": task.name,
+            "project_id": task.project_id,
             "status": task.status,
             "priority": task.priority,
-            "assignee_id": task.assignee_id,
-            "creator_id": task.creator_id,
-            "due_date": task.due_date.isoformat() if task.due_date else None,
+            "assignee_agent_id": task.assignee_agent_id,
+            "deadline": task.deadline.isoformat() if task.deadline else None,
             "created_at": task.created_at.isoformat() if task.created_at else None,
         }

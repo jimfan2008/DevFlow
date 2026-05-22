@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.put("/{project_id}/requirements", response_model=dict)

@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Tuple
 from sqlalchemy.orm import Session
@@ -8,6 +9,10 @@ from app.services.profile_scanner_service import profile_scanner
 from app.services.gateway_health import check_agent_online
 
 logger = logging.getLogger("devflow.profile_sync")
+
+
+def _gateway_host() -> str:
+    return os.environ.get("HERMES_GATEWAY_HOST", "localhost")
 
 
 async def sync_profiles_to_db(db: Session) -> Dict[str, int]:
@@ -24,6 +29,8 @@ async def sync_profiles_to_db(db: Session) -> Dict[str, int]:
             "model_default": profile.model_default,
             "model_provider": profile.model_provider,
             "config_path": profile.config_path,
+            "is_running": profile.is_running,
+            "use_cli": profile.is_running and not profile.gateway_port,
         }
         if profile.personality:
             config_data["personality"] = profile.personality
@@ -33,22 +40,26 @@ async def sync_profiles_to_db(db: Session) -> Dict[str, int]:
         if profile.gateway_port:
             is_online = await check_agent_online(profile.gateway_port, profile.api_key)
             status = "online" if is_online else "offline"
+        elif profile.is_running:
+            status = "online"
+            logger.info(f"Profile '{profile.name}' running=true, no port, using CLI mode -> status=online")
         else:
-            status = "online" if profile.is_running else "offline"
+            status = "offline"
 
         if existing:
             existing.status = status
             existing.config = config_data
             if profile.gateway_port:
-                existing.api_endpoint = f"http://localhost:{profile.gateway_port}"
+                existing.api_endpoint = f"http://{_gateway_host()}:{profile.gateway_port}"
             existing.last_heartbeat = datetime.now(timezone.utc) if status == "online" else existing.last_heartbeat
             updated_count += 1
+            logger.info(f"Updated agent '{profile.name}': status={status}")
         else:
             agent = Agent(
                 name=profile.name,
                 agent_type="hermes",
                 status=status,
-                api_endpoint=f"http://localhost:{profile.gateway_port}" if profile.gateway_port else None,
+                api_endpoint=f"http://{_gateway_host()}:{profile.gateway_port}" if profile.gateway_port else None,
                 discovered_by="profile_scan",
                 profile_path=profile.config_path,
                 config=config_data,
@@ -100,9 +111,12 @@ async def update_agent_online_status(db: Session) -> Dict[str, int]:
         config = agent.config or {}
         port = config.get("gateway_port")
         api_key = config.get("api_key")
+        use_cli = config.get("use_cli", False)
         if port:
             is_online = await check_agent_online(port, api_key)
             new_status = "online" if is_online else "offline"
+        elif use_cli:
+            new_status = "online"
         else:
             new_status = "offline"
 

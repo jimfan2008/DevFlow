@@ -4,7 +4,7 @@ from app.database import get_db
 from app.models.agent import Agent
 from app.schemas.agent import HermesStatusWebhook, HermesTaskCompletedWebhook
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.post("/webhooks/hermes/status", response_model=dict)

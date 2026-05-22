@@ -206,7 +206,7 @@ class SkillSchedulerService:
             connection_status = "disconnected"
             update_skill_connection_status(self.db, skill.id, connection_status)
             if reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
-                raise SkillConnectError(f"Failed to connect after {MAX_RECONNECT_ATTEMPTS} attempts")
+                logger.warning(f"Gateway unavailable for agent {hermes_agent_id}, marking as disconnected")
 
         self.db.commit()
 

@@ -6,7 +6,7 @@ from app.database import get_db
 from app.services.dependency_service import DependencyService
 from app.api.deps import get_current_user
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 @router.post("/{task_id}/depend", tags=["dependencies"])
 def create_dependency(task_id: str, data: dict, current_user = Depends(get_current_user), db: Session = Depends(get_db)):

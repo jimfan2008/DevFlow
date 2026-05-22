@@ -9,7 +9,7 @@ export const authApi = {
     return apiClient.post<ApiResponse<{ user: UserProfile; tokens: TokensResponse }>>('/auth/login', data)
   },
   refresh(data: { refresh_token: string }) {
-    return apiClient.post<ApiResponse<TokensResponse>>('/auth/refresh', data)
+    return apiClient.get<ApiResponse<TokensResponse>>('/auth/refresh', { params: { token: data.refresh_token } })
   },
   me() {
     return apiClient.get<ApiResponse<UserProfile>>('/auth/me')

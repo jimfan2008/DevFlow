@@ -79,8 +79,7 @@ class BoardService:
         if columns:
             for col in columns:
                 count = self.db.query(Task).filter(
-                    Task.board_id == board_id,
-                    Task.column_id == col.id
+                    Task.project_id == board.project_id,
                 ).count()
                 task_counts[col.id] = count
         return {
@@ -174,7 +173,7 @@ class BoardService:
         result = []
         for board in boards:
             board_data = self._board_to_dict(board)
-            task_count = self.db.query(Task).filter(Task.board_id == board.id).count()
+            task_count = self.db.query(Task).filter(Task.project_id == board.project_id).count()
             board_data["task_count"] = task_count
             result.append(board_data)
         return result

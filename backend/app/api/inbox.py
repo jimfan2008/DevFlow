@@ -6,9 +6,9 @@ from app.database import get_db
 from app.services.inbox_service import InboxService
 from app.api.deps import get_current_user
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
-@router.get("/", tags=["inbox"])
+@router.get("", tags=["inbox"])
 def get_inbox(
     category: str = Query(None),
     filter: str = Query(None),

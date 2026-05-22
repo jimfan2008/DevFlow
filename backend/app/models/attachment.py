@@ -22,7 +22,7 @@ class Attachment(Base):
     uploaded_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"))
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    task = relationship("Task", back_populates="attachments")
+    task = relationship("Task")
 
     __table_args__ = (
         Index("idx_attachments_task", "task_id"),

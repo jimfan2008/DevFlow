@@ -7,7 +7,7 @@ DevFlow 项目管理平台 - API 路由注册
 
 from fastapi import APIRouter
 
-main_router = APIRouter()
+main_router = APIRouter(redirect_slashes=False)
 
 from app.api.auth import router as auth_router
 from app.api.boards import router as boards_router
@@ -70,10 +70,13 @@ main_router.include_router(groups_router)
 main_router.include_router(projects_router, prefix="/api/projects", tags=["projects"])
 main_router.include_router(repos_router, prefix="/api/repos", tags=["repos"])
 main_router.include_router(notifications_router, prefix="/api/notifications", tags=["notifications"])
-main_router.include_router(meetings_router, prefix="/api/meetings", tags=["meetings"])
+main_router.include_router(meetings_router, prefix="/api/groups", tags=["meetings"])
 main_router.include_router(task_states_router, prefix="/api/task-states", tags=["task-states"])
 main_router.include_router(skills_router, prefix="/api/skills", tags=["skills"])
 main_router.include_router(acceptance_router, prefix="/api/acceptance", tags=["acceptance"])
+
+from app.api.scheduling import router as scheduling_router
+main_router.include_router(scheduling_router, tags=["scheduling"])
 
 __all__ = ["main_router"]
 

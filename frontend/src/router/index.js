@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
-  // 认证路由
   {
     path: '/login',
     name: 'Login',
@@ -15,11 +14,53 @@ const routes = [
     meta: { requiresAuth: false, title: '注册' }
   },
 
-  // 主应用路由
   {
     path: '/',
-    redirect: '/boards'
+    redirect: '/projects'
   },
+
+  {
+    path: '/projects',
+    name: 'ProjectList',
+    component: () => import('@/views/ProjectListView.vue'),
+    meta: { requiresAuth: true, title: '项目管理' }
+  },
+  {
+    path: '/projects/:projectId',
+    name: 'ProjectDetail',
+    component: () => import('@/views/ProjectDetailView.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '项目详情' }
+  },
+
+  {
+    path: '/agents',
+    name: 'AgentList',
+    component: () => import('@/views/AgentListView.vue'),
+    meta: { requiresAuth: true, title: 'Agent管理' }
+  },
+  {
+    path: '/agents/:agentId',
+    name: 'AgentDetail',
+    component: () => import('@/views/AgentDetailView.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: 'Agent详情' }
+  },
+
+  {
+    path: '/skills',
+    name: 'SkillManagement',
+    component: () => import('@/views/SkillView.vue'),
+    meta: { requiresAuth: true, title: 'Skill管理' }
+  },
+
+  {
+    path: '/chat',
+    name: 'Chat',
+    component: () => import('@/views/ChatView.vue'),
+    meta: { requiresAuth: true, title: '群聊与会议' }
+  },
+
   {
     path: '/boards',
     name: 'BoardList',
@@ -41,6 +82,39 @@ const routes = [
     meta: { requiresAuth: true, title: '任务详情' }
   },
   {
+    path: '/task-board',
+    name: 'TaskBoard',
+    component: () => import('@/views/TaskBoardView.vue'),
+    meta: { requiresAuth: true, title: '任务看板' }
+  },
+
+  {
+    path: '/repos',
+    name: 'Repos',
+    component: () => import('@/views/RepoView.vue'),
+    meta: { requiresAuth: true, title: '代码仓库' }
+  },
+
+  {
+    path: '/acceptance',
+    name: 'Acceptance',
+    component: () => import('@/views/AcceptanceView.vue'),
+    meta: { requiresAuth: true, title: '验收报告' }
+  },
+  {
+    path: '/notifications',
+    name: 'NotificationCenter',
+    component: () => import('@/views/NotificationCenterView.vue'),
+    meta: { requiresAuth: true, title: '通知中心' }
+  },
+  {
+    path: '/delivery',
+    name: 'Delivery',
+    component: () => import('@/views/DeliveryView.vue'),
+    meta: { requiresAuth: true, title: '项目交付' }
+  },
+
+  {
     path: '/inbox',
     name: 'Inbox',
     component: () => import('@/views/InboxView.vue'),
@@ -59,7 +133,6 @@ const routes = [
     meta: { requiresAuth: true, title: '个人资料' }
   },
 
-  // 404
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',

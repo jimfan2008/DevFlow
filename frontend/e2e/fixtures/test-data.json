@@ -1,0 +1,27 @@
+{
+  "project": {
+    "name": "CLI测试项目 {timestamp}",
+    "description": "Playwright CLI 完整流程测试项目，用于验证端到端功能",
+    "requirements": {
+      "content": "# 需求文档\n\n## 1. 功能需求\n- 用户注册登录\n- 商品展示\n- 购物车管理\n- 订单处理\n\n## 2. 技术要求\n- 响应式设计\n- 安全性保障"
+    }
+  },
+  "group": {
+    "name": "CLI测试讨论组 {timestamp}",
+    "mode": "discussion",
+    "messages": [
+      "让我们开始讨论项目需求",
+      "首先确认功能范围",
+      "然后拆解开发任务"
+    ]
+  },
+  "task": {
+    "title": "实现用户认证模块",
+    "description": "实现用户注册、登录、密码重置功能"
+  },
+  "verification": {
+    "apiTimeout": 30000,
+    "retryCount": 2,
+    "screenshotDir": "./e2e/screenshots"
+  }
+}

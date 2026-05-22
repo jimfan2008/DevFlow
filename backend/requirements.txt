@@ -16,6 +16,7 @@ alembic>=1.12.0
 pyjwt>=2.8.0
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+bcrypt<5
 
 # HTTP Client (Hermes Agent communication)
 httpx>=0.25.0
@@ -29,6 +30,7 @@ pytest-asyncio>=0.21.0
 
 # WebSocket
 websockets>=11.0
+slowapi>=0.1.5
 
 # ACP (Agent Communication Protocol) - Hermes Agent integration
 agent-client-protocol>=0.10.0

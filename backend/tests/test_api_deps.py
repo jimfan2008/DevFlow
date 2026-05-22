@@ -87,6 +87,5 @@ class TestAuthDependencyMocked:
     @pytest.mark.asyncio
     async def test_auth_dependency_multiple_tokens(self, client):
         """测试多个 token 头"""
-        response = await client.get("/api/tasks", headers={"Authorization": ["Bearer token1", "Bearer token2"]})
-        # FastAPI 可能会解析失败或只取第一个
+        response = await client.get("/api/tasks", headers={"Authorization": "Bearer token1, Bearer token2"})
         assert response.status_code == 401 or response.status_code == 422

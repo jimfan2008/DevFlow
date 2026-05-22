@@ -16,8 +16,8 @@ class TaskExecutionResponse(BaseModel):
     result_summary: Optional[Dict[str, Any]] = None
     problem_details: Optional[Dict[str, Any]] = None
     delivered_at: Optional[datetime] = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         orm_mode = True

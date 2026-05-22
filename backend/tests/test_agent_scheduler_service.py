@@ -106,21 +106,19 @@ class TestAgentAssignment:
     """Agent 任务分配测试"""
 
     @pytest.mark.asyncio
-    async def test_assign_task_agent_type_match(self, db_session, test_board, test_column, test_user, opencode_agent):
-        """测试按任务类型分配给匹配的 Agent"""
+    async def test_assign_task_agent_type_match(self, db_session, test_project, opencode_agent):
         task = Task(
             id="task_assign_coding",
-            title="编码任务",
-            board_id=test_board.id,
-            column_id=test_column.id,
-            status="todo",
-            agent_type="opencode",
-            creator_id=test_user.id,
+            project_id=test_project.id,
+            name="编码任务",
+            type="coding",
+            status="pending",
+            agent_type_preference="opencode",
         )
         db_session.add(task)
         db_session.commit()
 
-        assert task.agent_type == "opencode"
+        assert task.agent_type_preference == "opencode"
         assert opencode_agent.agent_type == "opencode"
 
     @pytest.mark.asyncio

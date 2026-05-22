@@ -413,3 +413,178 @@ export interface UserListItem {
   is_active: boolean
   avatar_url: string | null
 }
+
+// ==================== 项目模块 ====================
+
+export interface Project {
+  id: string
+  name: string
+  slug: string
+  description: string
+  status: 'draft' | 'active' | 'completed' | 'archived'
+  tech_stack?: Record<string, unknown>
+  requirement_id?: string
+  board_id?: string
+  repo_url?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ProjectCreateRequest {
+  name: string
+  description?: string
+  tech_stack?: Record<string, unknown>
+}
+
+// ==================== Agent模块 ====================
+
+export interface Agent {
+  id: string
+  name: string
+  agent_type: 'hermes' | 'programming'
+  status: 'online' | 'offline' | 'busy'
+  api_endpoint?: string
+  version?: string
+  capabilities?: string[]
+  config?: Record<string, unknown>
+  discovered_by?: string
+  hermes_agent_id?: string
+  last_heartbeat_at?: string
+  created_at: string
+  updated_at: string
+}
+
+// ==================== Skill模块 ====================
+
+export interface Skill {
+  id: string
+  name: string
+  hermes_agent_id: string
+  status: 'idle' | 'discovering' | 'pairing' | 'executing'
+  description?: string
+  paired_agent_id?: string
+  channel_status?: 'connected' | 'disconnected' | 'error'
+  config?: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+export interface SkillExecutionRecord {
+  id: string
+  skill_id: string
+  task_id?: string
+  agent_id?: string
+  status: 'running' | 'completed' | 'failed'
+  result?: Record<string, unknown>
+  started_at: string
+  finished_at?: string
+}
+
+// ==================== 群聊与会议模块 ====================
+
+export interface ChatGroup {
+  id: string
+  name: string
+  project_id?: string
+  members: { id: string; username: string; display_name: string; avatar_url: string | null }[]
+  mode: 'discussion' | 'meeting'
+  created_at: string
+}
+
+export interface ChatMessage {
+  id: string
+  group_id: string
+  sender_id: string
+  sender_name: string
+  content: string
+  mentions?: string[]
+  type: 'text' | 'system' | 'skill_message'
+  created_at: string
+}
+
+export interface Meeting {
+  id: string
+  group_id: string
+  agenda: string[]
+  status: 'active' | 'ended'
+  participants: Record<string, unknown>[]
+  current_speaker?: string
+  minutes?: MeetingMinutes
+  started_at: string
+  ended_at?: string
+}
+
+export interface MeetingMinutes {
+  id: string
+  meeting_id: string
+  summary: string
+  decisions: string[]
+  action_items: string[]
+  controversies: string[]
+  created_at: string
+}
+
+// ==================== 代码仓库模块 ====================
+
+export interface Repo {
+  id: string
+  name: string
+  full_name: string
+  url: string
+  default_branch: string
+  project_id?: string
+  created_at: string
+}
+
+export interface Branch {
+  name: string
+  commit_sha: string
+  is_default: boolean
+  is_protected: boolean
+}
+
+export interface PullRequest {
+  id: string
+  number: number
+  title: string
+  state: 'open' | 'closed' | 'merged'
+  source_branch: string
+  target_branch: string
+  author: { id: string; username: string; display_name: string }
+  created_at: string
+  updated_at: string
+}
+
+export interface Commit {
+  sha: string
+  message: string
+  author_name: string
+  author_date: string
+  is_conventional: boolean
+  validation_errors?: string[]
+}
+
+// ==================== 验收报告模块 ====================
+
+export interface AcceptanceReport {
+  id: string
+  task_id: string
+  project_id?: string
+  status: 'pending' | 'approved' | 'rejected'
+  checks: Record<string, unknown>
+  issues?: string[]
+  suggestions?: string[]
+  reviewer?: { id: string; username: string; display_name: string }
+  created_at: string
+  reviewed_at?: string
+}
+
+export interface AcceptanceNotification {
+  id: string
+  type: string
+  title: string
+  body: string
+  is_read: boolean
+  related_id?: string
+  created_at: string
+}

@@ -28,7 +28,6 @@ class Board(Base):
     # Relationships
     project = relationship("Project", back_populates="boards")
     columns = relationship("BoardColumn", back_populates="board", passive_deletes=True)
-    tasks = relationship("Task", back_populates="board", passive_deletes=True)
 
     __table_args__ = (
         Index("idx_boards_project", "project_id"),

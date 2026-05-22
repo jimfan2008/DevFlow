@@ -14,7 +14,7 @@ from app.services.delivery_service import DeliveryService
 from app.schemas.agent import TaskDeliverRequest
 from app.schemas.acceptance import AcceptanceResult, FinalAcceptanceResponse
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 @router.post("/tasks/{task_id}/deliver", response_model=dict)

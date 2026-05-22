@@ -3,9 +3,9 @@ import type { ApiResponse, PaginatedResponse, UserListItem, UserDetailResponse }
 
 export const userApi = {
   list(params?: { page?: number; page_size?: number }) {
-    return apiClient.get<PaginatedResponse<UserListItem>>('/users', { params })
+    return apiClient.get<PaginatedResponse<UserListItem>>('/auth/users', { params })
   },
   detail(userId: string) {
-    return apiClient.get<ApiResponse<UserDetailResponse>>(`/users/${userId}`)
+    return apiClient.get<ApiResponse<UserDetailResponse>>(`/auth/users/${userId}`)
   },
 }

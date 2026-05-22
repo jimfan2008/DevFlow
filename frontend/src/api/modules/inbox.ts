@@ -3,7 +3,7 @@ import type { ApiResponse, InboxListResponse, UnreadCountResponse } from '../../
 
 export const inboxApi = {
   list(params?: { status?: 'all' | 'unread' | 'read'; type?: string; page?: number; page_size?: number }) {
-    return apiClient.get<InboxListResponse>('/inbox/', { params })
+    return apiClient.get<InboxListResponse>('/inbox', { params })
   },
   markAsRead(inboxId: string) {
     return apiClient.put<ApiResponse<{ id: string; is_read: boolean }>>(`/inbox/${inboxId}/read`)

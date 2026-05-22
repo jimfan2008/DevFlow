@@ -10,6 +10,7 @@ class Project(Base):
 
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(200), unique=True, nullable=False)
+    slug = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     creator_id = Column(String, ForeignKey("users.id"), nullable=False)
     tech_stack = Column(String(100), nullable=True)

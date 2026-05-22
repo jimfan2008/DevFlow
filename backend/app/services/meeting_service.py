@@ -147,6 +147,7 @@ class MeetingService:
             open_issues=open_issues or [],
         )
         self.db.add(outcome)
+        self.db.flush()
 
         if todos:
             for todo_item in todos:

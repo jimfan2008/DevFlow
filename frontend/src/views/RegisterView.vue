@@ -148,6 +148,10 @@ async function handleRegister() {
     ElMessage.success('注册成功')
     router.push({ name: 'BoardList' })
   } catch (e: any) {
+    if (e?.code === 'AUTH_USER_EXISTS') {
+      ElMessage.error('该用户名或邮箱已注册，请直接登录或更换邮箱')
+      return
+    }
     ElMessage.error(e.message || '注册失败，请重试')
   }
 }

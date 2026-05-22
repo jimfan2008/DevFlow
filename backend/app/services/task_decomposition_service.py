@@ -7,6 +7,7 @@ from sqlalchemy import and_
 from datetime import datetime, timezone
 from typing import List, Optional, Dict
 import json
+import uuid
 
 def _import_models():
     from app.models.requirement import Requirement
@@ -95,15 +96,15 @@ class TaskDecompositionService:
         # 先创建所有任务（不设置依赖）
         for name, desc_template, agent_type, _ in task_templates:
             task = Task(
-                title=name,
-                description=desc_template.format(requirement_content=requirement.content[:200]),  # 限制长度
-                board_id=None,  # 临时没有 board，后续需要分配到项目的默认看板
-                column_id=None,
-                status="todo",
+                id=str(uuid.uuid4()),
+                name=name,
+                description=desc_template.format(requirement_content=requirement.content[:200]),
+                project_id=project_id,
+                type="development",
+                status="pending",
                 priority="high" if "需求" in name or "测试" in name else "medium",
-                agent_type=agent_type,
+                agent_type_preference=agent_type,
                 acceptance_criteria=f"完成 {name}，并满足需求中相应的验收标准",
-                creator_id=project.creator_id,  # 由项目创建者创建任务
                 created_at=datetime.now(timezone.utc),
                 updated_at=datetime.now(timezone.utc)
             )

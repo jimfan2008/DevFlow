@@ -45,7 +45,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
     if (isConnected.value || isConnecting.value) return
 
     isConnecting.value = true
-    const wsUrl = `${wsBaseUrl}/ws/notifications?token=${encodeURIComponent(token)}`
+    const base = wsBaseUrl || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+    const wsUrl = `${base}/ws/notifications?token=${encodeURIComponent(token)}`
 
     try {
       ws.value = new WebSocket(wsUrl)

@@ -9,7 +9,7 @@ export const workloadApi = {
     return apiClient.get<ApiResponse<WorkloadMember>>(`/workload/users/${userId}`, { params })
   },
   assign(taskId: string, assigneeId: string) {
-    return apiClient.patch<ApiResponse<{ task_id: string; old_assignee_id: string | null; new_assignee_id: string }>>(`/tasks/${taskId}/assign`, { assignee_id: assigneeId })
+    return apiClient.post<ApiResponse<{ task_id: string; old_assignee_id: string | null; new_assignee_id: string }>>(`/tasks/${taskId}/assign`, { assignee_id: assigneeId })
   },
   autoAssign(taskId: string) {
     return apiClient.post<ApiResponse<{ task: any; assigned_to: { id: string; username: string; display_name: string } }>>(`/tasks/${taskId}/assign`, { auto_assign: true })

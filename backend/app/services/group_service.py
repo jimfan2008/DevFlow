@@ -80,7 +80,7 @@ class GroupService:
             sender=sender,
             role=role,
             content=content,
-            is_streaming="false",
+            is_streaming=False,
             metadata=metadata or {}
         )
         self.db.add(message)

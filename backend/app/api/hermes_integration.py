@@ -16,7 +16,7 @@ from app.core.exceptions import SkillNoAgentError, SkillConnectError, SkillOverl
 import logging
 
 logger = logging.getLogger("devflow.hermes")
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 
 
 class ChatRequest(BaseModel):

@@ -7,6 +7,7 @@ DevFlow 项目管理平台 - 测试配置 (TDD 版本)
 import pytest
 import pytest_asyncio
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from httpx import AsyncClient, ASGITransport
 import asyncio
@@ -17,6 +18,26 @@ import os
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _safe_delete(session, obj):
+    try:
+        session.rollback()
+        session.delete(obj)
+        session.commit()
+    except Exception:
+        session.rollback()
+
+
+def _safe_delete_multi(session, objs):
+    try:
+        session.rollback()
+        for obj in objs:
+            session.delete(obj)
+        session.commit()
+    except Exception:
+        session.rollback()
+DEFAULT_TEST_DB_PATH = os.path.join(os.path.dirname(__file__), "test_devflow.db")
 
 from app.main import app
 from app.database import get_db, Base
@@ -33,9 +54,13 @@ from app.models.task_execution import TaskExecution
 from app.utils.security import get_password_hash
 
 TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), "data", "fixtures")
-
-TEST_DB_URL = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test_devflow.db")
-TEST_ENGINE = create_engine(TEST_DB_URL, echo=False)
+TEST_DB_URL = "sqlite://"
+TEST_ENGINE = create_engine(
+    TEST_DB_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
 
 
@@ -44,7 +69,13 @@ def setup_test_database():
 
 
 def teardown_test_database():
-    Base.metadata.drop_all(bind=TEST_ENGINE)
+    with TEST_ENGINE.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            try:
+                table.drop(conn, checkfirst=True)
+            except Exception:
+                pass
+        conn.commit()
 
 
 def load_fixture_data(name: str) -> Dict[str, Any]:
@@ -87,6 +118,7 @@ async def client(db_session) -> AsyncGenerator:
         transport=ASGITransport(app=app),
         base_url="http://test",
         headers={"Content-Type": "application/json"},
+        follow_redirects=True,
     ) as ac:
         yield ac
 
@@ -108,16 +140,13 @@ async def test_user(db_session) -> User:
         username=data["username"],
         email=data["email"],
         password_hash=get_password_hash(data["password"]),
-        full_name=data["full_name"],
-        role=data["role"],
-        is_active=data["is_active"],
+        role="user" if data.get("role") == "member" else data.get("role", "user"),
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
     yield user
-    db_session.delete(user)
-    db_session.commit()
+    _safe_delete(db_session, user)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -128,16 +157,13 @@ async def test_admin(db_session) -> User:
         username=data["username"],
         email=data["email"],
         password_hash=get_password_hash(data["password"]),
-        full_name=data["full_name"],
-        role=data["role"],
-        is_active=data["is_active"],
+        role=data.get("role", "admin"),
     )
     db_session.add(admin)
     db_session.commit()
     db_session.refresh(admin)
     yield admin
-    db_session.delete(admin)
-    db_session.commit()
+    _safe_delete(db_session, admin)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -148,16 +174,13 @@ async def test_project_owner(db_session) -> User:
         username=data["username"],
         email=data["email"],
         password_hash=get_password_hash(data["password"]),
-        full_name=data["full_name"],
-        role=data["role"],
-        is_active=data["is_active"],
+        role="user" if data.get("role") == "member" else data.get("role", "user"),
     )
     db_session.add(owner)
     db_session.commit()
     db_session.refresh(owner)
     yield owner
-    db_session.delete(owner)
-    db_session.commit()
+    _safe_delete(db_session, owner)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -166,7 +189,6 @@ async def test_project(test_project_owner: User, db_session) -> Project:
     project = Project(
         id=data["id"],
         name=data["name"],
-        slug=data["slug"],
         description=data["description"],
         creator_id=test_project_owner.id,
     )
@@ -174,8 +196,7 @@ async def test_project(test_project_owner: User, db_session) -> Project:
     db_session.commit()
     db_session.refresh(project)
     yield project
-    db_session.delete(project)
-    db_session.commit()
+    _safe_delete(db_session, project)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -221,12 +242,7 @@ async def test_board(test_project: Project, test_user: User, db_session) -> Boar
         db_session.refresh(col)
 
     yield board
-
-    for col in columns:
-        db_session.delete(col)
-    db_session.commit()
-    db_session.delete(board)
-    db_session.commit()
+    _safe_delete_multi(db_session, columns + [board])
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -252,7 +268,7 @@ async def test_column(test_board: Board, db_session) -> BoardColumn:
 @pytest_asyncio.fixture(scope="function")
 async def auth_headers(test_user: User) -> dict:
     from app.utils.security import create_access_token
-    token = create_access_token(data={"sub": test_user.id})
+    token = create_access_token(user_id=test_user.id)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -271,8 +287,7 @@ async def opencode_agent(db_session) -> Agent:
     db_session.commit()
     db_session.refresh(agent)
     yield agent
-    db_session.delete(agent)
-    db_session.commit()
+    _safe_delete(db_session, agent)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -290,8 +305,7 @@ async def cursor_agent(db_session) -> Agent:
     db_session.commit()
     db_session.refresh(agent)
     yield agent
-    db_session.delete(agent)
-    db_session.commit()
+    _safe_delete(db_session, agent)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -309,8 +323,7 @@ async def claude_agent(db_session) -> Agent:
     db_session.commit()
     db_session.refresh(agent)
     yield agent
-    db_session.delete(agent)
-    db_session.commit()
+    _safe_delete(db_session, agent)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -328,8 +341,7 @@ async def codebuddy_agent(db_session) -> Agent:
     db_session.commit()
     db_session.refresh(agent)
     yield agent
-    db_session.delete(agent)
-    db_session.commit()
+    _safe_delete(db_session, agent)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -351,9 +363,7 @@ async def all_agents(db_session) -> Dict[str, Agent]:
     for key in created_agents:
         db_session.refresh(created_agents[key])
     yield created_agents
-    for key in created_agents:
-        db_session.delete(created_agents[key])
-    db_session.commit()
+    _safe_delete_multi(db_session, list(created_agents.values()))
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -371,8 +381,7 @@ async def test_requirement(test_project: Project, db_session) -> Requirement:
     db_session.commit()
     db_session.refresh(req)
     yield req
-    db_session.delete(req)
-    db_session.commit()
+    _safe_delete(db_session, req)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -390,80 +399,72 @@ async def locked_requirement(test_project: Project, db_session) -> Requirement:
     db_session.commit()
     db_session.refresh(req)
     yield req
-    db_session.delete(req)
-    db_session.commit()
+    _safe_delete(db_session, req)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def test_task_ai(test_project: Project, test_board: Board, test_column: BoardColumn, test_user: User, opencode_agent: Agent, db_session) -> Task:
+async def test_task_ai(test_project: Project, opencode_agent: Agent, db_session) -> Task:
     data = load_fixture_data("tasks")["user_management_task"]
     task = Task(
         id=data["id"],
-        title=data["name"],
+        project_id=test_project.id,
+        name=data["name"],
         description=data["description"],
-        board_id=test_board.id,
-        column_id=test_column.id,
-        status=data["status"],
+        type=data["type"],
         priority=data["priority"],
-        agent_type=data["agent_type"],
-        is_blocked=data["is_blocked"],
+        agent_type_preference=data.get("agent_type"),
+        status=data["status"],
         acceptance_criteria=data["acceptance_criteria"],
-        creator_id=test_user.id,
     )
     db_session.add(task)
     db_session.commit()
     db_session.refresh(task)
     yield task
-    db_session.delete(task)
-    db_session.commit()
+    _safe_delete(db_session, task)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def assigned_task(test_project: Project, test_board: Board, test_column: BoardColumn, test_user: User, opencode_agent: Agent, db_session) -> Task:
+async def assigned_task(test_project: Project, test_user: User, opencode_agent: Agent, db_session) -> Task:
     data = load_fixture_data("tasks")["product_management_task"]
     task = Task(
         id=data["id"],
-        title=data["name"],
+        project_id=test_project.id,
+        name=data["name"],
         description=data["description"],
-        board_id=test_board.id,
-        column_id=test_column.id,
-        status=data["status"],
+        type=data["type"],
         priority=data["priority"],
-        agent_type=data["agent_type"],
-        is_blocked=data["is_blocked"],
+        agent_type_preference=data.get("agent_type"),
+        assignee_agent_id=opencode_agent.id,
+        status=data["status"],
         acceptance_criteria=data["acceptance_criteria"],
-        creator_id=test_user.id,
     )
     db_session.add(task)
     db_session.commit()
     db_session.refresh(task)
     yield task
-    db_session.delete(task)
-    db_session.commit()
+    _safe_delete(db_session, task)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def delivered_task(test_project: Project, test_board: Board, test_column: BoardColumn, test_user: User, opencode_agent: Agent, db_session) -> Task:
+async def delivered_task(test_project: Project, test_user: User, opencode_agent: Agent, db_session) -> Task:
     data = load_fixture_data("tasks")["delivered_task"]
     task = Task(
         id=data["id"],
-        title=data["name"],
+        project_id=test_project.id,
+        name=data["name"],
         description=data["description"],
-        board_id=test_board.id,
-        column_id=test_column.id,
-        status=data["status"],
+        type=data["type"],
         priority=data["priority"],
-        agent_type=data["agent_type"],
-        is_blocked=data["is_blocked"],
+        agent_type_preference=data.get("agent_type"),
+        assignee_agent_id=opencode_agent.id,
+        status=data["status"],
         acceptance_criteria=data["acceptance_criteria"],
-        creator_id=test_user.id,
     )
     db_session.add(task)
     db_session.commit()
     db_session.refresh(task)
     yield task
-    db_session.delete(task)
-    db_session.commit()
+    _safe_delete(db_session, task)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -472,7 +473,7 @@ async def test_task_execution(delivered_task: Task, opencode_agent: Agent, db_se
     execution = TaskExecution(
         id=data["id"],
         task_id=delivered_task.id,
-        agent_id=data["agent_id"],
+        agent_id=opencode_agent.id,
         status=data["status"],
         result_summary=data["result_summary"],
     )
@@ -480,36 +481,35 @@ async def test_task_execution(delivered_task: Task, opencode_agent: Agent, db_se
     db_session.commit()
     db_session.refresh(execution)
     yield execution
-    db_session.delete(execution)
-    db_session.commit()
+    _safe_delete(db_session, execution)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def passed_acceptance(test_task_execution: TaskExecution, db_session) -> AcceptanceRecord:
+async def passed_acceptance(delivered_task: Task, opencode_agent: Agent, db_session) -> AcceptanceRecord:
     data = load_fixture_data("acceptance_records")["passed_acceptance"]
     record = AcceptanceRecord(
         id=data["id"],
-        task_execution_id=test_task_execution.id,
-        result=data["result"],
-        problem_details=data["problem_details"],
-        reviewer=data["reviewer"],
+        task_id=delivered_task.id,
+        reviewer_agent_id=opencode_agent.id,
+        result="accepted",
+        problem_details=data.get("problem_details"),
     )
     db_session.add(record)
     db_session.commit()
     db_session.refresh(record)
     yield record
-    db_session.delete(record)
-    db_session.commit()
+    _safe_delete(db_session, record)
 
 
 @pytest.fixture
 def task_factory():
     def _create_task_data(overrides: dict = None):
         data = {
-            "title": "默认任务标题",
+            "name": "默认任务标题",
             "description": "默认任务描述",
+            "type": "coding",
             "priority": "medium",
-            "agent_type": "opencode",
+            "agent_type_preference": "opencode",
             "acceptance_criteria": "功能正常运行",
         }
         if overrides:
@@ -523,7 +523,6 @@ def project_factory():
     def _create_project_data(overrides: dict = None):
         data = {
             "name": "默认项目",
-            "slug": "default-project",
             "description": "默认项目描述",
         }
         if overrides:

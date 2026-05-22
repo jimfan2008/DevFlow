@@ -69,6 +69,7 @@ class TaskStatus(str, enum.Enum):
     pending = "pending"
     assigned = "assigned"
     running = "running"
+    in_progress = "in_progress"
     delivered = "delivered"
     accepted = "accepted"
     failed = "failed"

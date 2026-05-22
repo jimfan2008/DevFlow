@@ -41,7 +41,7 @@ class TestAuthAPI:
         }
         
         response = await api_client.post("/api/auth/register", json=payload)
-        assert response.status_code in [200, 400]
+        assert response.status_code in [200, 409]
 
 
 class TestTaskAPI:

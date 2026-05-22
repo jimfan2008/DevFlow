@@ -19,7 +19,7 @@ class Comment(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, onupdate=lambda: datetime.now(timezone.utc))
 
-    task = relationship("Task", back_populates="comments")
+    task = relationship("Task")
     user = relationship("User", back_populates="comments")
 
     __table_args__ = (

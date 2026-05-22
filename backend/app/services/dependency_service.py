@@ -37,12 +37,8 @@ class DependencyService:
             id=str(uuid.uuid4()),
             source_task_id=source_task_id,
             target_task_id=target_task_id,
-            dependency_type="finishes_to_starts",
         )
         self.db.add(dep)
-        # Update target task blocked status
-        target.blocked_by_count += 1
-        target.is_blocked = True
         self.db.commit()
         self.db.refresh(dep)
         return dep.to_dict()
@@ -56,11 +52,6 @@ class DependencyService:
         if not dep:
             raise ValueError("依赖关系不存在")
         self.db.delete(dep)
-        target = self.db.query(Task).filter(Task.id == target_task_id).first()
-        if target:
-            target.blocked_by_count = max(0, target.blocked_by_count - 1)
-            if target.blocked_by_count == 0:
-                target.is_blocked = False
         self.db.commit()
         return True
 
@@ -76,9 +67,9 @@ class DependencyService:
             source_task = self.db.query(Task).filter(Task.id == dep.source_task_id).first()
             target_task = self.db.query(Task).filter(Task.id == dep.target_task_id).first()
             if source_task:
-                d["source_task_title"] = source_task.title
+                d["source_task_name"] = source_task.name
             if target_task:
-                d["target_task_title"] = target_task.title
+                d["target_task_name"] = target_task.name
             result.append(d)
         return result
 

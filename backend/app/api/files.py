@@ -14,7 +14,7 @@ from app.database import get_db
 from app.api.deps import get_current_user
 from app.config import get_settings
 
-router = APIRouter()
+router = APIRouter(redirect_slashes=False)
 settings = get_settings()
 
 
