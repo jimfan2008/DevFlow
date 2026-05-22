@@ -17,7 +17,7 @@ DevFlow 是一个面向人类用户与 AI Agent 协同的自动化软件开发�
 - **代码仓库管理**：本地部署 Gitea，支持 Git Flow 分支策略和 Pull Request 流程
 - **自动化验收**：任务成果自动验收，确保交付质量
 
----
+***
 
 ## 核心特性
 
@@ -76,20 +76,20 @@ DevFlow 是一个面向人类用户与 AI Agent 协同的自动化软件开发�
 - **多渠道推送**：平台内消息、邮件、短信（可选）
 - **项目完成通知**：成果下载链接、交付报告、售后支持说明
 
----
+***
 
 ## 技术架构
 
 ### 技术栈
 
-| 层级 | 技术选型 |
-|------|----------|
-| **前端** | Vue 3 + Element Plus + Vite + Pinia + Vue Router |
-| **后端** | Python FastAPI + Celery + asyncio |
-| **数据库** | PostgreSQL 14+ + Redis 6+ |
-| **代码托管** | Gitea（本地自托管 Git 服务） |
-| **AI 交互** | Hermes Gateway API + WebSocket |
-| **部署** | Docker + Docker Compose |
+| 层级        | 技术选型                                             |
+| --------- | ------------------------------------------------ |
+| **前端**    | Vue 3 + Element Plus + Vite + Pinia + Vue Router |
+| **后端**    | Python FastAPI + Celery + asyncio                |
+| **数据库**   | PostgreSQL 14+ + Redis 6+                        |
+| **代码托管**  | Gitea（本地自托管 Git 服务）                              |
+| **AI 交互** | Hermes Gateway API + WebSocket                   |
+| **部署**    | Docker + Docker Compose                          |
 
 ### 系统架构
 
@@ -135,7 +135,7 @@ DevFlow 是一个面向人类用户与 AI Agent 协同的自动化软件开发�
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
----
+***
 
 ## 快速开始
 
@@ -179,12 +179,12 @@ docker-compose -f docker-compose.dev.yml logs -f
 
 #### 4. 访问服务
 
-| 服务 | 地址 | 说明 |
-|------|------|------|
-| 前端 | http://localhost | 主应用界面 |
-| 后端 API | http://localhost:8000 | FastAPI 后端 |
-| API 文档 | http://localhost:8000/docs | Swagger UI |
-| Gitea | http://localhost:3000 | 代码托管平台 |
+| 服务     | 地址                           | 说明         |
+| ------ | ---------------------------- | ---------- |
+| 前端     | <http://localhost>           | 主应用界面      |
+| 后端 API | <http://localhost:8000>      | FastAPI 后端 |
+| API 文档 | <http://localhost:8000/docs> | Swagger UI |
+| Gitea  | <http://localhost:3000>      | 代码托管平台     |
 
 ### 方式二：本地开发
 
@@ -223,56 +223,56 @@ cp .env.example .env
 npm run dev
 ```
 
-访问 http://localhost:5173
+访问 <http://localhost:5173>
 
----
+***
 
 ## 环境配置
 
 ### 核心环境变量
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `APP_NAME` | DevFlow | 应用名称 |
-| `APP_DEBUG` | true | 调试模式 |
-| `APP_HOST` | 0.0.0.0 | 监听地址 |
-| `APP_PORT` | 8000 | 监听端口 |
+| 变量名         | 默认值     | 说明   |
+| ----------- | ------- | ---- |
+| `APP_NAME`  | DevFlow | 应用名称 |
+| `APP_DEBUG` | true    | 调试模式 |
+| `APP_HOST`  | 0.0.0.0 | 监听地址 |
+| `APP_PORT`  | 8000    | 监听端口 |
 
 ### 数据库配置
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
+| 变量名            | 默认值              | 说明               |
+| -------------- | ---------------- | ---------------- |
 | `DATABASE_URL` | postgresql://... | PostgreSQL 连接字符串 |
-| `REDIS_URL` | redis://... | Redis 连接字符串 |
-| `DB_POOL_SIZE` | 5 | 数据库连接池大小 |
+| `REDIS_URL`    | redis\://...     | Redis 连接字符串      |
+| `DB_POOL_SIZE` | 5                | 数据库连接池大小         |
 
 ### JWT 认证
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `JWT_SECRET` | dev-jwt-secret | JWT 密钥（生产环境必须修改） |
-| `JWT_ALGORITHM` | HS256 | 加密算法 |
-| `JWT_EXPIRE_MINUTES` | 30 | Token 过期时间（分钟） |
+| 变量名                  | 默认值            | 说明               |
+| -------------------- | -------------- | ---------------- |
+| `JWT_SECRET`         | dev-jwt-secret | JWT 密钥（生产环境必须修改） |
+| `JWT_ALGORITHM`      | HS256          | 加密算法             |
+| `JWT_EXPIRE_MINUTES` | 30             | Token 过期时间（分钟）   |
 
 ### Gitea 配置
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `GITEA_HOST` | localhost | Gitea 服务器地址 |
-| `GITEA_PORT` | 3000 | Gitea HTTP 端口 |
-| `GITEA_PROTOCOL` | http | 协议（http/https） |
-| `GITEA_API_TOKEN` | - | Gitea API 访问令牌 |
-| `GITEA_DEFAULT_ORG` | devflow | 默认组织名称 |
+| 变量名                 | 默认值       | 说明             |
+| ------------------- | --------- | -------------- |
+| `GITEA_HOST`        | localhost | Gitea 服务器地址    |
+| `GITEA_PORT`        | 3000      | Gitea HTTP 端口  |
+| `GITEA_PROTOCOL`    | http      | 协议（http/https） |
+| `GITEA_API_TOKEN`   | -         | Gitea API 访问令牌 |
+| `GITEA_DEFAULT_ORG` | devflow   | 默认组织名称         |
 
 ### Hermes Agent 配置
 
-| 变量名 | 默认值 | 说明 |
-|--------|--------|------|
-| `HERMES_PROFILES_PATH` | ~/.hermes | Hermes Profile 目录 |
-| `HERMES_GATEWAY_TIMEOUT` | 360 | Gateway API 超时（秒） |
-| `HERMES_MAX_CONCURRENT` | 5 | 最大并发请求数 |
+| 变量名                      | 默认值        | 说明                |
+| ------------------------ | ---------- | ----------------- |
+| `HERMES_PROFILES_PATH`   | \~/.hermes | Hermes Profile 目录 |
+| `HERMES_GATEWAY_TIMEOUT` | 360        | Gateway API 超时（秒） |
+| `HERMES_MAX_CONCURRENT`  | 5          | 最大并发请求数           |
 
----
+***
 
 ## 使用指南
 
@@ -313,7 +313,7 @@ hermes gateway start
 
 ### 2. 配置 Gitea
 
-首次访问 http://localhost:3000 进入安装向导：
+首次访问 <http://localhost:3000> 进入安装向导：
 
 1. **数据库配置**：选择 PostgreSQL，填写连接信息
 2. **基本设置**：
@@ -365,92 +365,93 @@ hermes gateway start
 - **提交规范**：自动验证 Conventional Commits
 - **Webhook**：支持 CI/CD 集成
 
----
+***
 
 ## API 参考
 
 ### 认证 API
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | `/api/auth/login` | 用户登录 |
+| 方法   | 路径                   | 描述   |
+| ---- | -------------------- | ---- |
+| POST | `/api/auth/login`    | 用户登录 |
 | POST | `/api/auth/register` | 用户注册 |
 
 ### 项目管理 API
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | `/api/projects` | 创建项目 |
-| GET | `/api/projects` | 获取项目列表 |
-| GET | `/api/projects/:id` | 获取项目详情 |
-| POST | `/api/projects/:id/requirements/confirm` | 确认需求 |
-| POST | `/api/projects/:id/tasks/decompose` | 触发任务拆解 |
-| GET | `/api/projects/:id/tasks` | 获取项目任务清单 |
+| 方法   | 路径                                       | 描述       |
+| ---- | ---------------------------------------- | -------- |
+| POST | `/api/projects`                          | 创建项目     |
+| GET  | `/api/projects`                          | 获取项目列表   |
+| GET  | `/api/projects/:id`                      | 获取项目详情   |
+| POST | `/api/projects/:id/requirements/confirm` | 确认需求     |
+| POST | `/api/projects/:id/tasks/decompose`      | 触发任务拆解   |
+| GET  | `/api/projects/:id/tasks`                | 获取项目任务清单 |
 
 ### Hermes Agent API
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | `/api/profiles` | 获取所有 Hermes Profile |
-| GET | `/api/agents/discover` | 重新扫描发现 Agent |
-| POST | `/api/agents/sync-hermes` | 同步 Profile 到数据库 |
-| GET | `/api/hermes/health` | 检查 Gateway 健康状态 |
-| POST | `/api/hermes/chat` | 与 Hermes 对话（非流式） |
+| 方法   | 路径                        | 描述                  |
+| ---- | ------------------------- | ------------------- |
+| GET  | `/api/profiles`           | 获取所有 Hermes Profile |
+| GET  | `/api/agents/discover`    | 重新扫描发现 Agent        |
+| POST | `/api/agents/sync-hermes` | 同步 Profile 到数据库     |
+| GET  | `/api/hermes/health`      | 检查 Gateway 健康状态     |
+| POST | `/api/hermes/chat`        | 与 Hermes 对话（非流式）    |
 | POST | `/api/hermes/chat/stream` | 与 Hermes 对话（流式 SSE） |
 
 ### 群组与会议 API
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | `/api/groups` | 获取群组列表 |
-| POST | `/api/groups` | 创建群组 |
-| GET | `/api/groups/:id` | 获取群组详情 |
-| GET | `/api/groups/:id/messages` | 获取群组消息 |
-| GET | `/api/groups/:id/outcomes` | 获取会议结果 |
-| GET | `/api/groups/:id/tasks` | 获取群组待办任务 |
+| 方法   | 路径                         | 描述       |
+| ---- | -------------------------- | -------- |
+| GET  | `/api/groups`              | 获取群组列表   |
+| POST | `/api/groups`              | 创建群组     |
+| GET  | `/api/groups/:id`          | 获取群组详情   |
+| GET  | `/api/groups/:id/messages` | 获取群组消息   |
+| GET  | `/api/groups/:id/outcomes` | 获取会议结果   |
+| GET  | `/api/groups/:id/tasks`    | 获取群组待办任务 |
 
 ### 任务管理 API
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | `/api/tasks/pending` | 获取待办任务列表 |
-| GET | `/api/tasks/:id` | 获取任务详情 |
-| POST | `/api/tasks/:id/start` | 标记任务开始 |
-| POST | `/api/tasks/:id/progress` | 上报任务进度 |
-| POST | `/api/tasks/:id/deliver` | 交付任务成果 |
-| POST | `/api/tasks/:id/accept` | 验收任务成果 |
+| 方法   | 路径                        | 描述       |
+| ---- | ------------------------- | -------- |
+| GET  | `/api/tasks/pending`      | 获取待办任务列表 |
+| GET  | `/api/tasks/:id`          | 获取任务详情   |
+| POST | `/api/tasks/:id/start`    | 标记任务开始   |
+| POST | `/api/tasks/:id/progress` | 上报任务进度   |
+| POST | `/api/tasks/:id/deliver`  | 交付任务成果   |
+| POST | `/api/tasks/:id/accept`   | 验收任务成果   |
 
 ### 代码仓库 API
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | `/api/repos` | 创建代码仓库 |
-| GET | `/api/repos` | 获取仓库列表 |
-| GET | `/api/repos/:id` | 获取仓库详情 |
-| GET | `/api/repos/:id/branches` | 获取分支列表 |
-| POST | `/api/repos/:id/branches` | 创建新分支 |
-| GET | `/api/repos/:id/pulls` | 获取 PR 列表 |
-| POST | `/api/repos/:id/pulls` | 创建 PR |
-| POST | `/api/repos/:id/pulls/:number/merge` | 合并 PR |
-| GET | `/api/repos/:id/commits` | 获取提交记录 |
-| POST | `/api/repos/validate-commit` | 验证提交规范 |
+| 方法   | 路径                                   | 描述       |
+| ---- | ------------------------------------ | -------- |
+| POST | `/api/repos`                         | 创建代码仓库   |
+| GET  | `/api/repos`                         | 获取仓库列表   |
+| GET  | `/api/repos/:id`                     | 获取仓库详情   |
+| GET  | `/api/repos/:id/branches`            | 获取分支列表   |
+| POST | `/api/repos/:id/branches`            | 创建新分支    |
+| GET  | `/api/repos/:id/pulls`               | 获取 PR 列表 |
+| POST | `/api/repos/:id/pulls`               | 创建 PR    |
+| POST | `/api/repos/:id/pulls/:number/merge` | 合并 PR    |
+| GET  | `/api/repos/:id/commits`             | 获取提交记录   |
+| POST | `/api/repos/validate-commit`         | 验证提交规范   |
 
 ### WebSocket 端点
 
-| 端点 | 描述 |
-|------|------|
+| 端点                          | 描述     |
+| --------------------------- | ------ |
 | `ws://{host}/ws/group-chat` | 群聊实时通信 |
 
 **消息类型：**
+
 - `subscribe` - 订阅群组消息
 - `send_message` - 发送消息（支持 @mention）
 - `start_meeting` - 启动会议
 - `stop_meeting` - 停止会议
 - `meeting_intervention` - 会议干预
 
-完整 API 文档请访问：http://localhost:8000/docs
+完整 API 文档请访问：<http://localhost:8000/docs>
 
----
+***
 
 ## 开发指南
 
@@ -518,17 +519,20 @@ npm run test
 ### 代码规范
 
 **Python 后端：**
+
 - 遵循 PEP 8 规范
 - 使用类型注解
 - 单元测试覆盖率 > 80%
 
 **Vue 前端：**
+
 - 遵循 Vue 3 组合式 API
 - 使用 TypeScript
 - ESLint + Prettier 格式化
 
 **Git 提交：**
 遵循 Conventional Commits 规范：
+
 ```
 <type>(<scope>): <subject>
 
@@ -552,13 +556,14 @@ npm run test
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
----
+***
 
 ## 常见问题
 
 ### Q1: Hermes Agent 无法连接？
 
 **A:** 检查以下几点：
+
 - 确认 Hermes Gateway 已启动：`hermes gateway start`
 - 确认 Gateway 端口监听：`netstat -an | grep 8765`
 - 检查 DevFlow 配置中的 Profile 路径
@@ -567,6 +572,7 @@ npm run test
 ### Q2: Gitea 无法创建仓库？
 
 **A:** 检查以下几点：
+
 - 确认 Gitea 服务正常运行
 - 验证 Gitea API Token 权限
 - 确认默认组织（devflow）已创建
@@ -575,6 +581,7 @@ npm run test
 ### Q3: 任务一直处于"待分配"状态？
 
 **A:** 可能原因：
+
 - 没有可用的编程 Agent 注册
 - 任务类型与 Agent 技能不匹配
 - 所有 Agent 都处于高负载状态
@@ -583,6 +590,7 @@ npm run test
 ### Q4: 如何添加新的编程 Agent？
 
 **A:** 有三种方式：
+
 1. **API 主动注册**：Agent 启动时调用 `POST /api/agents/register`
 2. **配置文件注册**：在 DevFlow 配置文件中静态声明
 3. **手动注册**：通过管理界面手动添加
@@ -590,6 +598,7 @@ npm run test
 ### Q5: Docker 启动后服务无法访问？
 
 **A:** 排查步骤：
+
 ```bash
 # 查看容器状态
 docker-compose -f docker-compose.dev.yml ps
@@ -604,12 +613,13 @@ netstat -an | grep -E "8000|5173|3000"
 ### Q6: 如何重置开发环境？
 
 **A:** 清除所有数据（注意：这会删除所有数据库和 Gitea 数据）：
+
 ```bash
 docker-compose -f docker-compose.dev.yml down -v
 docker-compose -f docker-compose.dev.yml up -d
 ```
 
----
+***
 
 ## 相关文档
 
@@ -619,13 +629,13 @@ docker-compose -f docker-compose.dev.yml up -d
 - [Gitea 文档](https://docs.gitea.io/) - Gitea 官方文档
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent) - Hermes 开源项目
 
----
+***
 
 ## 许可证
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 
----
+***
 
 ## 致谢
 
@@ -634,7 +644,7 @@ docker-compose -f docker-compose.dev.yml up -d
 - [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
 - [Gitea](https://gitea.io/) - 轻量级自托管 Git 服务
 
----
+***
 
 <div align="center">
   <p>Made with ❤️ by DevFlow Team</p>
