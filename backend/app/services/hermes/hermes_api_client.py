@@ -52,10 +52,10 @@ class HermesAPIClient:
 
     async def health_check(self) -> bool:
         try:
-            client = await self._get_client()
             base = self._base_url.replace("/v1", "").rstrip("/")
-            resp = await client.get(f"{base}/health", timeout=5.0)
-            return resp.status_code == 200
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(f"{base}/health", headers=self._auth_headers())
+                return resp.status_code == 200
         except Exception:
             return False
 
