@@ -29,6 +29,10 @@ class GatewayClient:
         self.timeout = timeout
         self._api_key: Optional[str] = None
         self._use_cli = False
+        effective_profile = profile_name or "default"
+        if not port:
+            self._use_cli = True
+            logger.info(f"Using CLI mode for profile '{effective_profile}'")
 
     def _get_base_url(self) -> str:
         if self.port:
@@ -64,6 +68,19 @@ class GatewayClient:
             parsed = urlparse(api_base)
             if parsed.port:
                 api_key = os.environ.get("HERMES_API_KEY", "")
+                test_url = f"http://{parsed.hostname}:{parsed.port}/v1/chat/completions"
+                try:
+                    import httpx as _httpx
+                    with _httpx.Client(timeout=5) as _client:
+                        _resp = _client.post(test_url, json={"model": "test", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}, headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"} if api_key else {"Content-Type": "application/json"})
+                        if _resp.status_code not in (200, 201, 401, 422):
+                            logger.warning(f"HERMES_API_BASE port {parsed.port} returned {_resp.status_code} for /v1/chat/completions, falling back to CLI")
+                            self._use_cli = True
+                            return 0, ""
+                except Exception as e:
+                    logger.warning(f"HERMES_API_BASE port {parsed.port} unreachable: {e}, falling back to CLI")
+                    self._use_cli = True
+                    return 0, ""
                 self.port = parsed.port
                 self._api_key = api_key or None
                 logger.info(f"Using HERMES_API_BASE port {parsed.port} for profile '{self.profile_name}'")
@@ -77,6 +94,7 @@ class GatewayClient:
         raise ValueError(f"Gateway not available for profile '{self.profile_name}'. Ensure Hermes Gateway is running with API server enabled or install hermes CLI.")
 
     async def _cli_send(self, message: str) -> str:
+        global HERMES_CLI_PATH
         if not HERMES_CLI_PATH:
             hermes_home = get_hermes_home_path()
             cli_candidates = [
@@ -94,7 +112,7 @@ class GatewayClient:
 
         try:
             proc = await asyncio.create_subprocess_exec(
-                HERMES_CLI_PATH, "chat", "--message", message, "--profile", self.profile_name,
+                HERMES_CLI_PATH, "chat", "-q", message, "--profile", self.profile_name, "-Q",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
@@ -121,6 +139,13 @@ class GatewayClient:
             return
 
         port, api_key = await self._resolve_profile()
+        
+        if self._use_cli:
+            combined = "\n".join(m.get("content", "") for m in messages if m.get("content"))
+            result = await self._cli_send(combined)
+            yield result
+            return
+            
         import os
         host = os.environ.get("HERMES_GATEWAY_HOST", "localhost")
         url = f"http://{host}:{port}/v1/chat/completions"
@@ -183,8 +208,13 @@ class GatewayClient:
         message: str,
         conversation_history: List[Dict[str, str]] = None,
     ) -> str:
+        logger.info(f"send_message_non_stream: _use_cli={self._use_cli}, port={self.port}, profile={self.profile_name}")
         if self._use_cli:
-            return await self._cli_send(message)
+            logger.info("send_message_non_stream: Using CLI mode")
+            result = await self._cli_send(message)
+            logger.info(f"CLI send result length: {len(result) if result else 0}")
+            return result
+        logger.info("send_message_non_stream: Using HTTP mode")
         full_response = []
         async for chunk in self.send_message(message, conversation_history, stream=False):
             full_response.append(chunk)

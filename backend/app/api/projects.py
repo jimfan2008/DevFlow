@@ -1,18 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from typing import Optional
-from datetime import datetime, timezone
+from datetime import datetime
+from sqlalchemy.orm import Session
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
 from app.models.project import Project
 from app.services.project_service import ProjectService
-from app.schemas.project_srs import ProjectCreate
+from app.schemas.project import ProjectCreate
 
 router = APIRouter(redirect_slashes=False)
 
 
-@router.post("", response_model=dict)
 def create_project(
     data: ProjectCreate,
     db: Session = Depends(get_db),

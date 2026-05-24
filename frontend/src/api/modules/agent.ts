@@ -44,6 +44,10 @@ export const agentApi = {
   load(agentId: string) {
     return apiClient.get<ApiResponse<{ load: Record<string, unknown> }>>(`/agents/${agentId}/load`)
   },
+  /** POST /api/agents/{agentId}/chat - 与 Agent 直接对话 */
+  chat(agentId: string, message: string) {
+    return apiClient.post<ApiResponse<{ reply: string }>>(`/agents/${agentId}/chat`, { message })
+  },
 }
 
 export const webhookApi = {

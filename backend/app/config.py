@@ -66,22 +66,17 @@ class Settings(BaseSettings):
 
     # ── Hermes Agent ──────────────────────────────────────
     HERMES_API_BASE: str = os.getenv(
-        "HERMES_API_BASE", ""
+        "HERMES_API_BASE", "http://host.docker.internal:8642/v1"
     )
     HERMES_API_KEY: str = os.getenv("HERMES_API_KEY", "")
-    HERMES_MODEL: str = os.getenv("HERMES_MODEL", "")
-
-    # ── Group Chat (from groupchat) ──────────────────────
-    # WSL Configuration
-    WSL_DISTRO_NAME: str = os.getenv("WSL_DISTRO_NAME", "Ubuntu-24.04")
+    HERMES_MODEL: str = os.getenv("HERMES_MODEL", "hermes-agent")
     HERMES_PROFILES_PATH: str = os.getenv(
-        "HERMES_PROFILES_PATH",
-        "/home/jim/.hermes/profiles"
+        "HERMES_PROFILES_PATH", "/hermes-home"
     )
-
-    # Agent Gateway Configuration
-    AGENT_TIMEOUT: int = int(os.getenv("AGENT_TIMEOUT", "60"))
-    MAX_CONCURRENT_AGENTS: int = int(os.getenv("MAX_CONCURRENT_AGENTS", "5"))
+    HERMES_BFF_URL: str = os.getenv("HERMES_BFF_URL", "")
+    HERMES_HEALTH_INTERVAL: int = int(os.getenv("HERMES_HEALTH_INTERVAL", "30"))
+    HERMES_MAX_CONCURRENT_CHATS: int = int(os.getenv("HERMES_MAX_CONCURRENT_CHATS", "5"))
+    HERMES_SHOW_THINKING: bool = os.getenv("HERMES_SHOW_THINKING", "false").lower() in ("true", "1", "yes")
 
     # ── Celery ─────────────────────────────────────────────
     CELERY_BROKER_URL: str = os.getenv(

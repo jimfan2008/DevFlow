@@ -21,6 +21,12 @@ export const chatApi = {
       role: 'user',
     })
   },
+  addMember(groupId: string, profileName: string) {
+    return apiClient.post<ApiResponse<{ group: Record<string, unknown> }>>(`/groups/${groupId}/members`, { profile_name: profileName })
+  },
+  removeMember(groupId: string, profileName: string) {
+    return apiClient.delete<ApiResponse<null>>(`/groups/${groupId}/members/${profileName}`)
+  },
   startMeeting(groupId: string, data?: { agenda?: string[] }) {
     return apiClient.post<ApiResponse<{ meeting: Record<string, unknown> }>>(`/groups/${groupId}/meeting/start`, {
       topic: '技术方案评审',

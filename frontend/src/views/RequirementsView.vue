@@ -264,6 +264,7 @@ const selectedProjectId = ref('')
 const chatInput = ref('')
 const chatQuestions = ref<string[]>([])
 const chatRound = ref(0)
+const hermesSessionId = ref('')
 const chatRef = ref<HTMLElement | null>(null)
 const showCreateDialog = ref(false)
 const createForm = ref({ name: '', description: '' })
@@ -360,18 +361,91 @@ async function handleChatSend() {
   if (!text || store.chatLoading.value) return
   chatInput.value = ''
   chatRound.value++
-  const result = await store.sendChatMessage(text)
-  if (result) {
-    chatQuestions.value = result.questions || []
+  store.chatMessages.push({ role: 'user', content: text })
+  store.chatLoading.value = true
 
-    // 如果是提交需求指令，自动填充文档
-    if (result.phase === 'summarizing' && store.draftContent && !store.hasRequirement) {
-      ElMessage.info('需求讨论完成，请点击「提交需求文档」保存')
-    }
-  } else {
-    chatQuestions.value = []
-  }
+  const hermesMsg = { role: 'hermes', content: '' }
+  store.chatMessages.push(hermesMsg)
   scrollToBottom()
+
+  try {
+    const token = localStorage.getItem('token') || ''
+    const resp = await fetch('/api/hermes/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ message: text, session_id: hermesSessionId.value || undefined }),
+    })
+
+    if (!resp.ok || !resp.body) {
+      throw new Error(`HTTP ${resp.status}`)
+    }
+
+    const reader = resp.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      let currentEvent = ''
+      for (const line of lines) {
+        if (line.startsWith('event: ')) {
+          currentEvent = line.slice(7).trim()
+        } else if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6)
+          try {
+            const data = JSON.parse(dataStr)
+            if (currentEvent === 'content' && data.content) {
+              hermesMsg.content += data.content
+              scrollToBottom()
+            } else if (currentEvent === 'done') {
+              hermesMsg.content = data.content || hermesMsg.content
+              if (data.tool_calls && data.tool_calls.length > 0) {
+                hermesMsg.content += '\n\n🔧 工具调用: ' + data.tool_calls.map((tc: any) => tc.function?.name || 'tool').join(', ')
+              }
+              if (data.session_id) {
+                hermesSessionId.value = data.session_id
+              }
+            } else if (currentEvent === 'error') {
+              hermesMsg.content = data.message || '对话出错'
+            } else if (currentEvent === 'session' && data.session_id) {
+              hermesSessionId.value = data.session_id
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (e: any) {
+    if (!hermesMsg.content) {
+      hermesMsg.content = '暂时无法连接 Hermes Agent，请稍后重试。'
+    }
+  } finally {
+    store.chatLoading.value = false
+    scrollToBottom()
+  }
+
+  const questions: string[] = []
+  for (const line of hermesMsg.content.split('\n')) {
+    const s = line.trim()
+    if (s && /[？?是否还是哪种多少什么明确确认]/.test(s) && s.length > 5 && s.length < 80) {
+      questions.push(s.replace(/^[-*•]\s*/, '').replace(/^\d+\.\s*/, ''))
+    }
+  }
+  chatQuestions.value = questions.slice(0, 5)
+
+  if (hermesMsg.content && store.draftContent) {
+    store.draftContent += '\n\n' + hermesMsg.content
+  } else if (hermesMsg.content) {
+    store.draftContent = hermesMsg.content
+  }
 }
 
 function handleQuestionClick(q: string) {

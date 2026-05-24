@@ -16,6 +16,7 @@ from app.models.board import Board, BoardColumn
 from app.models.comment import Comment
 from app.models.attachment import Attachment
 from app.models.task_execution import TaskExecution
+from app.models.hermes_session import HermesSession, HermesMessage
 
 __all__ = [
     "User", "Project", "ProjectMember", "Board", "BoardColumn",
@@ -25,4 +26,5 @@ __all__ = [
     "Requirement", "TaskExecution", "AcceptanceRecord",
     "Group", "GroupMessage", "MeetingOutcome", "GroupTask",
     "Repo", "RepoBranch", "PullRequest", "Commit", "TaskCommit",
+    "HermesSession", "HermesMessage",
 ]

@@ -1,8 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app.api.deps import get_current_user
-from app.models.user import User
+from fastapi import APIRouter, HTTPException
 from app.services.profile_scanner_service import profile_scanner
 from app.schemas.hermes_skill import HermesSkillResponse
 from pydantic import BaseModel
@@ -22,7 +18,7 @@ class ProfileInfoResponse(BaseModel):
 
 
 @router.get("", response_model=dict)
-async def list_profiles(current_user: User = Depends(get_current_user)):
+async def list_profiles():
     try:
         profiles = await profile_scanner.get_all_profiles()
         return {
@@ -38,7 +34,7 @@ async def list_profiles(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/{profile_name}", response_model=dict)
-async def get_profile(profile_name: str, current_user: User = Depends(get_current_user)):
+async def get_profile(profile_name: str):
     try:
         profile = await profile_scanner.get_profile(profile_name)
         if not profile:
@@ -55,7 +51,7 @@ async def get_profile(profile_name: str, current_user: User = Depends(get_curren
 
 
 @router.get("/{profile_name}/status", response_model=dict)
-async def get_profile_status(profile_name: str, current_user: User = Depends(get_current_user)):
+async def get_profile_status(profile_name: str):
     try:
         status = await profile_scanner.get_profile_status(profile_name)
         return {

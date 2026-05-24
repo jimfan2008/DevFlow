@@ -1,8 +1,8 @@
-# Hermes 服务 - 使用真实 AI 进行需求分析
 from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -13,404 +13,224 @@ from app.services.hermes_acp_client import get_acp_client, HermesACPClient
 
 logger = logging.getLogger("devflow.hermes")
 
-HERMES_SYSTEM_PROMPT = """你是一个 AI 项目经理助手，名叫 Hermes。你负责帮助用户梳理、分析和完善项目需求。
+HERMES_SYSTEM_PROMPT = """你是 DevFlow 的 AI 项目经理助手。你必须用中文回复。
 
-你的核心能力：
-1. 分析用户描述，理解项目类型和目标
-2. 识别需求中的模糊点、遗漏和矛盾
-3. 给出专业的具体改进建议
-4. 生成标准化需求文档
+核心能力：分析需求、识别模糊点、给出改进建议、生成需求文档。
 
-响应格式：
-- 自然的中文对话
-- 专业但友好的语气
-- 适当使用结构化列表
-- 每轮对话要有实质性内容"""
+重要规则：
+- 直接输出最终回复，不要输出思考过程、推理步骤或任何 Thinking 标签
+- 只用中文回复，不要用英文
+- 用专业但友好的语气，适当使用结构化列表"""
+
+
+def _strip_thinking(text):
+    lines = text.strip().split('\n')
+    clean = []
+    in_thinking = False
+    THINKING_MARKERS = (
+        "thinking process:", "here's a thinking process", "here is a thinking",
+        "思考过程：", "分析过程：", "based on my understanding",
+        "looking at my instructions", "let me focus on",
+        "draft content", "mental refinement", "check constraints",
+        "step 1:", "step 2:", "step 3:", "step 4:", "step 5:", "step 6:",
+    )
+    SECTION_NUM_RE = re.compile(r'^\d+\.\s+\*\*')
+    for line in lines:
+        s = line.strip()
+        sl = s.lower()
+        if any(sl.startswith(p) for p in THINKING_MARKERS):
+            in_thinking = True
+            continue
+        if SECTION_NUM_RE.match(s):
+            in_thinking = True
+            continue
+        if in_thinking:
+            has_cjk = bool(re.search(r'[\u4e00-\u9fff]', s))
+            starts_brace = s.startswith('{') or s.startswith('[')
+            is_heading = s.startswith('#') or s.startswith('**一') or s.startswith('**二') or s.startswith('**三')
+            if has_cjk and not sl.startswith(('*( ', '*(需求', '*(关键', '*(专业')):
+                in_thinking = False
+                clean.append(line)
+            elif starts_brace or is_heading:
+                in_thinking = False
+                clean.append(line)
+            continue
+        if not s:
+            if clean and clean[-1].strip():
+                clean.append(line)
+            continue
+        if re.search(r'[\u4e00-\u9fff]', s) or s.startswith('{') or s.startswith('#') or s.startswith('- ') or s.startswith('* '):
+            clean.append(line)
+            continue
+        if re.match(r'^\d+\.\s', s):
+            clean.append(line)
+            continue
+    result = '\n'.join(clean).strip()
+    if not result:
+        cjk_lines = [l for l in lines if re.search(r'[\u4e00-\u9fff]', l)]
+        if cjk_lines:
+            idx = lines.index(cjk_lines[0])
+            return '\n'.join(lines[idx:]).strip()
+    return result if result else text
 
 
 class HermesService:
-    def __init__(self, db: Session, user_id: Optional[str] = None):
+    def __init__(self, db, user_id=None):
         self.db = db
         self.user_id = user_id
         self.llm = get_llm_client()
-        self._acp_client: Optional[HermesACPClient] = None
+        self._acp_client = None
 
     @property
-    def acp_client(self) -> HermesACPClient:
+    def acp_client(self):
         if self._acp_client is None:
             self._acp_client = get_acp_client()
         return self._acp_client
 
-    # ── Sync methods (backward compatible) ─────────────────────
-
-    def chat(self, message: str, project_context: Optional[str] = None) -> dict:
+    def chat(self, message, project_context=None):
         context = ""
         if project_context:
             context = f"\n当前项目上下文：{project_context}"
-
         prompt = (
-            f"用户消息：{message}{context}\n\n"
-            f"请分析用户的需求描述，返回 JSON 格式：\n"
-            f"{{\n"
-            f'  "reply": "你的回复（自然的中文对话，分析需求的要点和问题）",\n'
-            f'  "fuzzy_points": ["需要进一步明确的点1", "点2"],\n'
-            f'  "phase": "initial|discussing|summarizing",\n'
-            f'  "summary": {{"项目类型": "...", "技术栈": ["..."], "功能": ["..."]}}\n'
-            f"}}\n\n"
-            f"phase 说明：initial=刚开始讨论, discussing=正在分析需求细节, summarizing=信息已充足可提交"
+            f"用户说：{message}{context}\n\n"
+            f"请分析用户的需求，指出模糊点和需要进一步明确的地方，给出你的专业建议。\n"
+            f"只用中文回复，不要输出思考过程。"
         )
-
         try:
-            result = self.llm.chat_json(
+            raw_reply = self.llm.chat(
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt=HERMES_SYSTEM_PROMPT,
                 max_tokens=800,
                 temperature=0.7,
             )
         except HermesUnavailableError as e:
-            logger.warning(f"LLM unavailable, using local fallback: {e}")
+            logger.warning(f"LLM unavailable: {e}")
             return self._local_chat_fallback(message, project_context)
         except Exception as e:
             logger.error(f"AI chat failed: {e}")
             return self._local_chat_fallback(message, project_context)
-
-        reply = result.get("reply", "")
-        fuzzy = result.get("fuzzy_points", [])
-        phase = result.get("phase", "discussing")
-        summary = result.get("summary", {})
-
-        if not reply:
-            reply = "我分析了你的需求描述。请提供更多细节，比如项目类型、目标用户、核心功能等。"
-
+        reply = _strip_thinking(raw_reply)
+        if not reply or len(reply.strip()) < 10:
+            reply = "我分析了你的需求。请提供更多细节，比如项目类型、目标用户、核心功能等。"
+        fuzzy = self._extract_fuzzy_points(reply, message)
+        phase = self._detect_phase(reply, message)
+        summary = self._extract_summary(reply, message)
         questions = fuzzy[:5] if fuzzy else []
         if phase == "summarizing" and not questions:
             questions = ["提交需求并生成文档", "我还想补充一些细节"]
+        return {"reply": reply, "questions": questions, "snapshot": summary, "phase": phase}
 
-        return {
-            "reply": reply,
-            "questions": questions,
-            "snapshot": summary,
-            "phase": phase,
-        }
+    def _extract_fuzzy_points(self, reply, message):
+        points = []
+        question_patterns = [
+            r'[？?]\s*$', r'是否', r'还是', r'哪种', r'多少', r'什么.*？',
+            r'需要.*明确', r'需要.*确认', r'建议.*选择', r'考虑.*方面',
+        ]
+        for line in reply.split('\n'):
+            s = line.strip()
+            if s and any(re.search(p, s) for p in question_patterns):
+                s = re.sub(r'^[-*•]\s*', '', s)
+                s = re.sub(r'^\d+\.\s*', '', s)
+                if len(s) > 5:
+                    points.append(s)
+        if not points and len(message) < 50:
+            points.append("项目的核心功能有哪些？")
+            points.append("目标用户是谁？")
+        return points
 
-    def chat_intro(self) -> dict:
+    def _detect_phase(self, reply, message):
+        if any(k in reply for k in ["提交", "总结", "梳理完毕", "信息充足"]):
+            return "summarizing"
+        if len(message) > 80 or any(k in reply for k in ["深入", "详细", "进一步"]):
+            return "discussing"
+        return "initial"
+
+    def _extract_summary(self, reply, message):
+        summary = {}
+        tech_keywords = ["web", "api", "数据库", "前端", "后端", "微服务", "docker", "python", "java", "react", "vue", "移动端", "app"]
+        found_tech = [k for k in tech_keywords if k.lower() in message.lower() or k.lower() in reply.lower()]
+        if found_tech:
+            summary["技术栈"] = found_tech
+        feature_keywords = ["登录", "注册", "搜索", "支付", "上传", "通知", "权限", "导出", "报表", "看板", "课程", "追踪", "管理"]
+        found_feature = [k for k in feature_keywords if k in message or k in reply]
+        if found_feature:
+            summary["功能"] = found_feature
+        return summary
+
+    def chat_intro(self):
         prompt = (
-            "用户正在打开需求管理页面。请用中文写一段热情友好的自我介绍，说明你叫 Hermes，"
-            "是一个 AI 项目经理，可以帮用户梳理需求、分析模糊点、生成需求文档、拆解任务。"
-            "最后引导用户描述他们的项目想法。控制在 150 字以内。"
+            "用户刚进入需求管理页面。请用中文简短自我介绍（150字以内），"
+            "说明你能帮用户梳理需求、分析模糊点、生成文档、拆解任务。"
+            "最后引导用户描述项目想法。只用中文，不要输出思考过程。"
         )
-
         try:
             reply = self.llm.chat(
                 messages=[{"role": "user", "content": prompt}],
+                system_prompt=HERMES_SYSTEM_PROMPT,
                 max_tokens=300,
                 temperature=0.8,
             )
+            reply = _strip_thinking(reply)
             if not reply or len(reply.strip()) < 10:
                 reply = self._default_intro()
         except HermesUnavailableError as e:
-            logger.warning(f"LLM unavailable for intro, using default: {e}")
+            logger.warning(f"LLM unavailable for intro: {e}")
             reply = self._default_intro()
         except Exception as e:
             logger.error(f"Intro failed: {e}")
             reply = self._default_intro()
-
         questions = ["我想开发一个电商平台", "我需要一个企业管理系统", "我想做一个移动端App"]
         return {"reply": reply, "questions": questions, "snapshot": {}, "phase": "initial"}
 
-    def _unavailable_response(self, detail: str = "") -> dict:
-        msg = "Hermes AI 服务暂不可用（模型后端未连接）"
-        if detail:
-            msg += f"。{detail}"
-        return {"reply": msg, "questions": [], "snapshot": {}, "phase": "initial"}
-
-    def _local_chat_fallback(self, message: str, project_context: Optional[str] = None) -> dict:
-        import re
+    def _local_chat_fallback(self, message, project_context=None):
         text = message.strip()
         keywords_tech = ["web", "api", "数据库", "前端", "后端", "微服务", "docker", "k8s", "python", "java", "react", "vue"]
         keywords_feature = ["登录", "注册", "搜索", "支付", "上传", "通知", "权限", "导出", "报表", "看板"]
         found_tech = [k for k in keywords_tech if k.lower() in text.lower()]
         found_feature = [k for k in keywords_feature if k in text]
-
         if len(text) < 5:
-            reply = "请详细描述一下你的项目需求，比如：项目类型、目标用户、核心功能、技术偏好等。"
-            questions = ["我想开发一个Web应用", "我需要一个企业管理系统", "我想做一个移动端App"]
-            return {"reply": reply, "questions": questions, "snapshot": {}, "phase": "initial"}
-
-        reply_parts = []
-        fuzzy = []
-        summary = {}
-
+            return {"reply": "请详细描述你的项目需求，比如：项目类型、目标用户、核心功能、技术偏好等。", "questions": ["我想开发一个Web应用", "我需要一个企业管理系统", "我想做一个移动端App"], "snapshot": {}, "phase": "initial"}
+        reply_parts, fuzzy, summary = [], [], {}
         if project_context:
             summary["项目名称"] = project_context
-
         if found_tech:
-            reply_parts.append(f"我注意到你提到了技术相关内容：{', '.join(found_tech)}。")
+            reply_parts.append(f"我注意到你提到了：{', '.join(found_tech)}。")
             summary["技术栈"] = found_tech
         else:
             fuzzy.append("你倾向使用什么技术栈？")
-
         if found_feature:
-            reply_parts.append(f"你提到的功能点包括：{', '.join(found_feature)}。")
+            reply_parts.append(f"功能点包括：{', '.join(found_feature)}。")
             summary["功能"] = found_feature
         else:
             fuzzy.append("项目的核心功能有哪些？")
-
         if "用户" in text or "客户" in text:
             reply_parts.append("目标用户方面，你能更具体地描述用户画像吗？")
         else:
             fuzzy.append("目标用户是谁？")
-
-        if "规模" not in text and "大小" not in text and "量级" not in text:
+        if "规模" not in text and "大小" not in text:
             fuzzy.append("预期的用户规模和并发量级？")
-
-        if len(text) > 50:
-            phase = "discussing"
-            reply_parts.append("你的描述比较详细，我正在梳理需求要点。")
-        elif len(text) > 100:
+        if len(text) > 100:
             phase = "summarizing"
             reply_parts.append("信息已经比较充分了，可以考虑提交需求文档。")
+        elif len(text) > 50:
+            phase = "discussing"
+            reply_parts.append("你的描述比较详细，我正在梳理需求要点。")
         else:
             phase = "initial"
             reply_parts.append("请继续补充更多细节，帮助我更准确地理解你的需求。")
-
         if not reply_parts:
-            reply_parts.append(f"收到你的需求描述。让我来分析一下关键要点。")
-
+            reply_parts.append("收到你的需求描述，让我来分析关键要点。")
         reply = " ".join(reply_parts)
         questions = fuzzy[:5] if fuzzy else []
         if phase == "summarizing" and not questions:
             questions = ["提交需求并生成文档", "我还想补充一些细节"]
+        return {"reply": reply, "questions": questions, "snapshot": summary, "phase": phase}
 
-        return {
-            "reply": reply,
-            "questions": questions,
-            "snapshot": summary,
-            "phase": phase,
-        }
-
-    def _default_intro(self) -> str:
-        return (
-            "你好！我是 **Hermes**，你的 AI 项目经理 🤖\n\n"
-            "我可以帮你：\n"
-            "• 💡 梳理和分析项目需求\n"
-            "• 📋 生成标准化需求文档\n"
-            "• 🔍 发现需求中的模糊点和遗漏\n"
-            "• 📊 将需求拆解为可执行的任务\n\n"
-            "请描述你的项目想法，我会一步步引导你完善需求！"
-        )
-
-    def generate_structured_doc(self, raw_content: str, clarification_answers: dict) -> dict:
-        features = clarification_answers.get("features", [])
-        tech = clarification_answers.get("tech_stack", {})
-        criteria = clarification_answers.get("acceptance_criteria", [])
-
-        prompt = (
-            f"基于以下需求描述和澄清信息，生成结构化的需求文档：\n\n"
-            f"原始需求：{raw_content}\n\n"
-            f"功能列表：{json.dumps(features, ensure_ascii=False)}\n"
-            f"技术栈：{json.dumps(tech, ensure_ascii=False)}\n"
-            f"验收标准：{json.dumps(criteria, ensure_ascii=False)}\n\n"
-            f"返回 JSON 格式：\n"
-            f"{{\n"
-            f'  "title": "...",\n'
-            f'  "overview": "...",\n'
-            f'  "features": ["..."],\n'
-            f'  "tech_stack": {{}},\n'
-            f'  "acceptance_criteria": ["..."],\n'
-            f'  "constraints": ["..."],\n'
-            f"}}"
-        )
-
-        try:
-            result = self.llm.chat_json(
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=1000,
-                temperature=0.5,
-            )
-            result["generated_at"] = datetime.now(timezone.utc).isoformat()
-            result["version"] = 1
-            return result
-        except HermesUnavailableError:
-            raise
-        except Exception as e:
-            logger.error(f"Generate doc failed: {e}")
-            return {
-                "title": clarification_answers.get("project_name", "未命名项目"),
-                "overview": raw_content,
-                "features": features if features else [raw_content],
-                "tech_stack": tech,
-                "acceptance_criteria": criteria,
-                "constraints": [],
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-                "version": 1,
-            }
-
-    # ── Async methods (use HermesACPClient) ────────────────────
-
-    async def _ensure_acp_session(self) -> str:
-        """Ensure ACP client is started and return session_id."""
-        client = self.acp_client
-        if not client.connection:
-            await client.start()
-        if not client._session_id:
-            return await client.init_session()
-        return client._session_id
-
-    async def _send_acp_prompt(self, prompt: str, session_id: str) -> str:
-        """Send a prompt via ACP and return the response text."""
-        return await self.acp_client.send_prompt(prompt, session_id=session_id)
-
-    async def chat_async(self, message: str, project_context: Optional[str] = None) -> dict:
-        """Async chat via HermesACPClient."""
-        try:
-            session_id = await self._ensure_acp_session()
-            context = ""
-            if project_context:
-                context = f"\n当前项目上下文：{project_context}"
-
-            prompt = (
-                f"用户消息：{message}{context}\n\n"
-                f"请分析用户的需求描述，返回 JSON 格式：\n"
-                f"{{\n"
-                f'  "reply": "你的回复（自然的中文对话，分析需求的要点和问题）",\n'
-                f'  "fuzzy_points": ["需要进一步明确的点1", "点2"],\n'
-                f'  "phase": "initial|discussing|summarizing",\n'
-                f'  "summary": {{"项目类型": "...", "技术栈": ["..."], "功能": ["..."]}}\n'
-                f"}}\n\n"
-                f"phase 说明：initial=刚开始讨论, discussing=正在分析需求细节, summarizing=信息已充足可提交"
-            )
-            resp_text = await self._send_acp_prompt(prompt, session_id=session_id)
-
-            import json as json_mod
-            try:
-                result = json_mod.loads(resp_text)
-            except (json_mod.JSONDecodeError, TypeError):
-                return {
-                    "reply": resp_text,
-                    "questions": [],
-                    "snapshot": {},
-                    "phase": "discussing",
-                }
-
-            reply = result.get("reply", resp_text)
-            fuzzy = result.get("fuzzy_points", [])
-            phase = result.get("phase", "discussing")
-            summary = result.get("summary", {})
-
-            if not reply:
-                reply = "我分析了你的需求描述。请提供更多细节，比如项目类型、目标用户、核心功能等。"
-
-            questions = fuzzy[:5] if fuzzy else []
-            if phase == "summarizing" and not questions:
-                questions = ["提交需求并生成文档", "我还想补充一些细节"]
-
-            return {
-                "reply": reply,
-                "questions": questions,
-                "snapshot": summary,
-                "phase": phase,
-            }
-        except Exception as e:
-            logger.error(f"Async chat failed: {e}")
-            return self._unavailable_response(str(e))
-
-    async def chat_intro_async(self) -> dict:
-        """Async intro via HermesACPClient."""
-        try:
-            session_id = await self._ensure_acp_session()
-            prompt = (
-                "用户正在打开需求管理页面。请用中文写一段热情友好的自我介绍，说明你叫 Hermes，"
-                "是一个 AI 项目经理，可以帮用户梳理需求、分析模糊点、生成需求文档、拆解任务。"
-                "最后引导用户描述他们的项目想法。控制在 150 字以内。"
-            )
-            reply = await self._send_acp_prompt(prompt, session_id=session_id)
-            if not reply or len(reply.strip()) < 10:
-                reply = self._default_intro()
-            questions = ["我想开发一个电商平台", "我需要一个企业管理系统", "我想做一个移动端App"]
-            return {"reply": reply, "questions": questions, "snapshot": {}, "phase": "initial"}
-        except Exception as e:
-            logger.error(f"Async intro failed: {e}")
-            return self._unavailable_response(str(e))
-
-    async def decompose_tasks_async(self, requirement: str) -> list[dict]:
-        """Async task decomposition via HermesACPClient."""
-        try:
-            session_id = await self._ensure_acp_session()
-            prompt = (
-                f"请将以下项目需求拆解为可执行的原子任务，按软件开发流程：\n"
-                f"1. 需求分析细化\n"
-                f"2. 测试用例编写\n"
-                f"3. 功能模块编码\n"
-                f"4. 单元/集成测试\n"
-                f"5. 部署环境搭建\n"
-                f"6. 整体联调\n\n"
-                f"需求：{requirement}\n\n"
-                f"请返回 JSON 格式的任务列表，每个任务包含：name, description, agent_type, priority, acceptance_criteria, dependencies。"
-            )
-            resp_text = await self._send_acp_prompt(prompt, session_id=session_id)
-
-            import json as json_mod
-            try:
-                tasks_data = json_mod.loads(resp_text)
-                if isinstance(tasks_data, list):
-                    return tasks_data
-                if isinstance(tasks_data, dict) and "tasks" in tasks_data:
-                    return tasks_data["tasks"]
-            except (json_mod.JSONDecodeError, TypeError):
-                pass
-
-            return [{"name": resp_text}]
-        except Exception as e:
-            logger.error(f"Async decompose failed: {e}")
-            return []
-
-    async def generate_doc_async(self, raw_content: str, clarification_answers: dict) -> dict:
-        """Async structured doc generation via HermesACPClient."""
-        try:
-            session_id = await self._ensure_acp_session()
-            features = clarification_answers.get("features", [])
-            tech = clarification_answers.get("tech_stack", {})
-            criteria = clarification_answers.get("acceptance_criteria", [])
-
-            prompt = (
-                f"基于以下需求描述和澄清信息，生成结构化的需求文档：\n\n"
-                f"原始需求：{raw_content}\n\n"
-                f"功能列表：{json.dumps(features, ensure_ascii=False)}\n"
-                f"技术栈：{json.dumps(tech, ensure_ascii=False)}\n"
-                f"验收标准：{json.dumps(criteria, ensure_ascii=False)}\n\n"
-                f"返回 JSON 格式：\n"
-                f"{{\n"
-                f'  "title": "...",\n'
-                f'  "overview": "...",\n'
-                f'  "features": ["..."],\n'
-                f'  "tech_stack": {{}},\n'
-                f'  "acceptance_criteria": ["..."],\n'
-                f'  "constraints": ["..."],\n'
-                f"}}"
-            )
-            resp_text = await self._send_acp_prompt(prompt, session_id=session_id)
-
-            import json as json_mod
-            try:
-                doc = json_mod.loads(resp_text)
-                doc["generated_at"] = datetime.now(timezone.utc).isoformat()
-                doc["version"] = 1
-                return doc
-            except (json_mod.JSONDecodeError, TypeError):
-                return self.generate_structured_doc(raw_content, clarification_answers)
-        except Exception as e:
-            logger.error(f"Async generate doc failed: {e}")
-            return self.generate_structured_doc(raw_content, clarification_answers)
-
-    async def check_health_async(self) -> bool:
-        """Async health check via HermesACPClient."""
-        try:
-            client = self.acp_client
-            if client.connection:
-                return True
-            await client.start()
-            await client.init_session()
-            return True
-        except Exception:
-            return False
+    def _default_intro(self):
+        return ("你好！我是 **Hermes**，你的 AI 项目经理\n\n"
+                "我可以帮你：\n"
+                "- 梳理和分析项目需求\n"
+                "- 生成标准化需求文档\n"
+                "- 发现需求中的模糊点和遗漏\n"
+                "- 将需求拆解为可执行的任务\n\n"
+                "请描述你的项目想法，我会一步步引导你完善需求！")

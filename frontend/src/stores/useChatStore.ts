@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { ChatGroup, ChatMessage as ChatMsg, Meeting, MeetingMinutes } from '@/types/api'
 import { chatApi } from '@/api'
+import { agentApi } from '@/api'
 
 export const useChatStore = defineStore('chat', () => {
   const groups = ref<ChatGroup[]>([])
@@ -11,6 +12,7 @@ export const useChatStore = defineStore('chat', () => {
   const meetingMinutes = ref<MeetingMinutes | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const onlineAgents = ref<{ name: string; id: string; status: string }[]>([])
 
   async function fetchGroups(page = 1) {
     loading.value = true
@@ -82,6 +84,51 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function addMember(groupId: string, profileName: string) {
+    try {
+      const res = await chatApi.addMember(groupId, profileName) as any
+      if (res?.data?.group) {
+        currentGroup.value = res.data.group
+        const idx = groups.value.findIndex(g => g.id === groupId)
+        if (idx >= 0) groups.value[idx] = res.data.group
+      }
+      return true
+    } catch (e: any) {
+      error.value = e.message || '添加成员失败'
+      return false
+    }
+  }
+
+  async function removeMember(groupId: string, profileName: string) {
+    try {
+      const res = await chatApi.removeMember(groupId, profileName) as any
+      if (res?.data?.group) {
+        currentGroup.value = res.data.group
+        const idx = groups.value.findIndex(g => g.id === groupId)
+        if (idx >= 0) groups.value[idx] = res.data.group
+      }
+      return true
+    } catch (e: any) {
+      error.value = e.message || '移除成员失败'
+      return false
+    }
+  }
+
+  async function fetchOnlineAgents() {
+    try {
+      const res = await agentApi.list('hermes') as any
+      if (res?.data?.agents) {
+        onlineAgents.value = res.data.agents.map((a: any) => ({
+          name: a.name,
+          id: a.id,
+          status: a.status,
+        }))
+      }
+    } catch (e: any) {
+      error.value = e.message || '获取Agent列表失败'
+    }
+  }
+
   async function startMeeting(groupId: string, agenda?: string[]) {
     loading.value = true
     try {
@@ -125,11 +172,15 @@ export const useChatStore = defineStore('chat', () => {
     meetingMinutes,
     loading,
     error,
+    onlineAgents,
     fetchGroups,
     createGroup,
     fetchGroupDetail,
     fetchMessages,
     sendMessage,
+    addMember,
+    removeMember,
+    fetchOnlineAgents,
     startMeeting,
     endMeeting,
   }
