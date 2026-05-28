@@ -1,141 +1,184 @@
-# DevFlow - AI 驱动的自动化软件开发项目管理平台
+# DevFlow - AI Agent 全自动软件开发项目管理平台
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](backend/requirements.txt)
 [![Vue](https://img.shields.io/badge/vue-3.4%2B-green)](frontend/package.json)
 [![FastAPI](https://img.shields.io/badge/fastapi-0.104%2B-teal)](backend/requirements.txt)
+[![SRS](https://img.shields.io/badge/SRS-v4.0-orange)](SRS_软件需求规格说明书.md)
 
 ## 项目简介
 
-DevFlow 是一个面向人类用户与 AI Agent 协同的自动化软件开发项目管理平台。通过集成 Hermes Agent 和多种专业编程 Agent，实现从需求确认到代码交付的全流程自动化管理。
+DevFlow v4.0 是一个面向人类用户与 AI Agent 协同的**全自动化软件开发项目管理平台**。平台以 **16 步 AI Agent 全自动开发流程**为主线，通过 **10 个命名 Hermes Agent** 角色紧密协作（海梅/后兴/后旺/后发/后达/后富/后贵/后荣/后华），围绕项目讨论群实时沟通，每步产出经 **QA 门控**（后荣检验）合格方可进入下一步，检验合格产出全部提交 Gitea 代码库。支持 **Agent 蜂群**并行执行代码编写与测试，以 **TDD** 驱动开发，实现从需求分析到部署交付的全流程自动化。
 
 ### 核心价值
 
-- **需求协同**：通过多 Agent 群聊会议模式，结构化确认项目需求
-- **任务自动拆解**：AI 按开发流程自动拆解任务并分配给专业编程 Agent
-- **多 Agent 协作**：支持 7 种主流编程 Agent（Trae、CodeArts、Opencode、Cursor、Claude Code、CodeBuddy、Lingma）
-- **代码仓库管理**：本地部署 Gitea，支持 Git Flow 分支策略和 Pull Request 流程
-- **自动化验收**：任务成果自动验收，确保交付质量
+- **16 步标准流程**：从项目创建 → 需求分析 → 架构设计 → TDD 测试用例 → 代码编写 → 全面测试 → 安全审计 → 生产部署 → 文档交付 → 用户确认，全流程自动化
+- **QA 门控机制**：每步产出必须经后荣(QA)检验合格方可进入下一步，不合格退回重做，确保交付质量
+- **Agent 蜂群并行执行**：后发/后达可建立编程 Agent 蜂群（9 种编程 Agent），并行完成代码编写和测试任务
+- **项目讨论群协作**：所有 Agent 加入项目讨论群，支持讨论模式和会议模式，@mention 定向沟通
+- **TDD 驱动开发**：先制订测试用例计划 → 蜂群编写 TDD 测试用例 → 蜂群编写功能代码
+- **原子化任务管理**：每个任务最小原子化，有向无环依赖图，测试用例一一对应
+- **迭代修改闭环**：用户在第 16 步不满意则自动回到第 3 步重新迭代，已合格产出保留
 
-***
+---
+
+## 16 步 AI Agent 全自动开发流程
+
+| 步骤 | 执行 Agent | 任务内容 | QA 门控 |
+|------|-----------|---------|---------|
+| 1 | 人类用户 | 提出项目核心需求 | — |
+| 2 | 海梅 (项目经理) | 确认核心目标，搭建组织架构，建立项目讨论群（拉入全部 9 个 Agent） | ✅ |
+| 3 | 后兴 (需求分析师) | 需求分析，产出软件需求规格说明书 | ✅ |
+| 4 | 后旺 (架构设计师) | 架构设计、后端设计、前端设计、数据库设计（4 份文档，逐一检验） | ✅ |
+| 5 | 后富 (CI/CD 工程师) | 建立开发环境 | ✅ |
+| 6 | 海梅 | 制订 TDD 测试用例编写计划 | ✅ |
+| 7 | 后发 (程序员) | 建立代码编写 Agent 蜂群，同步编写 TDD 测试用例 | ✅ |
+| 8 | 海梅 | 制订代码编写计划（原子化任务 + 有向无环依赖图） | ✅ |
+| 9 | 后发 (程序员) | 建立代码编写 Agent 蜂群，编写功能代码 | ✅ |
+| 10 | 后富 (CI/CD 工程师) | 部署代码到测试环境 | — |
+| 11 | 后达 (测试员) | 建立代码测试 Agent 蜂群，执行单元/模块/集成测试 + 前端实操验证 | ✅ |
+| 12 | 后华 (安全员) | 代码审计、合规审查、渗透测试、漏洞修复 | ✅ |
+| 13 | 后富 (CI/CD 工程师) | 部署代码到生产环境 | — |
+| 14 | 后贵 (文档管理员) | 完善项目文档，确保所有文档版本一致性 | ✅ |
+| 15 | 海梅 (项目经理) | 向用户报告交付成果 | — |
+| 16 | 人类用户 | 确认满意度（不满意 → 回到第 3 步迭代） | — |
+
+---
+
+## 10 个命名 Agent 角色
+
+| 角色名 | 角色 | 职责 |
+|--------|------|------|
+| **海梅 (HaiMei)** | 默认 Hermes Agent / 项目经理 | 任务分派，流程管控，对交付成果负责，主动与用户对话 |
+| **后兴 (HouXing)** | 需求分析师 | 需求分析，与用户沟通，产出完整准确的软件需求说明书 |
+| **后旺 (HouWang)** | 架构设计师 | 架构设计、后端设计、前端设计、数据库设计 |
+| **后发 (HouFa)** | 程序员 / 蜂群调度 | 建立代码编写 Agent 蜂群，监督蜂群完成 TDD 测试用例和代码 |
+| **后达 (HouDa)** | 测试员 / 蜂群调度 | 建立代码测试 Agent 蜂群，执行全类型测试 |
+| **后富 (HouFu)** | CI/CD 工程师 | 开发环境搭建，代码部署到测试/生产环境 |
+| **后贵 (HouGui)** | 文档管理员 | 全项目文档一致性管理，任一文档修改则全部同步 |
+| **后荣 (HouRong)** | QA 门控 | 检验每个 Agent 产出，未达标退回重做，达标放行并提交代码库 |
+| **后华 (HouHua)** | 安全员 | 代码审计、合规审查、渗透测试、漏洞修复 |
+
+Agent 蜂群支持的 9 种编程 Agent：Claude Code / Codex / Opencode / Cursor / CodeArts / Trae / Lingma / hermes 子 agent / pi-coding-agent 子 agent
+
+---
 
 ## 核心特性
 
-### 1. 项目需求协同 (Requirement Collaboration)
+### 1. 16 步工作流引擎 (Workflow Engine)
 
-- 项目创建后自动创建需求评审群组（产品经理 + 架构师 + 开发者 + 测试工程师）
-- 支持**会议模式**：结构化需求评审会议（8项议程）
-- 支持**讨论模式**：自由群聊，@mention 定向沟通
-- 会议纪要自动生成：决议、待办、风险、遗留问题
+- 完整 16 步状态机，自动流转
+- 每步产出记录与 QA 状态跟踪
+- 步骤间依赖检验（前一步 QA 通过方可进入下一步）
+- 迭代闭环：用户不满意 → 自动回到第 3 步，已合格产出保留
 
-### 2. 任务自动拆解 (Task Decomposition)
+### 2. QA 门控 (QA Gating)
 
-- 基于锁定的需求文档自动拆解为原子任务
-- 按开发流程拆解：需求分析 → 测试用例 → 功能编码 → 测试 → 部署 → 联调
-- 自动识别任务依赖关系，避免循环依赖
-- 每个任务标注执行要求和验收标准
+- 后荣(QA) 对每步产出进行多维度检验
+- 11 种产出类型、60+ 检验维度
+- 不合格产出退回重做，附带详细修改建议
+- 合格产出全部提交 Gitea 代码库，确保检验记录完整可追溯
 
-### 3. 代码仓库管理 (Code Repository Management)
+### 3. Agent 蜂群 (Agent Swarm)
 
-- **Gitea 本地部署**：私有代码托管，替代 GitHub/GitLab
-- **Git Flow 分支策略**：main / develop / feature / release / hotfix / bugfix
-- **Pull Request 流程**：代码审查、自动化检查、审批合并
-- **代码提交规范**：Conventional Commits 标准（feat/fix/docs/style/refactor/test/build/ci/chore）
+- 后发/后达 按需建立蜂群，管理成员调度
+- 支持 9 种编程 Agent 混合编组
+- 依赖感知任务分发：有依赖关系的任务自动分配给不同 Agent
+- 实时进度监控，蜂群完成后自动解散
 
-### 4. Hermes Agent 管理 (Hermes Agent Management)
+### 4. 项目讨论群 (Discussion Group)
 
-- **Profile 自动扫描**：自动发现 `~/.hermes` 目录下的所有 Agent 配置
-- **Gateway 模式**：通过 Gateway API 与 Hermes Agent 通信（支持流式响应）
-- **健康检查**：实时监控 Agent 在线状态
-- **多 Profile 支持**：同时管理多个 Hermes Agent，自由组合群组
+- 项目创建后自动建立讨论群，全部 9 个 Agent 加入
+- **讨论模式**：自由发言、@mention 定向沟通、消息持久化
+- **会议模式**：主持人控场、结构化议程、产出决议/待办/风险
+- WebSocket 实时通信
 
-### 5. 多 Agent 群聊与协作 (Multi-Agent Group Chat)
+### 5. 代码仓库管理 (Gitea Integration)
 
-- **群组管理**：创建、编辑、删除协作群组
-- **讨论模式**：自由发言、回复消息、@mention 定向提及
-- **会议模式**：主持人控场、议程驱动、限时发言、当场拍板
-- **4种会议类型模板**：需求评审会、技术方案讨论会、每日站会、故障复盘会
+- Gitea 本地部署，私有代码托管
+- Git Flow 分支策略：main / develop / feature / release / hotfix / bugfix
+- Pull Request 流程：代码审查 → 自动化检查 → 审批合并
+- Conventional Commits 提交规范
 
-### 6. 编程 Agent 技能注册与调用 (Coding Agent Skills)
+### 6. Hermes Agent 管理
 
-- **7种编程 Agent**：Trae、CodeArts、Opencode、Cursor、Claude Code、CodeBuddy、Lingma
-- **9种技能类型**：TDD 测试用例、代码生成、测试用例、代码审查、Bug 修复、代码重构、环境部署、集成测试、文档编写
-- **技能匹配规则**：自动匹配任务类型与 Agent 技能
-- **负载均衡**：Agent 负载过高时自动调整分配策略
+- Profile 自动扫描：自动发现 `~/.hermes` 目录下的 Agent 配置
+- Gateway 模式：通过 Gateway API 与 Hermes Agent 通信（支持流式响应）
+- 健康检查：实时监控 Agent 在线状态
+- v4.0 新增 9 个命名角色（haimei/houxing/houwang/houfa/houda/houfu/hougui/hourong/houhua）
 
-### 7. 成果验收 (Result Acceptance)
+### 7. TDD 驱动开发
 
-- **任务级验收**：测试用例覆盖度、功能代码正确性、部署环境可用性
-- **项目级验收**：所有任务通过后汇总成果，发起最终验收
-- **验收驳回**：附带明确的修改建议，指定时限内重新提交
-- **前后任务隔离**：相邻任务必须分配给不同 Agent 执行交叉验证
+- 先制订测试用例计划 → 蜂群编写 TDD 测试用例 → 蜂群编写功能代码
+- 原子化任务与测试用例一一对应
+- 有向无环依赖图确保任务正确执行顺序
 
-### 8. 通知与交付 (Notification & Delivery)
+### 8. 安全审计
 
-- **进度通知**：需求确认、任务拆解、核心任务交付、验收驳回等关键节点
-- **多渠道推送**：平台内消息、邮件、短信（可选）
-- **项目完成通知**：成果下载链接、交付报告、售后支持说明
+- 代码审计：静态分析 + 人工审查
+- 合规审查：OWASP / ISO 27001 标准
+- 渗透测试：模拟攻击场景
+- 漏洞修复：发现即修复，修复后复检
 
-***
+---
 
 ## 技术架构
 
 ### 技术栈
 
-| 层级        | 技术选型                                             |
-| --------- | ------------------------------------------------ |
-| **前端**    | Vue 3 + Element Plus + Vite + Pinia + Vue Router |
-| **后端**    | Python FastAPI + Celery + asyncio                |
-| **数据库**   | PostgreSQL 14+ + Redis 6+                        |
-| **代码托管**  | Gitea（本地自托管 Git 服务）                              |
-| **AI 交互** | Hermes Gateway API + WebSocket                   |
-| **部署**    | Docker + Docker Compose                          |
+| 层级 | 技术选型 |
+|------|---------|
+| **前端** | Vue 3 + Element Plus + Vite + Pinia + Vue Router |
+| **后端** | Python 3.10+ / FastAPI / Celery / asyncio |
+| **数据库** | PostgreSQL 14+ + Redis 6+ |
+| **代码托管** | Gitea（本地自托管 Git 服务） |
+| **AI 交互** | Hermes Gateway API + WebSocket |
+| **部署** | Docker + Docker Compose |
 
 ### 系统架构
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        人类用户 (Client)                             │
-│           浏览器 (需求提交/进度查看/群组聊天/会议参与)                │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │ HTTP / WebSocket
-┌───────────────────────────────▼─────────────────────────────────────┐
-│                           Nginx (反向代理)                           │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │
-┌───────────────────────────────▼─────────────────────────────────────┐
-│                    FastAPI 后端 (DevFlow Server)                    │
-│  ┌──────────┬─────────────┬────────────┬───────────────────┐       │
-│  │ Auth     │ 需求协同    │ 任务拆解   │ Profile 扫描      │       │
-│  └──────────┴─────────────┴────────────┴───────────────────┘       │
-│  ┌──────────┬─────────────┬────────────┬───────────────────┐       │
-│  │ 任务分配 │ 成果验收    │ 通知管理   │ Gateway Client    │       │
-│  └──────────┴─────────────┴────────────┴───────────────────┘       │
-│  ┌───────────────────────────────────────────────────────────┐     │
-│  │  Gitea 集成: 仓库创建、分支管理、PR 流程、提交规范校验     │     │
-│  └───────────────────────────────────────────────────────────┘     │
-└───────────────────────────────┬─────────────────────────────────────┘
-         Gitea REST API         │                      Gateway API
-┌───────────────────────────────▼─────────────────────────────────────┐
-│                   Gitea 代码托管层 (本地部署)                         │
-│  项目仓库 | Git Flow 分支 | Pull Request | 提交规范校验               │
-└─────────────────────────────────────────────────────────────────────┘
-                                │
-┌───────────────────────────────▼─────────────────────────────────────┐
-│                    Hermes Profiles (用户本地 Agent 配置)              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │
-│  │ architect    │  │ developer    │  │ qa-engineer  │              │
-│  │ 架构师 Agent │  │ 开发 Agent   │  │ 测试 Agent   │              │
-│  └──────────────┘  └──────────────┘  └──────────────┘              │
-└─────────────────────────────────────────────────────────────────────┘
-                                │
-┌───────────────────────────────▼─────────────────────────────────────┐
-│                     编程 Agent (Trae/Cursor/Claude...)              │
-│  代码生成 | 测试编写 | 代码审查 | Bug 修复 | 部署 | 文档              │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                     人类用户 (Client)                            │
+│         浏览器 (项目创建 / 进度查看 / 群聊 / 会议 / 验收)         │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │ HTTP / WebSocket
+┌──────────────────────────────┴──────────────────────────────────┐
+│                        Nginx (反向代理)                          │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────┴──────────────────────────────────┐
+│                  FastAPI 后端 (DevFlow v4.0)                     │
+│  ┌───────────┬────────────┬────────────┬──────────────────┐     │
+│  │ 16步流程  │ QA 门控    │ 蜂群调度   │ 安全审计          │     │
+│  └───────────┴────────────┴────────────┴──────────────────┘     │
+│  ┌───────────┬────────────┬────────────┬──────────────────┐     │
+│  │ 讨论群    │ Agent 管理 │ 任务管理   │ Gitea 集成        │     │
+│  └───────────┴────────────┴────────────┴──────────────────┘     │
+│  ┌───────────┬────────────┬────────────┬──────────────────┐     │
+│  │ 文档管理  │ 验收交付   │ 通知管理   │ Gateway Client   │     │
+│  └───────────┴────────────┴────────────┴──────────────────┘     │
+└──────────────────────────────┬──────────────────────────────────┘
+         Gitea REST API        │            Gateway API / WebSocket
+┌──────────────────────────────┴──────────────────────────────────┐
+│             Gitea 代码托管层 (QA 合格产物全部提交)                │
+│   Git Flow 分支 | Pull Request | 提交规范校验 | Webhook          │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────┴──────────────────────────────────┐
+│             Hermes Agent Profiles (9 个命名角色)                  │
+│  haimei / houxing / houwang / houfa / houda / houfu /            │
+│  hougui / hourong / houhua                                      │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+┌──────────────────────────────┴──────────────────────────────────┐
+│    编程 Agent 蜂群 (Claude Code / Codex / Opencode / Cursor /    │
+│    CodeArts / Trae / Lingma / hermes子agent / pi-coding-agent)   │
+│  代码生成 | TDD 测试 | 代码审查 | Bug 修复 | 部署 | 文档         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-***
+---
 
 ## 快速开始
 
@@ -152,8 +195,8 @@ DevFlow 是一个面向人类用户与 AI Agent 协同的自动化软件开发�
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/devflow.git
-cd devflow
+git clone https://github.com/jimfan2008/DevFlow.git
+cd DevFlow
 ```
 
 #### 2. 配置环境变量
@@ -179,12 +222,12 @@ docker-compose -f docker-compose.dev.yml logs -f
 
 #### 4. 访问服务
 
-| 服务     | 地址                           | 说明         |
-| ------ | ---------------------------- | ---------- |
-| 前端     | <http://localhost>           | 主应用界面      |
-| 后端 API | <http://localhost:8000>      | FastAPI 后端 |
+| 服务 | 地址 | 说明 |
+|------|------|------|
+| 前端 | <http://localhost> | 主应用界面 |
+| 后端 API | <http://localhost:8000> | FastAPI 后端 |
 | API 文档 | <http://localhost:8000/docs> | Swagger UI |
-| Gitea  | <http://localhost:3000>      | 代码托管平台     |
+| Gitea | <http://localhost:3000> | 代码托管平台 |
 
 ### 方式二：本地开发
 
@@ -202,7 +245,9 @@ pip install -r requirements.txt
 
 # 配置环境变量
 cp .env.example .env
-# 编辑 .env，配置数据库连接等
+
+# 使用 SQLite 快速启动（无需 PostgreSQL）
+# 编辑 .env，设置: DATABASE_URL=sqlite+aiosqlite:///./devflow.db
 
 # 启动开发服务器
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -216,63 +261,79 @@ cd frontend
 # 安装依赖
 npm install
 
-# 配置 API 地址
-cp .env.example .env
-
 # 启动开发服务器
 npm run dev
 ```
 
 访问 <http://localhost:5173>
 
-***
+#### 运行测试
+
+```bash
+# 后端单元测试（104 个 v4.0 测试）
+cd backend
+pytest tests/test_workflow_engine.py tests/test_agent_roles.py \
+       tests/test_swarm.py tests/test_qa_gate.py \
+       tests/test_full_v4_workflow.py -v
+
+# API 集成测试（58 个用例）
+python tests/test_api_e2e.py
+
+# 前端 E2E 测试（Mock 环境，无需后端）
+cd frontend
+npm run build                          # 构建静态文件
+node e2e/mock-server.mjs               # 启动 Mock Server
+node e2e/cli/v4-e2e-workflow.mjs       # 运行 E2E 测试
+```
+
+---
 
 ## 环境配置
 
 ### 核心环境变量
 
-| 变量名         | 默认值     | 说明   |
-| ----------- | ------- | ---- |
-| `APP_NAME`  | DevFlow | 应用名称 |
-| `APP_DEBUG` | true    | 调试模式 |
-| `APP_HOST`  | 0.0.0.0 | 监听地址 |
-| `APP_PORT`  | 8000    | 监听端口 |
+| 变量名 | 默认值 | 说明 |
+|--------|-------|------|
+| `APP_NAME` | DevFlow | 应用名称 |
+| `APP_DEBUG` | true | 调试模式 |
+| `APP_HOST` | 0.0.0.0 | 监听地址 |
+| `APP_PORT` | 8000 | 监听端口 |
 
 ### 数据库配置
 
-| 变量名            | 默认值              | 说明               |
-| -------------- | ---------------- | ---------------- |
-| `DATABASE_URL` | postgresql://... | PostgreSQL 连接字符串 |
-| `REDIS_URL`    | redis\://...     | Redis 连接字符串      |
-| `DB_POOL_SIZE` | 5                | 数据库连接池大小         |
+| 变量名 | 默认值 | 说明 |
+|--------|-------|------|
+| `DATABASE_URL` | postgresql://... | PostgreSQL 连接字符串（开发可用 SQLite） |
+| `REDIS_URL` | redis://... | Redis 连接字符串 |
+| `DB_POOL_SIZE` | 5 | 数据库连接池大小 |
 
 ### JWT 认证
 
-| 变量名                  | 默认值            | 说明               |
-| -------------------- | -------------- | ---------------- |
-| `JWT_SECRET`         | dev-jwt-secret | JWT 密钥（生产环境必须修改） |
-| `JWT_ALGORITHM`      | HS256          | 加密算法             |
-| `JWT_EXPIRE_MINUTES` | 30             | Token 过期时间（分钟）   |
+| 变量名 | 默认值 | 说明 |
+|--------|-------|------|
+| `JWT_SECRET` | dev-jwt-secret | JWT 密钥（生产环境必须修改） |
+| `JWT_ALGORITHM` | HS256 | 加密算法 |
+| `JWT_EXPIRE_MINUTES` | 30 | Token 过期时间（分钟） |
 
 ### Gitea 配置
 
-| 变量名                 | 默认值       | 说明             |
-| ------------------- | --------- | -------------- |
-| `GITEA_HOST`        | localhost | Gitea 服务器地址    |
-| `GITEA_PORT`        | 3000      | Gitea HTTP 端口  |
-| `GITEA_PROTOCOL`    | http      | 协议（http/https） |
-| `GITEA_API_TOKEN`   | -         | Gitea API 访问令牌 |
-| `GITEA_DEFAULT_ORG` | devflow   | 默认组织名称         |
+| 变量名 | 默认值 | 说明 |
+|--------|-------|------|
+| `GITEA_HOST` | localhost | Gitea 服务器地址 |
+| `GITEA_PORT` | 3000 | Gitea HTTP 端口 |
+| `GITEA_PROTOCOL` | http | 协议（http/https） |
+| `GITEA_API_TOKEN` | - | Gitea API 访问令牌 |
+| `GITEA_DEFAULT_ORG` | devflow | 默认组织名称 |
 
 ### Hermes Agent 配置
 
-| 变量名                      | 默认值        | 说明                |
-| ------------------------ | ---------- | ----------------- |
-| `HERMES_PROFILES_PATH`   | \~/.hermes | Hermes Profile 目录 |
-| `HERMES_GATEWAY_TIMEOUT` | 360        | Gateway API 超时（秒） |
-| `HERMES_MAX_CONCURRENT`  | 5          | 最大并发请求数           |
+| 变量名 | 默认值 | 说明 |
+|--------|-------|------|
+| `HERMES_PROFILES_PATH` | ~/.hermes | Hermes Profile 目录 |
+| `HERMES_GATEWAY_TIMEOUT` | 360 | Gateway API 超时（秒） |
+| `HERMES_MAX_CONCURRENT` | 5 | 最大并发请求数 |
 
-***
+---
 
 ## 使用指南
 
@@ -283,359 +344,295 @@ npm run dev
 ```bash
 # Linux/macOS/WSL2
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
-
-# 验证安装
 hermes doctor
 ```
 
-#### 创建 Profile
+#### v4.0 命名角色 Profile 配置
 
-在 `~/.hermes/profiles/` 目录下创建 Agent 配置，例如：
+在 `~/.hermes/profiles/` 下创建 9 个角色配置：
 
 ```yaml
-# ~/.hermes/profiles/architect/config.yaml
-name: architect
+# ~/.hermes/profiles/haimei/config.yaml
+name: haimei
+role_name: 海梅 (项目经理)
 model_default: gpt-4o
-model_provider: openai
 gateway_port: 8765
-personality: "专业技术架构师，擅长系统设计和性能优化"
+personality: "资深项目经理，主动与人类用户沟通，协调全流程"
 ```
 
-#### 启动 Gateway
-
-```bash
-# 配置网关
-hermes gateway setup
-
-# 启动网关
-hermes gateway start
-```
-
-### 2. 配置 Gitea
-
-首次访问 <http://localhost:3000> 进入安装向导：
-
-1. **数据库配置**：选择 PostgreSQL，填写连接信息
-2. **基本设置**：
-   - 站点名称：DevFlow Code Repository
-   - 仓库根目录：`/data/git/gitea-repositories`
-3. **管理员账号**：创建第一个用户（自动成为管理员）
-4. 点击「立即安装」
-
-### 3. 创建项目
+### 2. 创建项目并启动 16 步流程
 
 1. 登录 DevFlow 前端
-2. 点击「创建项目」
-3. 填写项目信息：
-   - 项目名称
-   - 项目描述
-   - 核心需求
-   - 技术栈偏好
-   - 交付时间
-4. 提交后自动创建需求评审群组
+2. 点击「创建项目」，填写项目名称和核心目标
+3. 海梅(项目经理) 自动搭建组织架构，建立项目讨论群
+4. 流程按 16 步自动推进，每步产出经后荣(QA) 检验
+5. 用户可随时查看进度和 QA 检验记录
+6. 第 16 步确认满意度（不满意 → 回到第 3 步迭代）
 
-### 4. 需求评审会议
+### 3. 查看工作流进度
 
-1. 进入项目详情页
-2. 点击「启动需求评审会」
-3. 等待多 Agent 加入会议
-4. 主持人按议程引导讨论：
-   - PRD 整体介绍
-   - 业务流程梳理
-   - 边界规则确认
-   - 特殊场景讨论
-   - 开发提问
-   - 当场确认
-5. 会议结束后查看结构化纪要
-6. 确认需求，锁定并触发任务拆解
+- **流程视图**：查看 16 步状态（pending / in_progress / qa_review / completed / rejected）
+- **QA 面板**：查看每步检验记录、驳回原因、修改建议
+- **蜂群监控**：查看代码编写和测试蜂群的实时进度
+- **讨论群**：所有 Agent 的沟通记录
 
-### 5. 查看任务进度
+### 4. 项目讨论群协作
 
-- **看板视图**：拖拽任务卡片，查看状态流转
-- **任务详情**：查看任务描述、验收标准、执行进度
-- **依赖关系**：可视化任务依赖图
-- **负载分析**：查看各 Agent 负载情况
+- **讨论模式**：Agent 自由发言，@mention 定向提及
+- **会议模式**：海梅担任主持人，按议程讨论，产出决议/待办
+- 所有消息持久化，支持历史回溯
 
-### 6. 代码仓库操作
+### 5. 代码仓库操作
 
 系统自动在 Gitea 中创建项目仓库：
 
-- **分支管理**：Git Flow 策略自动管理
-- **Pull Request**：功能合并必经代码审查
-- **提交规范**：自动验证 Conventional Commits
-- **Webhook**：支持 CI/CD 集成
+- 每步 QA 通过的产出自动提交
+- Git Flow 分支策略自动管理
+- Pull Request：功能合并必经代码审查
+- Conventional Commits 提交规范自动校验
 
-***
+---
 
 ## API 参考
 
-### 认证 API
+### 认证
 
-| 方法   | 路径                   | 描述   |
-| ---- | -------------------- | ---- |
-| POST | `/api/auth/login`    | 用户登录 |
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/auth/login` | 用户登录 |
 | POST | `/api/auth/register` | 用户注册 |
+
+### v4.0 工作流 API（核心新增）
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/v1/workflow/{project_id}/step2` | 海梅确认核心目标 |
+| POST | `/api/v1/workflow/{project_id}/step3` | 后兴需求分析 |
+| POST | `/api/v1/workflow/{project_id}/step4` | 后旺架构设计 |
+| POST | `/api/v1/workflow/{project_id}/step5` | 后富开发环境 |
+| POST | `/api/v1/workflow/{project_id}/step6` | 海梅 TDD 计划 |
+| POST | `/api/v1/workflow/{project_id}/step7` | 后发蜂群 TDD 用例 |
+| POST | `/api/v1/workflow/{project_id}/step8` | 海梅编码计划 |
+| POST | `/api/v1/workflow/{project_id}/step9` | 后发蜂群功能代码 |
+| POST | `/api/v1/workflow/{project_id}/step10` | 后富部署测试环境 |
+| POST | `/api/v1/workflow/{project_id}/step11` | 后达蜂群全面测试 |
+| POST | `/api/v1/workflow/{project_id}/step12` | 后华安全审计 |
+| POST | `/api/v1/workflow/{project_id}/step13` | 后富部署生产环境 |
+| POST | `/api/v1/workflow/{project_id}/step14` | 后贵文档完善 |
+| POST | `/api/v1/workflow/{project_id}/step15` | 海梅交付报告 |
+| POST | `/api/v1/workflow/{project_id}/step16` | 用户确认满意度 |
+| POST | `/api/v1/workflow/{project_id}/step{n}/qa` | 第 n 步 QA 检验 |
+| GET  | `/api/v1/workflow/{project_id}/status` | 查询项目进度 |
+
+### v4.0 QA 门控 API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/v1/qa/inspect` | QA 检验（通过/驳回） |
+| GET  | `/api/v1/qa/{project_id}/records` | QA 检验记录查询 |
+| POST | `/api/v1/qa/rollback` | QA 退回重做 |
+| GET  | `/api/v1/qa/status` | QA 状态查询 |
+
+### v4.0 蜂群管理 API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/v1/swarms` | 创建蜂群 |
+| GET  | `/api/v1/swarms/{id}` | 查询蜂群详情 |
+| POST | `/api/v1/swarms/{id}/members` | 添加蜂群成员 |
+| DELETE | `/api/v1/swarms/{id}/members/{agent_id}` | 移除蜂群成员 |
+| POST | `/api/v1/swarms/{id}/dispatch` | 分发任务 |
+| GET  | `/api/v1/swarms/{id}/progress` | 查询蜂群进度 |
+| DELETE | `/api/v1/swarms/{id}` | 解散蜂群 |
+
+### v4.0 安全审计 API
+
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/v1/security/{project_id}/audit` | 启动安全审计 |
+| GET  | `/api/v1/security/{project_id}/audit/status` | 查询审计状态 |
+| GET  | `/api/v1/security/{project_id}/audit/report` | 获取审计报告 |
 
 ### 项目管理 API
 
-| 方法   | 路径                                       | 描述       |
-| ---- | ---------------------------------------- | -------- |
-| POST | `/api/projects`                          | 创建项目     |
-| GET  | `/api/projects`                          | 获取项目列表   |
-| GET  | `/api/projects/:id`                      | 获取项目详情   |
-| POST | `/api/projects/:id/requirements/confirm` | 确认需求     |
-| POST | `/api/projects/:id/tasks/decompose`      | 触发任务拆解   |
-| GET  | `/api/projects/:id/tasks`                | 获取项目任务清单 |
+| 方法 | 路径 | 描述 |
+|------|------|------|
+| POST | `/api/projects` | 创建项目 |
+| GET  | `/api/projects` | 获取项目列表 |
+| GET  | `/api/projects/:id` | 获取项目详情 |
+| POST | `/api/projects/:id/tasks/decompose` | 触发任务拆解 |
+| GET  | `/api/projects/:id/tasks` | 获取项目任务清单 |
 
-### Hermes Agent API
+### WebSocket
 
-| 方法   | 路径                        | 描述                  |
-| ---- | ------------------------- | ------------------- |
-| GET  | `/api/profiles`           | 获取所有 Hermes Profile |
-| GET  | `/api/agents/discover`    | 重新扫描发现 Agent        |
-| POST | `/api/agents/sync-hermes` | 同步 Profile 到数据库     |
-| GET  | `/api/hermes/health`      | 检查 Gateway 健康状态     |
-| POST | `/api/hermes/chat`        | 与 Hermes 对话（非流式）    |
-| POST | `/api/hermes/chat/stream` | 与 Hermes 对话（流式 SSE） |
-
-### 群组与会议 API
-
-| 方法   | 路径                         | 描述       |
-| ---- | -------------------------- | -------- |
-| GET  | `/api/groups`              | 获取群组列表   |
-| POST | `/api/groups`              | 创建群组     |
-| GET  | `/api/groups/:id`          | 获取群组详情   |
-| GET  | `/api/groups/:id/messages` | 获取群组消息   |
-| GET  | `/api/groups/:id/outcomes` | 获取会议结果   |
-| GET  | `/api/groups/:id/tasks`    | 获取群组待办任务 |
-
-### 任务管理 API
-
-| 方法   | 路径                        | 描述       |
-| ---- | ------------------------- | -------- |
-| GET  | `/api/tasks/pending`      | 获取待办任务列表 |
-| GET  | `/api/tasks/:id`          | 获取任务详情   |
-| POST | `/api/tasks/:id/start`    | 标记任务开始   |
-| POST | `/api/tasks/:id/progress` | 上报任务进度   |
-| POST | `/api/tasks/:id/deliver`  | 交付任务成果   |
-| POST | `/api/tasks/:id/accept`   | 验收任务成果   |
-
-### 代码仓库 API
-
-| 方法   | 路径                                   | 描述       |
-| ---- | ------------------------------------ | -------- |
-| POST | `/api/repos`                         | 创建代码仓库   |
-| GET  | `/api/repos`                         | 获取仓库列表   |
-| GET  | `/api/repos/:id`                     | 获取仓库详情   |
-| GET  | `/api/repos/:id/branches`            | 获取分支列表   |
-| POST | `/api/repos/:id/branches`            | 创建新分支    |
-| GET  | `/api/repos/:id/pulls`               | 获取 PR 列表 |
-| POST | `/api/repos/:id/pulls`               | 创建 PR    |
-| POST | `/api/repos/:id/pulls/:number/merge` | 合并 PR    |
-| GET  | `/api/repos/:id/commits`             | 获取提交记录   |
-| POST | `/api/repos/validate-commit`         | 验证提交规范   |
-
-### WebSocket 端点
-
-| 端点                          | 描述     |
-| --------------------------- | ------ |
-| `ws://{host}/ws/group-chat` | 群聊实时通信 |
-
-**消息类型：**
-
-- `subscribe` - 订阅群组消息
-- `send_message` - 发送消息（支持 @mention）
-- `start_meeting` - 启动会议
-- `stop_meeting` - 停止会议
-- `meeting_intervention` - 会议干预
+| 端点 | 描述 |
+|------|------|
+| `ws://{host}/ws/group-chat` | 群聊实时通信（讨论/会议模式） |
 
 完整 API 文档请访问：<http://localhost:8000/docs>
 
-***
+---
 
-## 开发指南
-
-### 项目结构
+## 项目结构
 
 ```
 devflow/
-├── backend/                    # 后端代码
+├── backend/                       # 后端代码
 │   ├── app/
-│   │   ├── api/               # API 路由
-│   │   │   ├── __init__.py
-│   │   │   ├── auth.py
-│   │   │   ├── requirements.py
-│   │   │   ├── tasks.py
-│   │   │   ├── hermes.py
-│   │   │   ├── groups.py
-│   │   │   └── repos.py
-│   │   ├── models/            # 数据模型
-│   │   ├── schemas/           # Pydantic 模式
-│   │   ├── services/          # 业务逻辑
-│   │   │   ├── hermes_service.py
-│   │   │   ├── task_service.py
-│   │   │   └── gitea_client.py
-│   │   ├── middleware/        # 中间件
-│   │   ├── ws/                # WebSocket
-│   │   └── main.py            # 应用入口
-│   ├── tests/                 # 测试
-│   ├── alembic/               # 数据库迁移
+│   │   ├── api/                   # API 路由
+│   │   │   ├── auth.py            # 认证
+│   │   │   ├── projects.py        # 项目管理
+│   │   │   ├── workflow.py        # 16步流程调度 (v4.0)
+│   │   │   ├── qa.py              # QA 门控 (v4.0)
+│   │   │   ├── swarms.py          # 蜂群管理 (v4.0)
+│   │   │   ├── security.py        # 安全审计 (v4.0)
+│   │   │   ├── hermes.py          # Hermes Agent
+│   │   │   ├── groups.py          # 讨论群
+│   │   │   └── repos.py           # 代码仓库
+│   │   ├── models/                # 数据模型
+│   │   │   ├── workflow_step.py   # 工作流步骤 (v4.0)
+│   │   │   ├── qa_record.py       # QA 检验记录 (v4.0)
+│   │   │   ├── swarm.py           # 蜂群/蜂群任务 (v4.0)
+│   │   │   ├── security_audit.py  # 安全审计 (v4.0)
+│   │   │   ├── doc_version.py     # 文档版本管理 (v4.0)
+│   │   │   └── ...
+│   │   ├── services/              # 业务逻辑
+│   │   │   ├── workflow_engine.py # 流程引擎 (v4.0)
+│   │   │   ├── qa_gate_service.py # QA 门控服务 (v4.0)
+│   │   │   ├── swarm_service.py   # 蜂群服务 (v4.0)
+│   │   │   ├── agent_role_service.py # 角色服务 (v4.0)
+│   │   │   └── ...
+│   │   └── main.py
+│   ├── tests/                     # 测试
+│   │   ├── test_workflow_engine.py   # 流程引擎测试 (23)
+│   │   ├── test_agent_roles.py       # 角色服务测试 (18)
+│   │   ├── test_swarm.py             # 蜂群服务测试 (13)
+│   │   ├── test_qa_gate.py           # QA 门控测试 (14)
+│   │   ├── test_full_v4_workflow.py  # 全流程集成测试 (36)
+│   │   └── test_api_e2e.py           # API E2E 测试 (58)
+│   ├── alembic/                   # 数据库迁移
+│   │   └── versions/
+│   │       ├── 004_v4_agent_roles.py
+│   │       ├── 005_v4_workflow_qa.py
+│   │       └── 006_v4_swarm_security_docs.py
 │   └── requirements.txt
-├── frontend/                   # 前端代码
+├── frontend/                      # 前端代码
 │   ├── src/
-│   │   ├── api/               # API 模块
-│   │   ├── components/        # Vue 组件
-│   │   ├── views/             # 页面视图
-│   │   ├── stores/            # Pinia 状态管理
-│   │   ├── router/            # 路由
+│   │   ├── api/                   # API 模块
+│   │   ├── components/            # Vue 组件
+│   │   ├── views/                 # 页面视图
+│   │   │   ├── LoginView.vue      # 登录
+│   │   │   ├── RegisterView.vue   # 注册
+│   │   │   ├── ProjectListView.vue # 项目列表
+│   │   │   ├── ChatView.vue       # 讨论群
+│   │   │   ├── RequirementsView.vue # 需求管理
+│   │   │   └── ...
+│   │   ├── stores/                # Pinia 状态
 │   │   └── main.js
+│   ├── e2e/
+│   │   ├── cli/
+│   │   │   └── v4-e2e-workflow.mjs # 前端 E2E 测试
+│   │   └── mock-server.mjs         # Mock Server
 │   ├── package.json
 │   └── vite.config.js
-├── docker/                     # Docker 配置
-│   ├── nginx/
-│   ├── postgres/
-│   └── redis/
-├── docker-compose.dev.yml     # 开发环境编排
-├── docker-compose.prod.yml    # 生产环境编排
-├── .env.example               # 环境变量示例
-└── SRS_软件需求规格说明书.md   # 详细需求文档
+├── docker/                        # Docker 配置
+├── docker-compose.dev.yml
+├── .gitignore
+├── SRS_软件需求规格说明书.md      # v4.0 完整需求规格
+└── README.md
 ```
 
-### 运行测试
+---
+
+## 运行测试
 
 ```bash
-# 后端测试
+# 后端 v4.0 单元测试 (104 个)
 cd backend
-pytest -v
+pytest tests/test_workflow_engine.py tests/test_agent_roles.py \
+       tests/test_swarm.py tests/test_qa_gate.py \
+       tests/test_full_v4_workflow.py -v
 
-# 查看测试覆盖率
-pytest --cov=app --cov-report=html
+# API 集成测试 (58 个)
+python tests/test_api_e2e.py
 
-# 前端测试
+# 前端 E2E 测试 (Mock 环境)
 cd frontend
-npm run test
+npm run build
+node e2e/mock-server.mjs &          # 启动 Mock Server
+node e2e/cli/v4-e2e-workflow.mjs    # 运行 E2E
 ```
 
-### 代码规范
+---
 
-**Python 后端：**
+## 代码规范
 
-- 遵循 PEP 8 规范
-- 使用类型注解
-- 单元测试覆盖率 > 80%
+**Python 后端**：遵循 PEP 8，类型注解，测试覆盖率 > 80%
 
-**Vue 前端：**
+**Vue 前端**：组合式 API，ESLint + Prettier
 
-- 遵循 Vue 3 组合式 API
-- 使用 TypeScript
-- ESLint + Prettier 格式化
-
-**Git 提交：**
-遵循 Conventional Commits 规范：
+**Git 提交**：Conventional Commits
 
 ```
-<type>(<scope>): <subject>
-
-类型：
-- feat: 新功能
-- fix: Bug 修复
-- docs: 文档更新
-- style: 代码格式
-- refactor: 重构
-- test: 测试
-- build: 构建
-- ci: CI/CD
-- chore: 杂项
+feat(workflow): 添加第5步QA门控
+fix(swarm): 修复蜂群任务分配死锁
+docs(srs): 更新v4.0术语定义
+test(e2e): 添加全流程集成测试
 ```
 
-### 贡献指南
-
-1. Fork 项目
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'feat: 添加AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-***
+---
 
 ## 常见问题
 
-### Q1: Hermes Agent 无法连接？
-
-**A:** 检查以下几点：
-
-- 确认 Hermes Gateway 已启动：`hermes gateway start`
-- 确认 Gateway 端口监听：`netstat -an | grep 8765`
-- 检查 DevFlow 配置中的 Profile 路径
-- 查看 DevFlow 日志中的错误信息
-
-### Q2: Gitea 无法创建仓库？
-
-**A:** 检查以下几点：
-
-- 确认 Gitea 服务正常运行
-- 验证 Gitea API Token 权限
-- 确认默认组织（devflow）已创建
-- 检查 Gitea 磁盘空间是否充足
-
-### Q3: 任务一直处于"待分配"状态？
-
-**A:** 可能原因：
-
-- 没有可用的编程 Agent 注册
-- 任务类型与 Agent 技能不匹配
-- 所有 Agent 都处于高负载状态
-- 前置任务未完成
-
-### Q4: 如何添加新的编程 Agent？
-
-**A:** 有三种方式：
-
-1. **API 主动注册**：Agent 启动时调用 `POST /api/agents/register`
-2. **配置文件注册**：在 DevFlow 配置文件中静态声明
-3. **手动注册**：通过管理界面手动添加
-
-### Q5: Docker 启动后服务无法访问？
-
-**A:** 排查步骤：
+### Q1: 如何快速体验 16 步流程？
 
 ```bash
-# 查看容器状态
-docker-compose -f docker-compose.dev.yml ps
-
-# 查看容器日志
-docker-compose -f docker-compose.dev.yml logs fastapi
-
-# 检查端口占用
-netstat -an | grep -E "8000|5173|3000"
+cd backend
+python tests/test_api_e2e.py   # 自动执行完整 16 步 API 调用
 ```
 
-### Q6: 如何重置开发环境？
-
-**A:** 清除所有数据（注意：这会删除所有数据库和 Gitea 数据）：
+### Q2: 前端 E2E 测试如何运行？
 
 ```bash
-docker-compose -f docker-compose.dev.yml down -v
-docker-compose -f docker-compose.dev.yml up -d
+cd frontend
+npm run build                            # 构建前端
+node e2e/mock-server.mjs                 # 启动 Mock Server (端口 8080)
+node e2e/cli/v4-e2e-workflow.mjs         # 运行测试
 ```
 
-***
+### Q3: 如何注册新的编程 Agent 到蜂群？
+
+通过 API 主动注册或在 Swarm 管理接口中添加：
+```bash
+curl -X POST http://localhost:8000/api/v1/swarms/{swarm_id}/members \
+  -H "Content-Type: application/json" \
+  -d '{"agent_type": "claude_code", "agent_id": "claude-001"}'
+```
+
+### Q4: QA 检验不合格怎么办？
+
+后荣(QA) 会退回产出并附带修改建议。相关 Agent 根据建议修改后重新提交，后荣重新检验直至通过。
+
+### Q5: 用户不满意如何触发迭代？
+
+在第 16 步时，用户选择"不满意"并提供反馈，系统自动回到第 3 步（需求分析），已合格的步骤产出保留。迭代次数无限制。
+
+---
 
 ## 相关文档
 
-- [SRS 软件需求规格说明书](SRS_软件需求规格说明书.md) - 详细的功能需求和技术规格
-- [前端 README](frontend/README.md) - 前端开发指南
-- [API 文档](http://localhost:8000/docs) - 在线 Swagger 文档
+- [SRS 软件需求规格说明书 v4.0](SRS_软件需求规格说明书.md) - 完整的功能需求和 16 步流程规格
+- [API 文档](http://localhost:8000/docs) - Swagger 在线文档
 - [Gitea 文档](https://docs.gitea.io/) - Gitea 官方文档
 - [Hermes Agent](https://github.com/NousResearch/hermes-agent) - Hermes 开源项目
 
-***
+---
 
 ## 许可证
 
 本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 
-***
+---
 
 ## 致谢
 
@@ -644,7 +641,7 @@ docker-compose -f docker-compose.dev.yml up -d
 - [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
 - [Gitea](https://gitea.io/) - 轻量级自托管 Git 服务
 
-***
+---
 
 <div align="center">
   <p>Made with ❤️ by DevFlow Team</p>

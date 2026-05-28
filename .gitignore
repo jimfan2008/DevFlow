@@ -52,6 +52,9 @@ docker-compose.override.yml
 
 # Environment files (keep secrets out of repo)
 .env
+.env.local
+.env.production
+.env.*.local
 *.env.local
 
 # Logs

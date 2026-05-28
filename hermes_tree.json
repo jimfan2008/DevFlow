@@ -1,0 +1,4458 @@
+{
+  "sha": "4223014e0c4c6827980548107a6df112b990f912",
+  "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/4223014e0c4c6827980548107a6df112b990f912",
+  "tree": [
+    {
+      "path": ".dockerignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5209e2d261da1ccb9adf113b98febb740b2995f",
+      "size": 62,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b5209e2d261da1ccb9adf113b98febb740b2995f"
+    },
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c852a8432fed2c882cad1edc7acff4aca48cb470",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/c852a8432fed2c882cad1edc7acff4aca48cb470"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3838c6a4ac8ef422eaadfa8bd14e7217a987fb7b",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/3838c6a4ac8ef422eaadfa8bd14e7217a987fb7b"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/bug_report.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18833a37d86df7b0cfda4e85c91ff7fec928169c",
+      "size": 2347,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/18833a37d86df7b0cfda4e85c91ff7fec928169c"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/config.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b61f7b34b4d15be978096089ddf4f2f344d16f8",
+      "size": 343,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1b61f7b34b4d15be978096089ddf4f2f344d16f8"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/feature_request.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8fcc451c99fe552fecd2a7c06b74e85279b71551",
+      "size": 2067,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8fcc451c99fe552fecd2a7c06b74e85279b71551"
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/general_issue.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "843b94f14ec9b53b3bc4324171d84a752fb64404",
+      "size": 463,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/843b94f14ec9b53b3bc4324171d84a752fb64404"
+    },
+    {
+      "path": ".github/workflows",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6c51bd0db39a8af672f2fbc6eb4e57bcc6a5251c",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/6c51bd0db39a8af672f2fbc6eb4e57bcc6a5251c"
+    },
+    {
+      "path": ".github/workflows/build.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa3b5665b5dae2786a5b4f846b1a0631e6a54b40",
+      "size": 480,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/aa3b5665b5dae2786a5b4f846b1a0631e6a54b40"
+    },
+    {
+      "path": ".github/workflows/docker-publish.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa2901c21fbf214d885f48bf785dae37ce382ddc",
+      "size": 1412,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/aa2901c21fbf214d885f48bf785dae37ce382ddc"
+    },
+    {
+      "path": ".github/workflows/playwright.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4ed7d65dbffd83bf53c85851286f60530009555d",
+      "size": 774,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4ed7d65dbffd83bf53c85851286f60530009555d"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85acfe18a9fea34eaee091eade7b2c9165a32ec3",
+      "size": 704,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/85acfe18a9fea34eaee091eade7b2c9165a32ec3"
+    },
+    {
+      "path": "DEVELOPMENT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ddad70c6d4dbed6ce43c256220786ee537f3016b",
+      "size": 4108,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ddad70c6d4dbed6ce43c256220786ee537f3016b"
+    },
+    {
+      "path": "Dockerfile",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1804d23af496d9c16c1b7fd95d18497bc5207b12",
+      "size": 1233,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1804d23af496d9c16c1b7fd95d18497bc5207b12"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "220bc00b0727c38761f089dfe12057a376e89a7f",
+      "size": 1838,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/220bc00b0727c38761f089dfe12057a376e89a7f"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ec528b38c2aee5853d0ef15667d48d6233547889",
+      "size": 12370,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ec528b38c2aee5853d0ef15667d48d6233547889"
+    },
+    {
+      "path": "README_zh.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "692926c600e6cc5a570a4d915cb031bb1ad014e1",
+      "size": 11594,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/692926c600e6cc5a570a4d915cb031bb1ad014e1"
+    },
+    {
+      "path": "TODAY_TEST_CASES.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d2e8a329e55620f0f4ffb7fdd5e48063d56ccc1f",
+      "size": 11908,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d2e8a329e55620f0f4ffb7fdd5e48063d56ccc1f"
+    },
+    {
+      "path": "bin",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7e00b2480bd5b8ebb0e87690adb59d7f548e19d0",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/7e00b2480bd5b8ebb0e87690adb59d7f548e19d0"
+    },
+    {
+      "path": "bin/hermes-web-ui.mjs",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "9c87e27c83ecb7f8403e893696b60459c7436001",
+      "size": 17604,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9c87e27c83ecb7f8403e893696b60459c7436001"
+    },
+    {
+      "path": "docker-compose.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7dd8653decf50aceeaefccf815947702881855e",
+      "size": 909,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a7dd8653decf50aceeaefccf815947702881855e"
+    },
+    {
+      "path": "docs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e76225e4203bb141c91e078ddc4ff2ae280117b2",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/e76225e4203bb141c91e078ddc4ff2ae280117b2"
+    },
+    {
+      "path": "docs/cli-chat-sessions.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1adbcd456e93120f14d60da4b608519b8e6dc9a5",
+      "size": 15809,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1adbcd456e93120f14d60da4b608519b8e6dc9a5"
+    },
+    {
+      "path": "docs/docker.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "53710c8da5aa1eb12e0a2c660d075f7f986ce54b",
+      "size": 3162,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/53710c8da5aa1eb12e0a2c660d075f7f986ce54b"
+    },
+    {
+      "path": "docs/openapi.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e692e240ba6960fff0b996c030fb3a0e8593c191",
+      "size": 81666,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e692e240ba6960fff0b996c030fb3a0e8593c191"
+    },
+    {
+      "path": "nodemon.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d1507125b53c945b7cfda1680fc86b7e49d708e1",
+      "size": 357,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d1507125b53c945b7cfda1680fc86b7e49d708e1"
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4df24e8634144e968abb864c72ac4bad2d58095",
+      "size": 3522,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f4df24e8634144e968abb864c72ac4bad2d58095"
+    },
+    {
+      "path": "packages",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f8f7b767bd75de4960ed1aef096094c59b99e33e",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/f8f7b767bd75de4960ed1aef096094c59b99e33e"
+    },
+    {
+      "path": "packages/client",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d8345cc24a072ddda7e05870d9741643eb68b87a",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/d8345cc24a072ddda7e05870d9741643eb68b87a"
+    },
+    {
+      "path": "packages/client/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a08fb9d2ed4837066642fdb59b2543c1ddb3996b",
+      "size": 1199,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a08fb9d2ed4837066642fdb59b2543c1ddb3996b"
+    },
+    {
+      "path": "packages/client/public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "41527101f709d5a6ef69e450e948102c4064cf54",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/41527101f709d5a6ef69e450e948102c4064cf54"
+    },
+    {
+      "path": "packages/client/public/favicon.ico",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dbc3f56759d9eb5ce9542fee493aeab693bb7e8f",
+      "size": 16958,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dbc3f56759d9eb5ce9542fee493aeab693bb7e8f"
+    },
+    {
+      "path": "packages/client/public/fonts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "52e90ef71affb92c2784c611f51b2419675d969a",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/52e90ef71affb92c2784c611f51b2419675d969a"
+    },
+    {
+      "path": "packages/client/public/fonts/ComicNeue-Bold.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3f425f5bde19fef0a2a91367522ebd44c51fbf0",
+      "size": 52548,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d3f425f5bde19fef0a2a91367522ebd44c51fbf0"
+    },
+    {
+      "path": "packages/client/public/fonts/ComicNeue-Regular.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cc41f026a048227b702fb78358d0ae4d339d0b7a",
+      "size": 54012,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cc41f026a048227b702fb78358d0ae4d339d0b7a"
+    },
+    {
+      "path": "packages/client/public/fonts/Gaegu-Bold.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4e22d2401de0f2fc9256cd4ded098b065a691fbd",
+      "size": 1391232,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4e22d2401de0f2fc9256cd4ded098b065a691fbd"
+    },
+    {
+      "path": "packages/client/public/fonts/Gaegu-Regular.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1e28823982ecd330be1efa62c1ee56495ddae419",
+      "size": 3165816,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1e28823982ecd330be1efa62c1ee56495ddae419"
+    },
+    {
+      "path": "packages/client/public/fonts/ZCOOLKuaiLe-Regular.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3cf6cd927ee910d46875de173efdaac4330e84ac",
+      "size": 1514968,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3cf6cd927ee910d46875de173efdaac4330e84ac"
+    },
+    {
+      "path": "packages/client/public/fonts/ZenMaruGothic-Bold.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aeaf890a35366fc7d08781886d2a04b85b5bec8c",
+      "size": 3779008,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/aeaf890a35366fc7d08781886d2a04b85b5bec8c"
+    },
+    {
+      "path": "packages/client/public/fonts/ZenMaruGothic-Regular.ttf",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c622402a1acf00c3481334de56439b3703cdcbb6",
+      "size": 3832756,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c622402a1acf00c3481334de56439b3703cdcbb6"
+    },
+    {
+      "path": "packages/client/public/icons.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9522193d9f796a9748e9ad8c952a5df73c87db9",
+      "size": 5031,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e9522193d9f796a9748e9ad8c952a5df73c87db9"
+    },
+    {
+      "path": "packages/client/public/logo.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "451200cb70e6153761ff2a538d857a3fd1f32a7c",
+      "size": 1865825,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/451200cb70e6153761ff2a538d857a3fd1f32a7c"
+    },
+    {
+      "path": "packages/client/public/skill-recommendations.en.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca92ed1a12db41653d61f1eddd7a9d807aed7228",
+      "size": 14188,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ca92ed1a12db41653d61f1eddd7a9d807aed7228"
+    },
+    {
+      "path": "packages/client/public/skill-recommendations.zh.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ce30899464889299c9fdfc85cbead087fcfb49d5",
+      "size": 12707,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ce30899464889299c9fdfc85cbead087fcfb49d5"
+    },
+    {
+      "path": "packages/client/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6027372dbdfcd2ebda8b096e1911a881953e2398",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/6027372dbdfcd2ebda8b096e1911a881953e2398"
+    },
+    {
+      "path": "packages/client/src/App.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6c79e3fc03c1e1330636d7e68c96ce1b1fbcd288",
+      "size": 3264,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6c79e3fc03c1e1330636d7e68c96ce1b1fbcd288"
+    },
+    {
+      "path": "packages/client/src/api",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4199c9b53d5074874445b293ad35a9ac11bea698",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/4199c9b53d5074874445b293ad35a9ac11bea698"
+    },
+    {
+      "path": "packages/client/src/api/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f0c6086c516ab55d7a7e41b4c8d7e38adcdb636",
+      "size": 2242,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7f0c6086c516ab55d7a7e41b4c8d7e38adcdb636"
+    },
+    {
+      "path": "packages/client/src/api/client.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ed79a33d8ee62249a032bdd4d54b10917ced9678",
+      "size": 2577,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ed79a33d8ee62249a032bdd4d54b10917ced9678"
+    },
+    {
+      "path": "packages/client/src/api/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f8b033b2c48cd33e158d7c72e46df3dfea6160d9",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/f8b033b2c48cd33e158d7c72e46df3dfea6160d9"
+    },
+    {
+      "path": "packages/client/src/api/hermes/chat.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e1365ffa8598fd31b34bf86677f83c11490b476f",
+      "size": 17935,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e1365ffa8598fd31b34bf86677f83c11490b476f"
+    },
+    {
+      "path": "packages/client/src/api/hermes/codex-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2102e8f96aa7102877bbadf35d170cb4b422700d",
+      "size": 838,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2102e8f96aa7102877bbadf35d170cb4b422700d"
+    },
+    {
+      "path": "packages/client/src/api/hermes/config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d9f4a72fee26e8df13d4aea251f1e390a24feb6f",
+      "size": 3146,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d9f4a72fee26e8df13d4aea251f1e390a24feb6f"
+    },
+    {
+      "path": "packages/client/src/api/hermes/conversations.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb7c07f54101755db02f5738ced37a729c13aa60",
+      "size": 1996,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cb7c07f54101755db02f5738ced37a729c13aa60"
+    },
+    {
+      "path": "packages/client/src/api/hermes/copilot-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2733f84c525b4863c8d85b228c4ff9f9b2208e3",
+      "size": 1420,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e2733f84c525b4863c8d85b228c4ff9f9b2208e3"
+    },
+    {
+      "path": "packages/client/src/api/hermes/cron-history.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6ab212e3a8e529458c9166b08638daa4c0bdfff7",
+      "size": 737,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6ab212e3a8e529458c9166b08638daa4c0bdfff7"
+    },
+    {
+      "path": "packages/client/src/api/hermes/download.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d8d9e2f422939e9887b85be731b0383b001635c",
+      "size": 2522,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7d8d9e2f422939e9887b85be731b0383b001635c"
+    },
+    {
+      "path": "packages/client/src/api/hermes/files.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4e76da7d09462a3aff3efd0c9875fbfbb5959f87",
+      "size": 3400,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4e76da7d09462a3aff3efd0c9875fbfbb5959f87"
+    },
+    {
+      "path": "packages/client/src/api/hermes/group-chat.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b427c3a8170ffac25a3a6391740db6981e62e76",
+      "size": 7304,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7b427c3a8170ffac25a3a6391740db6981e62e76"
+    },
+    {
+      "path": "packages/client/src/api/hermes/jobs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a068d367aa2df0cb2293f227e262391ea6d47d59",
+      "size": 5697,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a068d367aa2df0cb2293f227e262391ea6d47d59"
+    },
+    {
+      "path": "packages/client/src/api/hermes/kanban.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2481d43ac2f142e1a1ed25ba4affc5ecaac18d9c",
+      "size": 13617,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2481d43ac2f142e1a1ed25ba4affc5ecaac18d9c"
+    },
+    {
+      "path": "packages/client/src/api/hermes/logs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4773eb08e77795470fa049dd6307cb4f56ad75ae",
+      "size": 1022,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4773eb08e77795470fa049dd6307cb4f56ad75ae"
+    },
+    {
+      "path": "packages/client/src/api/hermes/model-context.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cbd98302d614292bcac3fc10b0d301de230c03a2",
+      "size": 1111,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cbd98302d614292bcac3fc10b0d301de230c03a2"
+    },
+    {
+      "path": "packages/client/src/api/hermes/nous-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "890ccd76177879a3f7a8e445a17a01812612efd3",
+      "size": 810,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/890ccd76177879a3f7a8e445a17a01812612efd3"
+    },
+    {
+      "path": "packages/client/src/api/hermes/plugins.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5cee32ddcc2cca2c009bef4d20fa7d4bbfd106ef",
+      "size": 1031,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5cee32ddcc2cca2c009bef4d20fa7d4bbfd106ef"
+    },
+    {
+      "path": "packages/client/src/api/hermes/profiles.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3498824f164fb4752917979db3c1c6f827b5a42d",
+      "size": 5987,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3498824f164fb4752917979db3c1c6f827b5a42d"
+    },
+    {
+      "path": "packages/client/src/api/hermes/sessions.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9ae8fae8467da7cf60802ad096e284d47224e311",
+      "size": 7623,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9ae8fae8467da7cf60802ad096e284d47224e311"
+    },
+    {
+      "path": "packages/client/src/api/hermes/skills.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d539b11aabd7b6a9b73aa9b73a7c50681e9e263",
+      "size": 3120,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7d539b11aabd7b6a9b73aa9b73a7c50681e9e263"
+    },
+    {
+      "path": "packages/client/src/api/hermes/system.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fae002b063b0e2658d38ac0c787602e9e976513d",
+      "size": 5326,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fae002b063b0e2658d38ac0c787602e9e976513d"
+    },
+    {
+      "path": "packages/client/src/api/hermes/tts.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "581dabc4fc4c9a39046de79c80b265aba9c78b22",
+      "size": 1029,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/581dabc4fc4c9a39046de79c80b265aba9c78b22"
+    },
+    {
+      "path": "packages/client/src/api/hermes/xai-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a26b87ec8f509758ddd95b730098427dc32e787f",
+      "size": 789,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a26b87ec8f509758ddd95b730098427dc32e787f"
+    },
+    {
+      "path": "packages/client/src/assets",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "679bd3ff92da0169a77d5e416f14f70bd1d57038",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/679bd3ff92da0169a77d5e416f14f70bd1d57038"
+    },
+    {
+      "path": "packages/client/src/assets/image1.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a5f6571724822b04b208f5a5520c210fe4600fb",
+      "size": 217351,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5a5f6571724822b04b208f5a5520c210fe4600fb"
+    },
+    {
+      "path": "packages/client/src/assets/image2.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "93f0d89c6169d1d1279d17ed598ff9bdb91016ee",
+      "size": 257345,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/93f0d89c6169d1d1279d17ed598ff9bdb91016ee"
+    },
+    {
+      "path": "packages/client/src/assets/logo.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5d234213df61fab3843de7ff037542fcadb45279",
+      "size": 1319989,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5d234213df61fab3843de7ff037542fcadb45279"
+    },
+    {
+      "path": "packages/client/src/assets/thinking-dark.mp4",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "33197d1509689a41548e7f3da1d379b08f4471a1",
+      "size": 7967594,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/33197d1509689a41548e7f3da1d379b08f4471a1"
+    },
+    {
+      "path": "packages/client/src/assets/thinking-light.mp4",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "654e08fc458e152cc42133d498b873d4160dd281",
+      "size": 10862093,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/654e08fc458e152cc42133d498b873d4160dd281"
+    },
+    {
+      "path": "packages/client/src/assets/vite.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5101b674df391399da71c767aa5c976426c9dc7a",
+      "size": 8709,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5101b674df391399da71c767aa5c976426c9dc7a"
+    },
+    {
+      "path": "packages/client/src/components",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "72498f78bed79b6c07190f086e165979e4e9f8d1",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/72498f78bed79b6c07190f086e165979e4e9f8d1"
+    },
+    {
+      "path": "packages/client/src/components/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3196196c378be5b838452b24606c70b71db53a71",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/3196196c378be5b838452b24606c70b71db53a71"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b125c916bd0958f092dc3ee050aef5ef2f0b5c59",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/b125c916bd0958f092dc3ee050aef5ef2f0b5c59"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/ChatInput.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "43bebe1a2228e1a3a74da4dc1b8dc38b3c08dff2",
+      "size": 26640,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/43bebe1a2228e1a3a74da4dc1b8dc38b3c08dff2"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/ChatPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2a6230b0f25d39328fc1f6cc23b866ee39db815c",
+      "size": 55897,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2a6230b0f25d39328fc1f6cc23b866ee39db815c"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/ConversationMonitorPane.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7c729dc48c9091c634a2ddc460b138631a1a3256",
+      "size": 9430,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7c729dc48c9091c634a2ddc460b138631a1a3256"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/DrawerPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "42a146f5dcdfee486d70d456148b514077cd670f",
+      "size": 3915,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/42a146f5dcdfee486d70d456148b514077cd670f"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/FilesPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5fecc82d8f944fad0efa59894cc24038599c595",
+      "size": 4880,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b5fecc82d8f944fad0efa59894cc24038599c595"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/FolderPicker.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "21af82a46387b1b93d72c2e4cfbe8cf092f59fba",
+      "size": 6860,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/21af82a46387b1b93d72c2e4cfbe8cf092f59fba"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/HistoryMessageList.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e7f9ca9547def2acf0e678896211e4ab333b2a9c",
+      "size": 3669,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e7f9ca9547def2acf0e678896211e4ab333b2a9c"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/MarkdownRenderer.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5f586ca9e1d3e1549ec5a9fbe5811c574d93d048",
+      "size": 20284,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5f586ca9e1d3e1549ec5a9fbe5811c574d93d048"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/MessageItem.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "685891d4d30e069b5e278d073a075ee2f816edbb",
+      "size": 47311,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/685891d4d30e069b5e278d073a075ee2f816edbb"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/MessageList.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "670a4e4da75541a997c89783e29e9d1f84eaf653",
+      "size": 17933,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/670a4e4da75541a997c89783e29e9d1f84eaf653"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/OutlinePanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60af8a1a2b8b36db557d20656dbccb1261df4fef",
+      "size": 7011,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/60af8a1a2b8b36db557d20656dbccb1261df4fef"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/SessionListItem.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bf1c0d7e79bb5daa406acf024928c450e3aee1f3",
+      "size": 5925,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bf1c0d7e79bb5daa406acf024928c450e3aee1f3"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/SessionSearchModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e4c8c06fd340075f2d948ad50c27bf97e985e191",
+      "size": 11390,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e4c8c06fd340075f2d948ad50c27bf97e985e191"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/TerminalPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cfe83a30dd3f8c0928ae1fa292add80cff7c88ff",
+      "size": 23897,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cfe83a30dd3f8c0928ae1fa292add80cff7c88ff"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/highlight.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "30a2ae3f954cbe18dcb7e7ba1e795cf16a6dc238",
+      "size": 3050,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/30a2ae3f954cbe18dcb7e7ba1e795cf16a6dc238"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/markdownFenceRepair.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c8dd387252f19578a38c38a773dd62385abbc47",
+      "size": 6153,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9c8dd387252f19578a38c38a773dd62385abbc47"
+    },
+    {
+      "path": "packages/client/src/components/hermes/chat/mermaidRenderer.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ed6ecea94d3acf966cecdd81bdfe78409a8d3c9f",
+      "size": 1445,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ed6ecea94d3acf966cecdd81bdfe78409a8d3c9f"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5778d945d395ea1429ceaa8d203755f7de316306",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/5778d945d395ea1429ceaa8d203755f7de316306"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileBreadcrumb.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dacd1b52be116ea9de7e20e4af61ec57d416a54b",
+      "size": 936,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dacd1b52be116ea9de7e20e4af61ec57d416a54b"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileContextMenu.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f36834faba464276647127ce6054235d4d702f22",
+      "size": 3608,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f36834faba464276647127ce6054235d4d702f22"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileEditor.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "347076f832446bb8fb6716af0f7da9df0ffc7e24",
+      "size": 3350,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/347076f832446bb8fb6716af0f7da9df0ffc7e24"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileList.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "37adc78f158c998a358d21f8bf65b0ecc8c2352f",
+      "size": 5696,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/37adc78f158c998a358d21f8bf65b0ecc8c2352f"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FilePreview.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bce83df05b69562367119ace0fb6fa9d9915c679",
+      "size": 2227,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bce83df05b69562367119ace0fb6fa9d9915c679"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileRenameModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ece9748b62a0b1a9c5437638a68aca9df1829f7b",
+      "size": 2713,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ece9748b62a0b1a9c5437638a68aca9df1829f7b"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileToolbar.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c9195828facff1a5f3a9479c5da832df241dff0",
+      "size": 1615,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9c9195828facff1a5f3a9479c5da832df241dff0"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileTree.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5602f75670f5b5c0e65d619ef63db0d01c7eca68",
+      "size": 2229,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5602f75670f5b5c0e65d619ef63db0d01c7eca68"
+    },
+    {
+      "path": "packages/client/src/components/hermes/files/FileUploadModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c145d40d5178b50ac3b44551109913df14888a30",
+      "size": 2239,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c145d40d5178b50ac3b44551109913df14888a30"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8d71be6038dfe6b10bc80fe4017b0f7530dca0ea",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/8d71be6038dfe6b10bc80fe4017b0f7530dca0ea"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat/CreateRoomForm.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "81625f6d7b9a6c6d461e5813bffc4828c38b34d4",
+      "size": 5534,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/81625f6d7b9a6c6d461e5813bffc4828c38b34d4"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat/GroupChatInput.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9f302064912a6af3f356ad72991c6ed33e7242d",
+      "size": 23260,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e9f302064912a6af3f356ad72991c6ed33e7242d"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat/GroupChatPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "902a0ee6e187ea822cfe3b58ec676cb0e6769e92",
+      "size": 44426,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/902a0ee6e187ea822cfe3b58ec676cb0e6769e92"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat/GroupMessageItem.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "692289947424d56ec862ccefc88beabe5a84abc7",
+      "size": 34262,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/692289947424d56ec862ccefc88beabe5a84abc7"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat/GroupMessageList.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d8c04b185e78dd20bf3926adb9ddcf56c6e18b31",
+      "size": 2350,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d8c04b185e78dd20bf3926adb9ddcf56c6e18b31"
+    },
+    {
+      "path": "packages/client/src/components/hermes/group-chat/mention-options.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46ce4eb6caea19ad4eea86ae9c23d4599d5da947",
+      "size": 1189,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/46ce4eb6caea19ad4eea86ae9c23d4599d5da947"
+    },
+    {
+      "path": "packages/client/src/components/hermes/jobs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "028855fe75e932bf55f66abebb6c525c95a7c718",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/028855fe75e932bf55f66abebb6c525c95a7c718"
+    },
+    {
+      "path": "packages/client/src/components/hermes/jobs/JobCard.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "adefc10bad3a2d8229b25e238368cc545e41f679",
+      "size": 6964,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/adefc10bad3a2d8229b25e238368cc545e41f679"
+    },
+    {
+      "path": "packages/client/src/components/hermes/jobs/JobFormModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac9a344c50b244fed9a9a3257b21e02af656df01",
+      "size": 6341,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ac9a344c50b244fed9a9a3257b21e02af656df01"
+    },
+    {
+      "path": "packages/client/src/components/hermes/jobs/JobRunHistory.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f65a6b4680718b21619730a707d1feca95d3dca4",
+      "size": 4156,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f65a6b4680718b21619730a707d1feca95d3dca4"
+    },
+    {
+      "path": "packages/client/src/components/hermes/jobs/JobsPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60ea785801a7ac7d632363d2ecbc54db28585bf8",
+      "size": 1882,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/60ea785801a7ac7d632363d2ecbc54db28585bf8"
+    },
+    {
+      "path": "packages/client/src/components/hermes/kanban",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3d1aa62a9587f42bc2333b7764af1bc93aaed676",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/3d1aa62a9587f42bc2333b7764af1bc93aaed676"
+    },
+    {
+      "path": "packages/client/src/components/hermes/kanban/KanbanColumn.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bd0b72704ebcfa3503ab504f1501590d6d842f0b",
+      "size": 2184,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bd0b72704ebcfa3503ab504f1501590d6d842f0b"
+    },
+    {
+      "path": "packages/client/src/components/hermes/kanban/KanbanCreateForm.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "647999a7ce61a0fea8b8554a3d002b4735760f66",
+      "size": 2740,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/647999a7ce61a0fea8b8554a3d002b4735760f66"
+    },
+    {
+      "path": "packages/client/src/components/hermes/kanban/KanbanTaskCard.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ebfaaf5e907c91eb2d290a55d6c8f16bde30bb4d",
+      "size": 4179,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ebfaaf5e907c91eb2d290a55d6c8f16bde30bb4d"
+    },
+    {
+      "path": "packages/client/src/components/hermes/kanban/KanbanTaskDrawer.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5bf9ec899166966a3c81695feb9332ca76f81b16",
+      "size": 19306,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5bf9ec899166966a3c81695feb9332ca76f81b16"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "de844ef1e1dedd8f809bbf77298e303c200d0af5",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/de844ef1e1dedd8f809bbf77298e303c200d0af5"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/CodexLoginModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19a33c4a48627802e3c96c064ffaba45b5830974",
+      "size": 6637,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/19a33c4a48627802e3c96c064ffaba45b5830974"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/CopilotLoginModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "179106e1b01cdf2d4d1f970ecd0a098dc46ebbb0",
+      "size": 6791,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/179106e1b01cdf2d4d1f970ecd0a098dc46ebbb0"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/NousLoginModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a594d3304da60d20c7b1ed9f357432c4c282f7b0",
+      "size": 6691,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a594d3304da60d20c7b1ed9f357432c4c282f7b0"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/ProviderCard.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6724b613793c15c3f5a9139aba55235453d19b3f",
+      "size": 17058,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6724b613793c15c3f5a9139aba55235453d19b3f"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/ProviderFormModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "daae4993e02f6c48557465cf1de2dd9eff5196a0",
+      "size": 14341,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/daae4993e02f6c48557465cf1de2dd9eff5196a0"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/ProvidersPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79559531a2a631b25c3d13e9033b07697649d34a",
+      "size": 1212,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/79559531a2a631b25c3d13e9033b07697649d34a"
+    },
+    {
+      "path": "packages/client/src/components/hermes/models/XaiOAuthLoginModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a0860be7dc94cbd4138b32d7c2e280f8c3b86f37",
+      "size": 4985,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a0860be7dc94cbd4138b32d7c2e280f8c3b86f37"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c894523ae9738fa3ab12661d8e1e28e88fdbc6c6",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/c894523ae9738fa3ab12661d8e1e28e88fdbc6c6"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles/ProfileAvatar.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a07b681b6e94e70da5f40371372cba2c8575704",
+      "size": 1254,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5a07b681b6e94e70da5f40371372cba2c8575704"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles/ProfileCard.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb83e3811881ab3922d9dabaebe10e30536c1370",
+      "size": 7136,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cb83e3811881ab3922d9dabaebe10e30536c1370"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles/ProfileCreateModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b4a14bfd85f43807ef3030d2cbde66278de9108",
+      "size": 3932,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7b4a14bfd85f43807ef3030d2cbde66278de9108"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles/ProfileImportModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9056a977d241d6108f9be61aec316fe6c6f7e8f",
+      "size": 2418,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e9056a977d241d6108f9be61aec316fe6c6f7e8f"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles/ProfileRenameModal.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a2da73a128a6f01a02d8712ace9328fd2a9e88d6",
+      "size": 2664,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a2da73a128a6f01a02d8712ace9328fd2a9e88d6"
+    },
+    {
+      "path": "packages/client/src/components/hermes/profiles/ProfilesPanel.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2a1e3e921ccfe2a0ebd0c46b64b2a289e88bfeb5",
+      "size": 1280,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2a1e3e921ccfe2a0ebd0c46b64b2a289e88bfeb5"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e23ed36166c632e652008984a9aa1f76fde3bd2f",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/e23ed36166c632e652008984a9aa1f76fde3bd2f"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/AccountSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a18f50ea3762323bc6ea09ef1b79f048862a883",
+      "size": 12164,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7a18f50ea3762323bc6ea09ef1b79f048862a883"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/AgentSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "535f94c33d4bb434047bcf5ee143d470b406187b",
+      "size": 3141,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/535f94c33d4bb434047bcf5ee143d470b406187b"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/CompressionSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c9c18073ed662001b671bf48702e127e07d26a6",
+      "size": 3383,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5c9c18073ed662001b671bf48702e127e07d26a6"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/DisplaySettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8cc0546f8e12aa6177d42f3475508d0e38b98456",
+      "size": 3121,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8cc0546f8e12aa6177d42f3475508d0e38b98456"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/MemorySettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3167f56b9c1689e9c83384fe9a6c4475aab4a492",
+      "size": 2717,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3167f56b9c1689e9c83384fe9a6c4475aab4a492"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/ModelSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "69ba8ce343dd482ec12f9542149f5a1624dbdc00",
+      "size": 5064,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/69ba8ce343dd482ec12f9542149f5a1624dbdc00"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/PlatformCard.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5ad85a716e6705d3f22f848bb82f95bb99d93588",
+      "size": 2820,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5ad85a716e6705d3f22f848bb82f95bb99d93588"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/PlatformSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0a90e7553175d169de1fa1eed5073e6426580d18",
+      "size": 34919,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0a90e7553175d169de1fa1eed5073e6426580d18"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/PrivacySettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d1fc00e6384cb95828129e1bf36f038f288a93e",
+      "size": 954,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1d1fc00e6384cb95828129e1bf36f038f288a93e"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/SessionSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d1a511bb9ace9659fcb2d559c241136625570ece",
+      "size": 3944,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d1a511bb9ace9659fcb2d559c241136625570ece"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/SettingRow.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c0dfe4d632d968163eebfc77c688afe65fad1998",
+      "size": 1105,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c0dfe4d632d968163eebfc77c688afe65fad1998"
+    },
+    {
+      "path": "packages/client/src/components/hermes/settings/VoiceSettings.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "36c2a7404e141f89317634cb28b070a5198767d7",
+      "size": 15958,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/36c2a7404e141f89317634cb28b070a5198767d7"
+    },
+    {
+      "path": "packages/client/src/components/hermes/skills",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "11a5e96e045fbbeaf4c477e1e72c7d83ce096276",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/11a5e96e045fbbeaf4c477e1e72c7d83ce096276"
+    },
+    {
+      "path": "packages/client/src/components/hermes/skills/SkillDetail.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "041b77770713cf9ab4aab9e3eea3a38e7b95d5b9",
+      "size": 8991,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/041b77770713cf9ab4aab9e3eea3a38e7b95d5b9"
+    },
+    {
+      "path": "packages/client/src/components/hermes/skills/SkillList.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82251ab1a2eb01bf95cb690abd159f0ee0cf3c31",
+      "size": 9863,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/82251ab1a2eb01bf95cb690abd159f0ee0cf3c31"
+    },
+    {
+      "path": "packages/client/src/components/hermes/usage",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7dff7236f736dc95c20eed98b825d8008d8f57c3",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/7dff7236f736dc95c20eed98b825d8008d8f57c3"
+    },
+    {
+      "path": "packages/client/src/components/hermes/usage/DailyTrend.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c446fafd88d439a69340f88ea46711630ff203f9",
+      "size": 6912,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c446fafd88d439a69340f88ea46711630ff203f9"
+    },
+    {
+      "path": "packages/client/src/components/hermes/usage/ModelBreakdown.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5cc57ef2452b9a6e4b653aa798d5e6fecef2e0d2",
+      "size": 4350,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5cc57ef2452b9a6e4b653aa798d5e6fecef2e0d2"
+    },
+    {
+      "path": "packages/client/src/components/hermes/usage/StatCards.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f200957f2ced7f427f013a98a6591bd6d115daff",
+      "size": 2544,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f200957f2ced7f427f013a98a6591bd6d115daff"
+    },
+    {
+      "path": "packages/client/src/components/layout",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "17a584743ccfa67b99ee4f2caede62cefdb2e179",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/17a584743ccfa67b99ee4f2caede62cefdb2e179"
+    },
+    {
+      "path": "packages/client/src/components/layout/AppSidebar.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "265e7ece307bab23dc9bf375423016b35c7ea60b",
+      "size": 27616,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/265e7ece307bab23dc9bf375423016b35c7ea60b"
+    },
+    {
+      "path": "packages/client/src/components/layout/LanguageSwitch.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb6a572e498d73ed92b82446836940bab7991e86",
+      "size": 843,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cb6a572e498d73ed92b82446836940bab7991e86"
+    },
+    {
+      "path": "packages/client/src/components/layout/ModelSelector.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bfeada365d6c308e541218f58a06511c5631605f",
+      "size": 12367,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bfeada365d6c308e541218f58a06511c5631605f"
+    },
+    {
+      "path": "packages/client/src/components/layout/ProfileSelector.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "616b4d488dfae202bd7d80002eb0cbcba21060e4",
+      "size": 16347,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/616b4d488dfae202bd7d80002eb0cbcba21060e4"
+    },
+    {
+      "path": "packages/client/src/components/layout/ThemeSwitch.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4eb67938cfd419d51d653f9015203b6d74144f54",
+      "size": 2513,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4eb67938cfd419d51d653f9015203b6d74144f54"
+    },
+    {
+      "path": "packages/client/src/composables",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c2fda5280126a95b3c06bb31ebcff027c88d1fa6",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/c2fda5280126a95b3c06bb31ebcff027c88d1fa6"
+    },
+    {
+      "path": "packages/client/src/composables/useKeyboard.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f78987eed20fcbc5e82582b675092628992993f",
+      "size": 1445,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7f78987eed20fcbc5e82582b675092628992993f"
+    },
+    {
+      "path": "packages/client/src/composables/useSessionSearch.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2c467262dbdffb1dd5a66130a26be110c6699673",
+      "size": 337,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2c467262dbdffb1dd5a66130a26be110c6699673"
+    },
+    {
+      "path": "packages/client/src/composables/useSpeech.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f208264940d6164f6f6c3c083ff0c56571dc20a",
+      "size": 18159,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7f208264940d6164f6f6c3c083ff0c56571dc20a"
+    },
+    {
+      "path": "packages/client/src/composables/useTheme.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6b9534541e0b8cce86b5a6a4fa626ca5429f8365",
+      "size": 1967,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6b9534541e0b8cce86b5a6a4fa626ca5429f8365"
+    },
+    {
+      "path": "packages/client/src/composables/useToolTraceVisibility.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2ebded2b6d445d08b63796c926a9f735b00cf44c",
+      "size": 722,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2ebded2b6d445d08b63796c926a9f735b00cf44c"
+    },
+    {
+      "path": "packages/client/src/composables/useVoiceSettings.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "30aed0f7f919e9fddde126b0fab75ca2c0e7ebac",
+      "size": 6940,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/30aed0f7f919e9fddde126b0fab75ca2c0e7ebac"
+    },
+    {
+      "path": "packages/client/src/data",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3674ed3e54d5be30a59742588f7270a5c35e797a",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/3674ed3e54d5be30a59742588f7270a5c35e797a"
+    },
+    {
+      "path": "packages/client/src/data/changelog.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1962777c9b16817ed81155f8873ae565b7cd35ad",
+      "size": 2872,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1962777c9b16817ed81155f8873ae565b7cd35ad"
+    },
+    {
+      "path": "packages/client/src/env.d.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0c94e0afd0204fc41af52c968f3edab798260ff2",
+      "size": 225,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0c94e0afd0204fc41af52c968f3edab798260ff2"
+    },
+    {
+      "path": "packages/client/src/i18n",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9bcadccd193e47969bfa01efe6b231950c461f23",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/9bcadccd193e47969bfa01efe6b231950c461f23"
+    },
+    {
+      "path": "packages/client/src/i18n/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "db9507aa5b03165172e78c7f91c14dc41d37b9f7",
+      "size": 1497,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/db9507aa5b03165172e78c7f91c14dc41d37b9f7"
+    },
+    {
+      "path": "packages/client/src/i18n/locales",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2b6739822ca5b751bcba2f6efc286f46467eb260",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/2b6739822ca5b751bcba2f6efc286f46467eb260"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/de.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "abfb7701678dafdbbfc4b9c24218951252ecb278",
+      "size": 56692,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/abfb7701678dafdbbfc4b9c24218951252ecb278"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/en.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85df13a991556de1912b42f7a92011ac69ca8c4c",
+      "size": 51495,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/85df13a991556de1912b42f7a92011ac69ca8c4c"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/es.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "679f4ab6c960c2b07d6713c853fbc60efb4e039b",
+      "size": 56925,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/679f4ab6c960c2b07d6713c853fbc60efb4e039b"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/fr.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dc300f702df09f0981f5513dfad87fcaddcfc3fc",
+      "size": 57949,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dc300f702df09f0981f5513dfad87fcaddcfc3fc"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/ja.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fd7da5c7d6b16dcceb7fedb6412bad753d62e741",
+      "size": 63980,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fd7da5c7d6b16dcceb7fedb6412bad753d62e741"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/ko.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c349ba89a275b1f10ee8a099410b94d06dfdc8db",
+      "size": 57452,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c349ba89a275b1f10ee8a099410b94d06dfdc8db"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/pt.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d133feca2b65c426fa5065d4fae5d2d8471242e3",
+      "size": 55704,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d133feca2b65c426fa5065d4fae5d2d8471242e3"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/zh-TW.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4da241792058e6944b1890881a5e81edb5f6ab6b",
+      "size": 51273,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4da241792058e6944b1890881a5e81edb5f6ab6b"
+    },
+    {
+      "path": "packages/client/src/i18n/locales/zh.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "00e51d9445671fa11ed3af65ae15dda3b1fcf94b",
+      "size": 50484,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/00e51d9445671fa11ed3af65ae15dda3b1fcf94b"
+    },
+    {
+      "path": "packages/client/src/i18n/messages.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b1a5e88c75b1953df727be399c29ba2cbe4d9c13",
+      "size": 1375,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b1a5e88c75b1953df727be399c29ba2cbe4d9c13"
+    },
+    {
+      "path": "packages/client/src/main.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2a10cc144e6bbddfd660c499cc51b03b271be983",
+      "size": 1288,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2a10cc144e6bbddfd660c499cc51b03b271be983"
+    },
+    {
+      "path": "packages/client/src/router",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0a127cdef3e3194bb0f64543a118de81f79e9313",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/0a127cdef3e3194bb0f64543a118de81f79e9313"
+    },
+    {
+      "path": "packages/client/src/router/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "246071bd3920fd6380bebec86983ebcb453f3716",
+      "size": 3072,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/246071bd3920fd6380bebec86983ebcb453f3716"
+    },
+    {
+      "path": "packages/client/src/shared",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "54781ead652ff9aff33df0ab0402703a26716624",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/54781ead652ff9aff33df0ab0402703a26716624"
+    },
+    {
+      "path": "packages/client/src/shared/session-display.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6648b995b85e83b0f5ce6f630fe3ab05674569d4",
+      "size": 1010,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6648b995b85e83b0f5ce6f630fe3ab05674569d4"
+    },
+    {
+      "path": "packages/client/src/stores",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2dee8348923d6aa6aae2e3bfc26e441b9487c1be",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/2dee8348923d6aa6aae2e3bfc26e441b9487c1be"
+    },
+    {
+      "path": "packages/client/src/stores/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3e251e8f224f9ec86b8b75b70b7483534456ecee",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/3e251e8f224f9ec86b8b75b70b7483534456ecee"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/app.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85ab2287edc1c210ce4e18513ec43209cc9a373c",
+      "size": 12273,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/85ab2287edc1c210ce4e18513ec43209cc9a373c"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/chat.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "35fe2eaa700e63f842f47e245fcc9f2b3d135671",
+      "size": 73960,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/35fe2eaa700e63f842f47e245fcc9f2b3d135671"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/files.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b6bb0a238977cdcb3b3fc91501476f7023a54ab1",
+      "size": 7940,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b6bb0a238977cdcb3b3fc91501476f7023a54ab1"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/group-chat.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e43c9b7df96a1090ef71ea23e19bf922c759d779",
+      "size": 31345,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e43c9b7df96a1090ef71ea23e19bf922c759d779"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/jobs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "504b74d975659a12bb2509b3ea7db80ddebc3003",
+      "size": 1931,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/504b74d975659a12bb2509b3ea7db80ddebc3003"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/kanban.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6f2cbae1050bd5046e8bb04ccf93aa14cd6f0415",
+      "size": 18101,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6f2cbae1050bd5046e8bb04ccf93aa14cd6f0415"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/models.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1cad7421bd1c15fdea23f3f9f30c210969e4bf81",
+      "size": 2517,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1cad7421bd1c15fdea23f3f9f30c210969e4bf81"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/profiles.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f95e3ec132a0c201c8f96333b3ffb0f32353dd1e",
+      "size": 6098,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f95e3ec132a0c201c8f96333b3ffb0f32353dd1e"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/session-browser-prefs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1af3276b0a3cf5851bf0188b24533ded1d5cdb89",
+      "size": 3228,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1af3276b0a3cf5851bf0188b24533ded1d5cdb89"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/settings.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "95f6d56cdff1bf7d1f78d531de4dd9cb84014fb7",
+      "size": 6114,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/95f6d56cdff1bf7d1f78d531de4dd9cb84014fb7"
+    },
+    {
+      "path": "packages/client/src/stores/hermes/usage.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f1f78ec93076ba701287c3ec15b026e984458a15",
+      "size": 4992,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f1f78ec93076ba701287c3ec15b026e984458a15"
+    },
+    {
+      "path": "packages/client/src/styles",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ea5f3e8f45bd99091371ad9eb5aff543a72564c6",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/ea5f3e8f45bd99091371ad9eb5aff543a72564c6"
+    },
+    {
+      "path": "packages/client/src/styles/code-block.scss",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3d354948ddcb5748a675d162fb2e1118fecfecb8",
+      "size": 2861,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3d354948ddcb5748a675d162fb2e1118fecfecb8"
+    },
+    {
+      "path": "packages/client/src/styles/global.scss",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4f820f8e2a51bbc9c59fdca902d9f6bbf94d9926",
+      "size": 3640,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4f820f8e2a51bbc9c59fdca902d9f6bbf94d9926"
+    },
+    {
+      "path": "packages/client/src/styles/theme.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7458add31ee642815c53bcc4227dd69f10e551b2",
+      "size": 4246,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7458add31ee642815c53bcc4227dd69f10e551b2"
+    },
+    {
+      "path": "packages/client/src/styles/variables.scss",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b38d08ee5e3035fd4a4ed1e4ab2bb13ad1cf981f",
+      "size": 4207,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b38d08ee5e3035fd4a4ed1e4ab2bb13ad1cf981f"
+    },
+    {
+      "path": "packages/client/src/utils",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5956e24b22b7d3b4cfd4706846a758b3f769b11f",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/5956e24b22b7d3b4cfd4706846a758b3f769b11f"
+    },
+    {
+      "path": "packages/client/src/utils/clipboard.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f559729d85178e742d640af96afd679d400ed6e3",
+      "size": 1407,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f559729d85178e742d640af96afd679d400ed6e3"
+    },
+    {
+      "path": "packages/client/src/utils/completion-sound.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0a0fb9932a4724f9c09c38754fd59d3dd394a524",
+      "size": 1824,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0a0fb9932a4724f9c09c38754fd59d3dd394a524"
+    },
+    {
+      "path": "packages/client/src/utils/file-path.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9bee149b72c5a78aaa3a637315eee8009f391c7",
+      "size": 166,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e9bee149b72c5a78aaa3a637315eee8009f391c7"
+    },
+    {
+      "path": "packages/client/src/utils/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "85d4dc7143db3e4010fe53004200e00f158d6d29",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/85d4dc7143db3e4010fe53004200e00f158d6d29"
+    },
+    {
+      "path": "packages/client/src/utils/hermes/kanban-assignees.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cfc5a8e79d4f6f3b80d92f2a14ab97df7099c1cb",
+      "size": 974,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cfc5a8e79d4f6f3b80d92f2a14ab97df7099c1cb"
+    },
+    {
+      "path": "packages/client/src/utils/thinking-parser.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7eaef598d6392ebcb567cb8d4ebe6890c3664484",
+      "size": 3194,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7eaef598d6392ebcb567cb8d4ebe6890c3664484"
+    },
+    {
+      "path": "packages/client/src/utils/ttsHelpers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "66567651f897e17e5b3780f93e8ee27db3306ad7",
+      "size": 458,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/66567651f897e17e5b3780f93e8ee27db3306ad7"
+    },
+    {
+      "path": "packages/client/src/views",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "baff484eb7805e4f62783411e33208b90243256e",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/baff484eb7805e4f62783411e33208b90243256e"
+    },
+    {
+      "path": "packages/client/src/views/LoginView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "025b03cbef98109d8ae7a569f4abe0c2a409aee3",
+      "size": 6708,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/025b03cbef98109d8ae7a569f4abe0c2a409aee3"
+    },
+    {
+      "path": "packages/client/src/views/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "302c846adef00f7dd9af838284b7895fe340a8c1",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/302c846adef00f7dd9af838284b7895fe340a8c1"
+    },
+    {
+      "path": "packages/client/src/views/hermes/ChannelsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0784ab266aa17a95a3e1ea46ca725ba95fac12ba",
+      "size": 1065,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0784ab266aa17a95a3e1ea46ca725ba95fac12ba"
+    },
+    {
+      "path": "packages/client/src/views/hermes/ChatView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3766319e371249702f6ea4467203c60df96c0e8",
+      "size": 1054,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e3766319e371249702f6ea4467203c60df96c0e8"
+    },
+    {
+      "path": "packages/client/src/views/hermes/FilesView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "801e4eeba8b3c92524fcddbbaf1e9b5c0d3aefe1",
+      "size": 3160,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/801e4eeba8b3c92524fcddbbaf1e9b5c0d3aefe1"
+    },
+    {
+      "path": "packages/client/src/views/hermes/GroupChatView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c9b6881893637844b58a858aa02ea6804e78ea75",
+      "size": 604,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c9b6881893637844b58a858aa02ea6804e78ea75"
+    },
+    {
+      "path": "packages/client/src/views/hermes/HistoryView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2ce72eece3445be0fdbee0a7bd8168bfd0d1c23e",
+      "size": 21720,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2ce72eece3445be0fdbee0a7bd8168bfd0d1c23e"
+    },
+    {
+      "path": "packages/client/src/views/hermes/JobsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8566420fc93504511736814cad55865b38c764d8",
+      "size": 2952,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8566420fc93504511736814cad55865b38c764d8"
+    },
+    {
+      "path": "packages/client/src/views/hermes/KanbanView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0b811542f43857480bc48e481ef18118a65b8770",
+      "size": 15198,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0b811542f43857480bc48e481ef18118a65b8770"
+    },
+    {
+      "path": "packages/client/src/views/hermes/LogsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a42b223f676b44f8b9c2a7eb965472d9f87ed6d",
+      "size": 7453,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5a42b223f676b44f8b9c2a7eb965472d9f87ed6d"
+    },
+    {
+      "path": "packages/client/src/views/hermes/MemoryView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "33fd92f7461beb7c8f472100a6a868b24004d8e1",
+      "size": 11647,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/33fd92f7461beb7c8f472100a6a868b24004d8e1"
+    },
+    {
+      "path": "packages/client/src/views/hermes/ModelsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0b24c6abc57200a8128f3933ccac9e60a3487eb2",
+      "size": 2088,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0b24c6abc57200a8128f3933ccac9e60a3487eb2"
+    },
+    {
+      "path": "packages/client/src/views/hermes/PluginsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b79b750550c453d04b980c96f5bbd3277cb6fece",
+      "size": 12114,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b79b750550c453d04b980c96f5bbd3277cb6fece"
+    },
+    {
+      "path": "packages/client/src/views/hermes/ProfilesView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c8338c5e10ee7bfb1628c221b9974c5dd44a74c8",
+      "size": 3326,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c8338c5e10ee7bfb1628c221b9974c5dd44a74c8"
+    },
+    {
+      "path": "packages/client/src/views/hermes/SettingsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4d3a85cbf1d83e6ae28b994de3769fdd5e5d296",
+      "size": 2841,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f4d3a85cbf1d83e6ae28b994de3769fdd5e5d296"
+    },
+    {
+      "path": "packages/client/src/views/hermes/SkillsUsageView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e74a943ef2a8d357ec2e3d51cfb14b9aae202987",
+      "size": 17610,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e74a943ef2a8d357ec2e3d51cfb14b9aae202987"
+    },
+    {
+      "path": "packages/client/src/views/hermes/SkillsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9b3d2a8b2b5460396c15090c3e68a1b8883b5b70",
+      "size": 10303,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9b3d2a8b2b5460396c15090c3e68a1b8883b5b70"
+    },
+    {
+      "path": "packages/client/src/views/hermes/TerminalView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f00b00e9a0ceff84e9a363399cea7e72fab98474",
+      "size": 32716,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f00b00e9a0ceff84e9a363399cea7e72fab98474"
+    },
+    {
+      "path": "packages/client/src/views/hermes/UsageView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "005bfd6c1d3c3f654d57d83fa790c9bdf0dd4864",
+      "size": 3412,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/005bfd6c1d3c3f654d57d83fa790c9bdf0dd4864"
+    },
+    {
+      "path": "packages/server",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "52f77e05a5a405da3951a3fc538dd0c6f4381358",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/52f77e05a5a405da3951a3fc538dd0c6f4381358"
+    },
+    {
+      "path": "packages/server/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c109e66414af843acef43b0819461facdbda7afa",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/c109e66414af843acef43b0819461facdbda7afa"
+    },
+    {
+      "path": "packages/server/src/config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "013066fea5606fe9bd9631df77e227f10809951a",
+      "size": 2241,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/013066fea5606fe9bd9631df77e227f10809951a"
+    },
+    {
+      "path": "packages/server/src/controllers",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ab8b720d5446d690640a4da2e67742f02c63022f",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/ab8b720d5446d690640a4da2e67742f02c63022f"
+    },
+    {
+      "path": "packages/server/src/controllers/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d4ab546e924fe1799a94ae17e03f24bab881f676",
+      "size": 5197,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d4ab546e924fe1799a94ae17e03f24bab881f676"
+    },
+    {
+      "path": "packages/server/src/controllers/health.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a4724961f6b1a572db9186ba0d9ac143a401089",
+      "size": 2499,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7a4724961f6b1a572db9186ba0d9ac143a401089"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d1287aa2bd787f0e9c43dec12f0ad25495b0f5f1",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/d1287aa2bd787f0e9c43dec12f0ad25495b0f5f1"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/codex-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a8408127867a5882f4590de480258c6ef3fef8c",
+      "size": 11097,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5a8408127867a5882f4590de480258c6ef3fef8c"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9047f3d55fb0a81c01f5f70efce70f24a60b9626",
+      "size": 9497,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9047f3d55fb0a81c01f5f70efce70f24a60b9626"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/copilot-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "168a2bf414ce640dcee6221767e934725c2729c9",
+      "size": 8276,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/168a2bf414ce640dcee6221767e934725c2729c9"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/cron-history.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c41ce4f39c1ff64f9c35bf55d0c7f23a02bd7376",
+      "size": 9112,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c41ce4f39c1ff64f9c35bf55d0c7f23a02bd7376"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/jobs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d34e1c477544e5561ab626c093971f96ab6b49ea",
+      "size": 10127,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d34e1c477544e5561ab626c093971f96ab6b49ea"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/kanban.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5edff0b3902202eb6b2614e775dba861a55a7e68",
+      "size": 24016,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5edff0b3902202eb6b2614e775dba861a55a7e68"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/logs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac709b88498d88a7ee3b57817c4d120b46f56054",
+      "size": 5427,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ac709b88498d88a7ee3b57817c4d120b46f56054"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/media.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bf31c6e5f45052903cc047c0c6aa65f7ab1d652e",
+      "size": 20508,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bf31c6e5f45052903cc047c0c6aa65f7ab1d652e"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/memory.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7c6f776e17df32dad6d87cdd955b27f451de0c8d",
+      "size": 1646,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7c6f776e17df32dad6d87cdd955b27f451de0c8d"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/models.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "65b49f596f879c313f8a956de63083c1a027e118",
+      "size": 41823,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/65b49f596f879c313f8a956de63083c1a027e118"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/nous-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6240396638878ef41af9b41f1d1ebf0dd964cb69",
+      "size": 9142,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6240396638878ef41af9b41f1d1ebf0dd964cb69"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/plugins.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0cac62c3e537522983c3c914f6808066b036467",
+      "size": 282,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b0cac62c3e537522983c3c914f6808066b036467"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/profiles.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5657d36782717e9336d2b61b12cba1367bab4615",
+      "size": 26210,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5657d36782717e9336d2b61b12cba1367bab4615"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/providers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "75d0898c447bae9b8f81fd005b31716800199278",
+      "size": 9897,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/75d0898c447bae9b8f81fd005b31716800199278"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/sessions.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a07b05da69e0635aad87d5f498ba73eb412d0d84",
+      "size": 20430,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a07b05da69e0635aad87d5f498ba73eb412d0d84"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/skills.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5122fd69e3991e56c169f144d5ee9b00ee804e14",
+      "size": 15062,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5122fd69e3991e56c169f144d5ee9b00ee804e14"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/tts.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6f980fb1f82dd48403dc4f87cbec2e525230959c",
+      "size": 1674,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6f980fb1f82dd48403dc4f87cbec2e525230959c"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/weixin.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "50ab36711a980de62a7db723421f42f590643a86",
+      "size": 2985,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/50ab36711a980de62a7db723421f42f590643a86"
+    },
+    {
+      "path": "packages/server/src/controllers/hermes/xai-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "902bb3b3862c7c703b0e0859fc2b92a480e9b77d",
+      "size": 12283,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/902bb3b3862c7c703b0e0859fc2b92a480e9b77d"
+    },
+    {
+      "path": "packages/server/src/controllers/update.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1a31287ac3df2b0def77af72abcebc48729805c9",
+      "size": 4097,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1a31287ac3df2b0def77af72abcebc48729805c9"
+    },
+    {
+      "path": "packages/server/src/controllers/upload.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b083149ddd4898519913e8d260e42a6699332d6",
+      "size": 2355,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1b083149ddd4898519913e8d260e42a6699332d6"
+    },
+    {
+      "path": "packages/server/src/controllers/webhook.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac777295bd36802b5457dc0b6c9af4c70ae90769",
+      "size": 335,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ac777295bd36802b5457dc0b6c9af4c70ae90769"
+    },
+    {
+      "path": "packages/server/src/db",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e8456380cee55f201fe992f0a8d4bd192c40794a",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/e8456380cee55f201fe992f0a8d4bd192c40794a"
+    },
+    {
+      "path": "packages/server/src/db/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4e456e760ec0828861d3a604fa771fd920965853",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/4e456e760ec0828861d3a604fa771fd920965853"
+    },
+    {
+      "path": "packages/server/src/db/hermes/compression-snapshot.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "62de36a77092f2a3143da89bf93e85eeb6caa252",
+      "size": 1590,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/62de36a77092f2a3143da89bf93e85eeb6caa252"
+    },
+    {
+      "path": "packages/server/src/db/hermes/conversations-db.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5acb5e17c4736dc9f479e66cfef7cb022183d675",
+      "size": 20804,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5acb5e17c4736dc9f479e66cfef7cb022183d675"
+    },
+    {
+      "path": "packages/server/src/db/hermes/init.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0f5f75422822446305f876060b6917f3193aaee4",
+      "size": 453,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0f5f75422822446305f876060b6917f3193aaee4"
+    },
+    {
+      "path": "packages/server/src/db/hermes/message-content.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8b0b377b294f94e99c24b8c5b5f7bb86f721b2b1",
+      "size": 3569,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8b0b377b294f94e99c24b8c5b5f7bb86f721b2b1"
+    },
+    {
+      "path": "packages/server/src/db/hermes/schemas.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3903181849cf6d389a5682c89b0986e37486da1",
+      "size": 11762,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d3903181849cf6d389a5682c89b0986e37486da1"
+    },
+    {
+      "path": "packages/server/src/db/hermes/session-store.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "613b2120700ce6a66c1dbb266c2fcb114d6ab464",
+      "size": 17105,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/613b2120700ce6a66c1dbb266c2fcb114d6ab464"
+    },
+    {
+      "path": "packages/server/src/db/hermes/sessions-db.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d62112933875ae195115cc272a718baf5b56f8d",
+      "size": 51465,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8d62112933875ae195115cc272a718baf5b56f8d"
+    },
+    {
+      "path": "packages/server/src/db/hermes/usage-store.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "442018195439521771fcbcce851ae5016551ff89",
+      "size": 7658,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/442018195439521771fcbcce851ae5016551ff89"
+    },
+    {
+      "path": "packages/server/src/db/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3768c800e5b6465dc0e8e1287dffea96abffa76",
+      "size": 3306,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f3768c800e5b6465dc0e8e1287dffea96abffa76"
+    },
+    {
+      "path": "packages/server/src/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bb985e188638cd27bacad3fff3a3b034f8328861",
+      "size": 8388,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bb985e188638cd27bacad3fff3a3b034f8328861"
+    },
+    {
+      "path": "packages/server/src/lib",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8ea77a2e637668e541547f0310c832451b107562",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/8ea77a2e637668e541547f0310c832451b107562"
+    },
+    {
+      "path": "packages/server/src/lib/context-compressor",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "66593c98cda5c7dc35086a9cff17072569d8ecb4",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/66593c98cda5c7dc35086a9cff17072569d8ecb4"
+    },
+    {
+      "path": "packages/server/src/lib/context-compressor/export-compressor.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "503b4011b6a34f1445c9585d67914bae5cd48293",
+      "size": 4743,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/503b4011b6a34f1445c9585d67914bae5cd48293"
+    },
+    {
+      "path": "packages/server/src/lib/context-compressor/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a535f5279d1355fc38c9318ad3f9201379914f06",
+      "size": 29970,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a535f5279d1355fc38c9318ad3f9201379914f06"
+    },
+    {
+      "path": "packages/server/src/lib/llm-json.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "57a6dd90c6ec6ec8ba0c79d63ab9012227421c29",
+      "size": 7093,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/57a6dd90c6ec6ec8ba0c79d63ab9012227421c29"
+    },
+    {
+      "path": "packages/server/src/lib/llm-prompt.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "405f785bb8e738df315a842173cbae5e2e6f030b",
+      "size": 3029,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/405f785bb8e738df315a842173cbae5e2e6f030b"
+    },
+    {
+      "path": "packages/server/src/routes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0c6a870b2ba7e168624c3a8c8acf2273a521f984",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/0c6a870b2ba7e168624c3a8c8acf2273a521f984"
+    },
+    {
+      "path": "packages/server/src/routes/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "53b27fdcc3180c3f43ab34fc6acde19db332f21f",
+      "size": 780,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/53b27fdcc3180c3f43ab34fc6acde19db332f21f"
+    },
+    {
+      "path": "packages/server/src/routes/health.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d860f4997ffce2b8d611920f07ef7a6d784cfea5",
+      "size": 227,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d860f4997ffce2b8d611920f07ef7a6d784cfea5"
+    },
+    {
+      "path": "packages/server/src/routes/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0e2a6e29efd72d3eeae6037d30f2bf50c295a5ac",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/0e2a6e29efd72d3eeae6037d30f2bf50c295a5ac"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/chat-run.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0fc393b228fbfe95f6d0489cfe4d33ec4f34f73",
+      "size": 293,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b0fc393b228fbfe95f6d0489cfe4d33ec4f34f73"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/codex-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79d10c7d9847f824f880fd21a6fa6eb4f3a4b7be",
+      "size": 343,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/79d10c7d9847f824f880fd21a6fa6eb4f3a4b7be"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8c419457560a3b3c80b85155c66403d47edab8a0",
+      "size": 320,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8c419457560a3b3c80b85155c66403d47edab8a0"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/copilot-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6152b0988cb0ab06445fbfa1705a40f3e37349af",
+      "size": 512,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6152b0988cb0ab06445fbfa1705a40f3e37349af"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/cron-history.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb8c41f85d7cb301bd7e0fbe24fa7990c0063a55",
+      "size": 275,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cb8c41f85d7cb301bd7e0fbe24fa7990c0063a55"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/download.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6b9f022ecd728ff27c18cd4da8b30197f2106ba5",
+      "size": 3455,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6b9f022ecd728ff27c18cd4da8b30197f2106ba5"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/files.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d777b6aac606a8aa97615c03832446f41684cd33",
+      "size": 9014,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d777b6aac606a8aa97615c03832446f41684cd33"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/group-chat.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5159c67412a1a439c3273b7f4379ccdbd8972861",
+      "size": 13372,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5159c67412a1a439c3273b7f4379ccdbd8972861"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/jobs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b98d607ebba398f4e36f16786d467358835ad796",
+      "size": 544,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b98d607ebba398f4e36f16786d467358835ad796"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/kanban-events.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6b46762c127b3ac732f221baf8bbe04640541755",
+      "size": 3130,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6b46762c127b3ac732f221baf8bbe04640541755"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/kanban.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "254b117c8acbcb021273e672e5efe6c02354eb8f",
+      "size": 1743,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/254b117c8acbcb021273e672e5efe6c02354eb8f"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/logs.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "10d535c2d730b0128497bdae971d75c8b734537c",
+      "size": 223,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/10d535c2d730b0128497bdae971d75c8b734537c"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/media.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f217e5991152a632e99b22ea229d944b0f98671f",
+      "size": 297,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f217e5991152a632e99b22ea229d944b0f98671f"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/memory.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "abaa86c66fa8d145dc9813730befc231182a956a",
+      "size": 232,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/abaa86c66fa8d145dc9813730befc231182a956a"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/models.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "584f0c30da9c5613107492be2bd977091358e5db",
+      "size": 1012,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/584f0c30da9c5613107492be2bd977091358e5db"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/nous-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "68eaae46ab292b5f4dfd3d76511fb1ff8f28105c",
+      "size": 335,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/68eaae46ab292b5f4dfd3d76511fb1ff8f28105c"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/plugins.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7381caa57c8a2bd75ce3e7b19738cf0ccca9aa1b",
+      "size": 184,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7381caa57c8a2bd75ce3e7b19738cf0ccca9aa1b"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/profiles.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "06d3d89292eba8b1ba8510449ef5f6462b88f9b8",
+      "size": 1146,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/06d3d89292eba8b1ba8510449ef5f6462b88f9b8"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/providers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be722abd039eaaf81477467ec19a509d035d730c",
+      "size": 351,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/be722abd039eaaf81477467ec19a509d035d730c"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/proxy-handler.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7bcf209fc6706f7f1dea2427696c17030ecdd79",
+      "size": 8746,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a7bcf209fc6706f7f1dea2427696c17030ecdd79"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/proxy.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "17f9c9a0ba3dbc96076ccd1399a5ada60da542fa",
+      "size": 561,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/17f9c9a0ba3dbc96076ccd1399a5ada60da542fa"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/sessions.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "57c8476fdde1f2b251d21bb54d275687ac4c0332",
+      "size": 1587,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/57c8476fdde1f2b251d21bb54d275687ac4c0332"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/skills.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5c42f745d3b90ff745853abced7afdc0c71bdc9",
+      "size": 497,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b5c42f745d3b90ff745853abced7afdc0c71bdc9"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/terminal.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "038279f3eb5d1c6846b6d680e4dc432b33f5bc26",
+      "size": 11676,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/038279f3eb5d1c6846b6d680e4dc432b33f5bc26"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/tts.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f1e6c998273d4d4fe648845838fbaae994108474",
+      "size": 239,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f1e6c998273d4d4fe648845838fbaae994108474"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/weixin.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f65ce991d2c8d79b22198967409b6b1fe68a173c",
+      "size": 320,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f65ce991d2c8d79b22198967409b6b1fe68a173c"
+    },
+    {
+      "path": "packages/server/src/routes/hermes/xai-auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cc15f6d287e36145d5c34f124a690b692cabf92c",
+      "size": 327,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cc15f6d287e36145d5c34f124a690b692cabf92c"
+    },
+    {
+      "path": "packages/server/src/routes/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2538f4af208f076b2438e768c89cf3ecaf7b4097",
+      "size": 3414,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2538f4af208f076b2438e768c89cf3ecaf7b4097"
+    },
+    {
+      "path": "packages/server/src/routes/update.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cc0cbf2ea4bc89e79e9cb9b41d0305c05c7ea409",
+      "size": 181,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cc0cbf2ea4bc89e79e9cb9b41d0305c05c7ea409"
+    },
+    {
+      "path": "packages/server/src/routes/upload.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0407e82eb9968d228c3fef9a79edebf010e45511",
+      "size": 170,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0407e82eb9968d228c3fef9a79edebf010e45511"
+    },
+    {
+      "path": "packages/server/src/routes/webhook.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f282bdedb23fdaf461d47d99ddb640456c849c0d",
+      "size": 175,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f282bdedb23fdaf461d47d99ddb640456c849c0d"
+    },
+    {
+      "path": "packages/server/src/services",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0121369432ded02dd3ab959a350d87d202648d9b",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/0121369432ded02dd3ab959a350d87d202648d9b"
+    },
+    {
+      "path": "packages/server/src/services/app-config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d3fdb31451bad0ef19a783078ab0de7eecd6365",
+      "size": 2275,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4d3fdb31451bad0ef19a783078ab0de7eecd6365"
+    },
+    {
+      "path": "packages/server/src/services/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "028f4e546a6f114afe3c6add205294529193c839",
+      "size": 2456,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/028f4e546a6f114afe3c6add205294529193c839"
+    },
+    {
+      "path": "packages/server/src/services/config-helpers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "359ca10c8a588a7d4f6acffb7154fc63db4dc8b1",
+      "size": 9449,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/359ca10c8a588a7d4f6acffb7154fc63db4dc8b1"
+    },
+    {
+      "path": "packages/server/src/services/credentials.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79287f53ea1030070d982a41ea09b17440ff384c",
+      "size": 1802,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/79287f53ea1030070d982a41ea09b17440ff384c"
+    },
+    {
+      "path": "packages/server/src/services/hermes",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c0a7ed2e55f40501405010d55e0342cde959d922",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/c0a7ed2e55f40501405010d55e0342cde959d922"
+    },
+    {
+      "path": "packages/server/src/services/hermes/agent-bridge",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ea355a26832bb92a59eaf9237262c6f1bfe41053",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/ea355a26832bb92a59eaf9237262c6f1bfe41053"
+    },
+    {
+      "path": "packages/server/src/services/hermes/agent-bridge/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf98e839a1d6e63e4c681a9eb8ffd8c46260cff6",
+      "size": 2640,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cf98e839a1d6e63e4c681a9eb8ffd8c46260cff6"
+    },
+    {
+      "path": "packages/server/src/services/hermes/agent-bridge/client.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "70aabd7d23fbfc3e2d00aa8dc25fd1d208a745c8",
+      "size": 17158,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/70aabd7d23fbfc3e2d00aa8dc25fd1d208a745c8"
+    },
+    {
+      "path": "packages/server/src/services/hermes/agent-bridge/hermes_bridge.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "87500a94f880b9fa37441907cdd70d89f7069660",
+      "size": 88807,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/87500a94f880b9fa37441907cdd70d89f7069660"
+    },
+    {
+      "path": "packages/server/src/services/hermes/agent-bridge/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2a1bde28740faca707bef7e83a26d78bf9d9796f",
+      "size": 51,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2a1bde28740faca707bef7e83a26d78bf9d9796f"
+    },
+    {
+      "path": "packages/server/src/services/hermes/agent-bridge/manager.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a6d49c41dde1afce17e65309f579be7bcfc6de0b",
+      "size": 17178,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a6d49c41dde1afce17e65309f579be7bcfc6de0b"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a231231497ee3bdae169681ed80a728c2845ea5c",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/a231231497ee3bdae169681ed80a728c2845ea5c"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine/compressor.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c31b5d1ea98300efe912ac0a65569c84c5850d87",
+      "size": 21926,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c31b5d1ea98300efe912ac0a65569c84c5850d87"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine/gateway-client.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5f5ea3d0c5939111df07b95cc8ebe34c36217660",
+      "size": 4455,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5f5ea3d0c5939111df07b95cc8ebe34c36217660"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9817bd670e9227dd4e02f5677bb7edee007809cc",
+      "size": 466,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9817bd670e9227dd4e02f5677bb7edee007809cc"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine/prompt.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aff982183f76d7b064035498733585c657ca1894",
+      "size": 5351,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/aff982183f76d7b064035498733585c657ca1894"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine/summary-cache.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5adebdd61fb102abd38145f34f7efe64c3e1eb37",
+      "size": 1246,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5adebdd61fb102abd38145f34f7efe64c3e1eb37"
+    },
+    {
+      "path": "packages/server/src/services/hermes/context-engine/types.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5376427c1ffdb078ccd03a2bec145a069ce10cf3",
+      "size": 4332,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5376427c1ffdb078ccd03a2bec145a069ce10cf3"
+    },
+    {
+      "path": "packages/server/src/services/hermes/conversations.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2d14a5a7ea4843d8b062ad3417fba73385db0272",
+      "size": 16083,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2d14a5a7ea4843d8b062ad3417fba73385db0272"
+    },
+    {
+      "path": "packages/server/src/services/hermes/copilot-device-flow.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "964550247106cb8567d07ac89888eda3da2a3b37",
+      "size": 4649,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/964550247106cb8567d07ac89888eda3da2a3b37"
+    },
+    {
+      "path": "packages/server/src/services/hermes/copilot-models.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4cddc772bc1a7123ce197d6a9bfa24a0d8255a7f",
+      "size": 10657,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4cddc772bc1a7123ce197d6a9bfa24a0d8255a7f"
+    },
+    {
+      "path": "packages/server/src/services/hermes/file-provider.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3bfb1a2af2a1f1b2e2c366b37c2847d6573c2e65",
+      "size": 32947,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3bfb1a2af2a1f1b2e2c366b37c2847d6573c2e65"
+    },
+    {
+      "path": "packages/server/src/services/hermes/gateway-autostart.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "58dc7eac5ed01dad6715574c661164d21578c41f",
+      "size": 11156,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/58dc7eac5ed01dad6715574c661164d21578c41f"
+    },
+    {
+      "path": "packages/server/src/services/hermes/gateway-manager.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2b496e960396d9aa8bdfaf257c24c84a2df276b",
+      "size": 32145,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e2b496e960396d9aa8bdfaf257c24c84a2df276b"
+    },
+    {
+      "path": "packages/server/src/services/hermes/gateway-runner.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "146d393ffb18f95b59918dad06d41bc1c4770f56",
+      "size": 591,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/146d393ffb18f95b59918dad06d41bc1c4770f56"
+    },
+    {
+      "path": "packages/server/src/services/hermes/group-chat",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f029af509ae7f155a345a7c334931f02ea77e128",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/f029af509ae7f155a345a7c334931f02ea77e128"
+    },
+    {
+      "path": "packages/server/src/services/hermes/group-chat/agent-clients.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "66fc698a2432982bc0eb8711b8ac279e4882158a",
+      "size": 46700,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/66fc698a2432982bc0eb8711b8ac279e4882158a"
+    },
+    {
+      "path": "packages/server/src/services/hermes/group-chat/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8265f6957750f3ed14f275072f0ea9b4c99c1285",
+      "size": 56054,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8265f6957750f3ed14f275072f0ea9b4c99c1285"
+    },
+    {
+      "path": "packages/server/src/services/hermes/group-chat/mention-routing.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f5d2e955092ca5d7e1bd760c8ce02ebebe847c0d",
+      "size": 3173,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f5d2e955092ca5d7e1bd760c8ce02ebebe847c0d"
+    },
+    {
+      "path": "packages/server/src/services/hermes/hermes-cli.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b98a3098d05e73924dd510fe9415a0742edcbcdd",
+      "size": 24615,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b98a3098d05e73924dd510fe9415a0742edcbcdd"
+    },
+    {
+      "path": "packages/server/src/services/hermes/hermes-kanban.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d6b0fa4002b2affe499cb5f1f260b719b5bf8ade",
+      "size": 23701,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d6b0fa4002b2affe499cb5f1f260b719b5bf8ade"
+    },
+    {
+      "path": "packages/server/src/services/hermes/hermes-path.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f44dd15a1d2af8db779cf7d11b75198fed4c967e",
+      "size": 2618,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f44dd15a1d2af8db779cf7d11b75198fed4c967e"
+    },
+    {
+      "path": "packages/server/src/services/hermes/hermes-profile.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5858947ca436f51a8aba7b92f8162c9236bc5d2c",
+      "size": 2342,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5858947ca436f51a8aba7b92f8162c9236bc5d2c"
+    },
+    {
+      "path": "packages/server/src/services/hermes/model-context.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "df4707101faa7e84b1ab6f845e23db325d22ab85",
+      "size": 13142,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/df4707101faa7e84b1ab6f845e23db325d22ab85"
+    },
+    {
+      "path": "packages/server/src/services/hermes/plugins.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fba4f9c5213a011eff6d48e2bb1886d618350ad0",
+      "size": 8440,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fba4f9c5213a011eff6d48e2bb1886d618350ad0"
+    },
+    {
+      "path": "packages/server/src/services/hermes/profile-credentials.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bf30d3bc737e16d523493cf84b03cbeaab47883e",
+      "size": 7271,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bf30d3bc737e16d523493cf84b03cbeaab47883e"
+    },
+    {
+      "path": "packages/server/src/services/hermes/profile-list-parser.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "59952716c3505aa9e43d548b8d6e09cec4d1ed8e",
+      "size": 2568,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/59952716c3505aa9e43d548b8d6e09cec4d1ed8e"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b9051cc33e61546f371d047daedac7eedb268ee7",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/b9051cc33e61546f371d047daedac7eedb268ee7"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/abort.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60507d7a54e7068d3ce837917a8480e2eb89fafa",
+      "size": 4859,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/60507d7a54e7068d3ce837917a8480e2eb89fafa"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/bridge-delta.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "81ed88c928ccb478e3ebd32075064ac0a2248820",
+      "size": 2310,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/81ed88c928ccb478e3ebd32075064ac0a2248820"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/bridge-message.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7c3497d708baf66f35d3b77cbb2d98bf17c63c8a",
+      "size": 6443,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7c3497d708baf66f35d3b77cbb2d98bf17c63c8a"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/compression.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ec7d2627a91b9aa6cec43e01c04e3d9d4eb0bfc2",
+      "size": 22187,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ec7d2627a91b9aa6cec43e01c04e3d9d4eb0bfc2"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/content-blocks.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18fa4fd7e5328353023b490c3e638f45d7a54819",
+      "size": 3297,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/18fa4fd7e5328353023b490c3e638f45d7a54819"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/handle-api-run.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3f8d5b5d51930d9d3dd8de8e1f51e9fa7816a6aa",
+      "size": 14347,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3f8d5b5d51930d9d3dd8de8e1f51e9fa7816a6aa"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/handle-bridge-run.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "72db4ff6c1f4201aa36a279c14751c7c9443dbb0",
+      "size": 26839,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/72db4ff6c1f4201aa36a279c14751c7c9443dbb0"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "32a12ae7d44645997a9adf0463aa021aa1a11240",
+      "size": 12051,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/32a12ae7d44645997a9adf0463aa021aa1a11240"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/message-format.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bff4bbd2fd37c029ab14c34db42ddc58951efa22",
+      "size": 7673,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bff4bbd2fd37c029ab14c34db42ddc58951efa22"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/model-config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dec32d1871e4a130ed29fa2cf1ddcb5809bf5c2b",
+      "size": 2105,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dec32d1871e4a130ed29fa2cf1ddcb5809bf5c2b"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/response-stream.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2ed1ad455487271aaa2eb37b20d4f50f97834e7f",
+      "size": 7004,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2ed1ad455487271aaa2eb37b20d4f50f97834e7f"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/response-utils.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25ddca1a6717ad2fb5c818517d2d77f4ca48e2cc",
+      "size": 1890,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/25ddca1a6717ad2fb5c818517d2d77f4ca48e2cc"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/session-command.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "794fa6139fc5dd538ad4c64fcc3c7f0f1d666455",
+      "size": 14831,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/794fa6139fc5dd538ad4c64fcc3c7f0f1d666455"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/sse-utils.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "763afc907dd99677b64045d920729fab0aec2080",
+      "size": 1389,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/763afc907dd99677b64045d920729fab0aec2080"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/types.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2a87f969d9629db055e6b308b08cbb4966c8f910",
+      "size": 2526,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2a87f969d9629db055e6b308b08cbb4966c8f910"
+    },
+    {
+      "path": "packages/server/src/services/hermes/run-chat/usage.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "65222d8c205f79fbcfe6d94e8d36bece33bc9bb9",
+      "size": 4902,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/65222d8c205f79fbcfe6d94e8d36bece33bc9bb9"
+    },
+    {
+      "path": "packages/server/src/services/hermes/session-deleter.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d362614df3267e806f43543719ba2ac0565ebb2",
+      "size": 3806,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8d362614df3267e806f43543719ba2ac0565ebb2"
+    },
+    {
+      "path": "packages/server/src/services/hermes/session-sync.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a3573005c0aae4a77b0233389b1f5c137674ef77",
+      "size": 505,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a3573005c0aae4a77b0233389b1f5c137674ef77"
+    },
+    {
+      "path": "packages/server/src/services/hermes/skill-injector.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bc094896eddfc9b23e90eb129b13ef8ad03ed6f9",
+      "size": 6616,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bc094896eddfc9b23e90eb129b13ef8ad03ed6f9"
+    },
+    {
+      "path": "packages/server/src/services/hermes/tts.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "14c9db5fcbfe9794c8f5285f77846cd95ac01c94",
+      "size": 2239,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/14c9db5fcbfe9794c8f5285f77846cd95ac01c94"
+    },
+    {
+      "path": "packages/server/src/services/logger.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "061158cbd94d344591054e9d86e35622489a780a",
+      "size": 1574,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/061158cbd94d344591054e9d86e35622489a780a"
+    },
+    {
+      "path": "packages/server/src/services/login-limiter.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7b9172e15fe8da89933197277204a1e3897cdb55",
+      "size": 8880,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7b9172e15fe8da89933197277204a1e3897cdb55"
+    },
+    {
+      "path": "packages/server/src/services/safe-file-store.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "825e8087159f1541095a2f1c710aa17fa5df55e7",
+      "size": 5166,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/825e8087159f1541095a2f1c710aa17fa5df55e7"
+    },
+    {
+      "path": "packages/server/src/services/shutdown.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82a774f9be0ebf14da0e439b5d624f5b11a45077",
+      "size": 1793,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/82a774f9be0ebf14da0e439b5d624f5b11a45077"
+    },
+    {
+      "path": "packages/server/src/shared",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b41ea9ec7e1ef40e374ea5980aa92daf2ca46b95",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/b41ea9ec7e1ef40e374ea5980aa92daf2ca46b95"
+    },
+    {
+      "path": "packages/server/src/shared/providers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79750e77515059d29d10efa3c584713ba20741f2",
+      "size": 12077,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/79750e77515059d29d10efa3c584713ba20741f2"
+    },
+    {
+      "path": "packages/server/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ddc0adbfeefbe0882348c8af644133d0564abcf9",
+      "size": 251,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ddc0adbfeefbe0882348c8af644133d0564abcf9"
+    },
+    {
+      "path": "packages/skills",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c87722000418f3f5fa34bb150d59ae3920e39a38",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/c87722000418f3f5fa34bb150d59ae3920e39a38"
+    },
+    {
+      "path": "packages/skills/apikey-image-gen",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e79f67879296037c77f0d06db299509557436cde",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/e79f67879296037c77f0d06db299509557436cde"
+    },
+    {
+      "path": "packages/skills/apikey-image-gen/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d53a840b77377d540bc786a5f695eb1a7717a85",
+      "size": 5213,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8d53a840b77377d540bc786a5f695eb1a7717a85"
+    },
+    {
+      "path": "packages/skills/grok-image-to-video",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9acdf7651a4f95e76ac7acb1c7c81dd9d3d91665",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/9acdf7651a4f95e76ac7acb1c7c81dd9d3d91665"
+    },
+    {
+      "path": "packages/skills/grok-image-to-video/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c5b367ba28334afcc952794d334746a1fd2c3747",
+      "size": 3297,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c5b367ba28334afcc952794d334746a1fd2c3747"
+    },
+    {
+      "path": "packages/website",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1c5be1f19b581183fc5a882f664854bfd8f09a02",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/1c5be1f19b581183fc5a882f664854bfd8f09a02"
+    },
+    {
+      "path": "packages/website/index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "22e9de7b717aec4a5c4745ef0d82c7a722e5dcf3",
+      "size": 668,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/22e9de7b717aec4a5c4745ef0d82c7a722e5dcf3"
+    },
+    {
+      "path": "packages/website/public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4a6a0cf196101133dfd05c7eda2890f44e4cb3de",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/4a6a0cf196101133dfd05c7eda2890f44e4cb3de"
+    },
+    {
+      "path": "packages/website/public/favicon.ico",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dbc3f56759d9eb5ce9542fee493aeab693bb7e8f",
+      "size": 16958,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dbc3f56759d9eb5ce9542fee493aeab693bb7e8f"
+    },
+    {
+      "path": "packages/website/public/image1.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "833c62fbedefe1553da678927925fdf774e7961d",
+      "size": 202382,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/833c62fbedefe1553da678927925fdf774e7961d"
+    },
+    {
+      "path": "packages/website/public/image2.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5d55a683cb085738dea7f68b5843f832a9db2ce2",
+      "size": 263782,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5d55a683cb085738dea7f68b5843f832a9db2ce2"
+    },
+    {
+      "path": "packages/website/public/image3.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9d49b83669c80be49d57b861a2bf14fec0a8a198",
+      "size": 235575,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9d49b83669c80be49d57b861a2bf14fec0a8a198"
+    },
+    {
+      "path": "packages/website/public/image4.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e1de6bfd2f58acc0d8f8599c51458cb624ef711",
+      "size": 87775,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3e1de6bfd2f58acc0d8f8599c51458cb624ef711"
+    },
+    {
+      "path": "packages/website/public/logo.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "451200cb70e6153761ff2a538d857a3fd1f32a7c",
+      "size": 1865825,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/451200cb70e6153761ff2a538d857a3fd1f32a7c"
+    },
+    {
+      "path": "packages/website/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "23e1cb4967b180bb4e0970fc4d260cac50281551",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/23e1cb4967b180bb4e0970fc4d260cac50281551"
+    },
+    {
+      "path": "packages/website/src/App.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c7c4b4e96719e2c696ed84585cd8f56f1d95ff03",
+      "size": 968,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c7c4b4e96719e2c696ed84585cd8f56f1d95ff03"
+    },
+    {
+      "path": "packages/website/src/components",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b6c721a8f84c6000eec1615e6776c0f48886ba03",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/b6c721a8f84c6000eec1615e6776c0f48886ba03"
+    },
+    {
+      "path": "packages/website/src/components/docs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "722877a2c4bdfa477027913d4ec4a3350e0ff6d5",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/722877a2c4bdfa477027913d4ec4a3350e0ff6d5"
+    },
+    {
+      "path": "packages/website/src/components/docs/DocContent.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a2e79a809ad614482caf0f92259450e86c25bff",
+      "size": 3286,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7a2e79a809ad614482caf0f92259450e86c25bff"
+    },
+    {
+      "path": "packages/website/src/components/docs/DocSidebar.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa64fc3dfe8bc83c6080e34683b7036291415691",
+      "size": 1711,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/aa64fc3dfe8bc83c6080e34683b7036291415691"
+    },
+    {
+      "path": "packages/website/src/components/landing",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7f057da26df849112604b8b44b37971dd5ee0a21",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/7f057da26df849112604b8b44b37971dd5ee0a21"
+    },
+    {
+      "path": "packages/website/src/components/landing/FeaturesGrid.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f0002cd1a47a4ca629dd5dfffc0a03eb2066cbb",
+      "size": 3361,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7f0002cd1a47a4ca629dd5dfffc0a03eb2066cbb"
+    },
+    {
+      "path": "packages/website/src/components/landing/HeroSection.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "09ccf001c34d03ad0fa4e9304a33b115c214b3fd",
+      "size": 7664,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/09ccf001c34d03ad0fa4e9304a33b115c214b3fd"
+    },
+    {
+      "path": "packages/website/src/components/landing/InstallSection.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d91dcc7c8eb0f9e57cbe31b139d37782646b24ff",
+      "size": 3440,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d91dcc7c8eb0f9e57cbe31b139d37782646b24ff"
+    },
+    {
+      "path": "packages/website/src/components/landing/PlatformsSection.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7352e9738729624b7edd6123bbc4b735651a660a",
+      "size": 5631,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7352e9738729624b7edd6123bbc4b735651a660a"
+    },
+    {
+      "path": "packages/website/src/components/landing/ScreenshotsSection.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "772c2ea38e3d412f93ef5552e79ecaff838e860f",
+      "size": 5538,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/772c2ea38e3d412f93ef5552e79ecaff838e860f"
+    },
+    {
+      "path": "packages/website/src/components/landing/StarHistorySection.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5fe36cc3eea82dc687a800d895eb1d3f0f84ed48",
+      "size": 3795,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5fe36cc3eea82dc687a800d895eb1d3f0f84ed48"
+    },
+    {
+      "path": "packages/website/src/components/layout",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "dd5e67a01a405999e9c5f18469661dc6dfb73d55",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/dd5e67a01a405999e9c5f18469661dc6dfb73d55"
+    },
+    {
+      "path": "packages/website/src/components/layout/SiteFooter.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "28a25f80f0873644e81ba5336b1b9ebc0c34f25c",
+      "size": 2784,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/28a25f80f0873644e81ba5336b1b9ebc0c34f25c"
+    },
+    {
+      "path": "packages/website/src/components/layout/SiteHeader.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad7451c6c65da968cf9e83b33938129aaa42df46",
+      "size": 8246,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ad7451c6c65da968cf9e83b33938129aaa42df46"
+    },
+    {
+      "path": "packages/website/src/composables",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fd73cc84982b144c243500d3943adddd01db7f92",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/fd73cc84982b144c243500d3943adddd01db7f92"
+    },
+    {
+      "path": "packages/website/src/composables/useScrollReveal.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0fc5a3a7dae5030860c47ebc26bc54bef130a526",
+      "size": 643,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0fc5a3a7dae5030860c47ebc26bc54bef130a526"
+    },
+    {
+      "path": "packages/website/src/composables/useTheme.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "42291d2756b2104181c9b130ae7adc4365e391fc",
+      "size": 1122,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/42291d2756b2104181c9b130ae7adc4365e391fc"
+    },
+    {
+      "path": "packages/website/src/env.d.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "54eaa072227719a2d343c5a0a6d2ab54ff9405d0",
+      "size": 77,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/54eaa072227719a2d343c5a0a6d2ab54ff9405d0"
+    },
+    {
+      "path": "packages/website/src/i18n",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2f40ec34533d23b62a9f090fb6268c04432aa9e0",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/2f40ec34533d23b62a9f090fb6268c04432aa9e0"
+    },
+    {
+      "path": "packages/website/src/i18n/en.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "923dd4d70f25543645239db0faea1e459521c455",
+      "size": 10892,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/923dd4d70f25543645239db0faea1e459521c455"
+    },
+    {
+      "path": "packages/website/src/i18n/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "29ba3dce52e726fd231292d8995f4316c3691f39",
+      "size": 341,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/29ba3dce52e726fd231292d8995f4316c3691f39"
+    },
+    {
+      "path": "packages/website/src/i18n/zh.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4209674871ad8ef520e1e39faa2d815650b45225",
+      "size": 10129,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4209674871ad8ef520e1e39faa2d815650b45225"
+    },
+    {
+      "path": "packages/website/src/main.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "99b473ffb1499bcfb89c3470dc73dc6ed3faeef6",
+      "size": 606,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/99b473ffb1499bcfb89c3470dc73dc6ed3faeef6"
+    },
+    {
+      "path": "packages/website/src/router",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "74d19fc1e4c1412605a770d23e6ee2b0b8bbb7c4",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/74d19fc1e4c1412605a770d23e6ee2b0b8bbb7c4"
+    },
+    {
+      "path": "packages/website/src/router/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4148bf370205a49ad8c2f0a739ca0f8812141484",
+      "size": 1409,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4148bf370205a49ad8c2f0a739ca0f8812141484"
+    },
+    {
+      "path": "packages/website/src/styles",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1700e941f297dce7b77a830f95c4309ab6cbc469",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/1700e941f297dce7b77a830f95c4309ab6cbc469"
+    },
+    {
+      "path": "packages/website/src/styles/_variables.scss",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b776c0a63cd795d3f28b6dd81feac83b0332171a",
+      "size": 416,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b776c0a63cd795d3f28b6dd81feac83b0332171a"
+    },
+    {
+      "path": "packages/website/src/styles/global.scss",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c8ce9d6fc5034fc43ebce072b39bb40aca1bc7a",
+      "size": 2500,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5c8ce9d6fc5034fc43ebce072b39bb40aca1bc7a"
+    },
+    {
+      "path": "packages/website/src/views",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "694c58832b4b44370730d227f7847d7b3fa9bfad",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/694c58832b4b44370730d227f7847d7b3fa9bfad"
+    },
+    {
+      "path": "packages/website/src/views/DocsView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dfbb263ffe6548674912c71d1cae364e10b504b0",
+      "size": 2539,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dfbb263ffe6548674912c71d1cae364e10b504b0"
+    },
+    {
+      "path": "packages/website/src/views/LandingView.vue",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5c4c67ff1a434469f8ee83ce0831ce02b34e953c",
+      "size": 928,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5c4c67ff1a434469f8ee83ce0831ce02b34e953c"
+    },
+    {
+      "path": "playwright.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7afd8010a09e0d6f0b7d4fcfba0328bb245de42e",
+      "size": 883,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7afd8010a09e0d6f0b7d4fcfba0328bb245de42e"
+    },
+    {
+      "path": "scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6cb82ced77393de8b3fec8f164a3e2bde7e6243c",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/6cb82ced77393de8b3fec8f164a3e2bde7e6243c"
+    },
+    {
+      "path": "scripts/build-server.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4aa08de4d18afc8fd6c51acfb91616900dced33c",
+      "size": 1428,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4aa08de4d18afc8fd6c51acfb91616900dced33c"
+    },
+    {
+      "path": "scripts/generate-openapi.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1f2854507a9f837cb0de6802d900147b92a862db",
+      "size": 20304,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1f2854507a9f837cb0de6802d900147b92a862db"
+    },
+    {
+      "path": "scripts/setup.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "80b29f7fd82922ebeb4a87dd42b043bec44625dc",
+      "size": 3772,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/80b29f7fd82922ebeb4a87dd42b043bec44625dc"
+    },
+    {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0d479c2405ece559b1b91502a7d8bcb64de45040",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/0d479c2405ece559b1b91502a7d8bcb64de45040"
+    },
+    {
+      "path": "tests/client",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7191a621ec4bc97e5e07d2615fa6cd6c7f2dd833",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/7191a621ec4bc97e5e07d2615fa6cd6c7f2dd833"
+    },
+    {
+      "path": "tests/client/api.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9be2db3e011bf1f5c6c43bcf1616b792e417694",
+      "size": 3940,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e9be2db3e011bf1f5c6c43bcf1616b792e417694"
+    },
+    {
+      "path": "tests/client/app-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "321ec2f7525d79040df7f411335c8090bacb327d",
+      "size": 14672,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/321ec2f7525d79040df7f411335c8090bacb327d"
+    },
+    {
+      "path": "tests/client/chat-store-thinking.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f0d03de8ec829e147d63e8d162e762695196b860",
+      "size": 3260,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f0d03de8ec829e147d63e8d162e762695196b860"
+    },
+    {
+      "path": "tests/client/completion-sound.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c82aeff5bfcf38da4ee91197caa9888590b3ac70",
+      "size": 2304,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c82aeff5bfcf38da4ee91197caa9888590b3ac70"
+    },
+    {
+      "path": "tests/client/conversation-monitor-pane.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "813b9c825815118abcc8aa6622542a186aef147b",
+      "size": 5345,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/813b9c825815118abcc8aa6622542a186aef147b"
+    },
+    {
+      "path": "tests/client/conversations-api.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4030db7f74a5e1a857bb18d6b1b4897d556e3e6f",
+      "size": 1518,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4030db7f74a5e1a857bb18d6b1b4897d556e3e6f"
+    },
+    {
+      "path": "tests/client/copilot-login-modal.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c7ecf35187f7616d35dde0218a3c3bede8d7795f",
+      "size": 4138,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c7ecf35187f7616d35dde0218a3c3bede8d7795f"
+    },
+    {
+      "path": "tests/client/file-path.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b9545ffb5346b12c76c28be3870545e15008fc1c",
+      "size": 679,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b9545ffb5346b12c76c28be3870545e15008fc1c"
+    },
+    {
+      "path": "tests/client/group-chat-mention-options.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8126aa5a78ca3368c1faefe3b53da2defd36c05d",
+      "size": 1079,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8126aa5a78ca3368c1faefe3b53da2defd36c05d"
+    },
+    {
+      "path": "tests/client/group-chat-store-streaming.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2c3d2139f7aa3c83005f3870598900d9bad7c80b",
+      "size": 7855,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2c3d2139f7aa3c83005f3870598900d9bad7c80b"
+    },
+    {
+      "path": "tests/client/highlight-helper.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "13bc2aa83433851b0f8f25dadd33178ff3166de1",
+      "size": 2881,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/13bc2aa83433851b0f8f25dadd33178ff3166de1"
+    },
+    {
+      "path": "tests/client/highlight-safety.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b8669aba20c7f6d2f168cfc4c6c2fac9896c73e0",
+      "size": 1313,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b8669aba20c7f6d2f168cfc4c6c2fac9896c73e0"
+    },
+    {
+      "path": "tests/client/i18n-coverage.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "59f9d1afdaaf64925b0dcf28b3ba477174ec2019",
+      "size": 5237,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/59f9d1afdaaf64925b0dcf28b3ba477174ec2019"
+    },
+    {
+      "path": "tests/client/jobs.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5fcfe15e16ec882ef99677d9d0cd8a2b72d112cc",
+      "size": 3477,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5fcfe15e16ec882ef99677d9d0cd8a2b72d112cc"
+    },
+    {
+      "path": "tests/client/kanban-api.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2c3ca3115b7c99a1b36e1532ec25601f0acf8bd3",
+      "size": 9182,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2c3ca3115b7c99a1b36e1532ec25601f0acf8bd3"
+    },
+    {
+      "path": "tests/client/kanban-create-form.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "99f95f28a12dd3cb6a006286c9599d9226857f5d",
+      "size": 3466,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/99f95f28a12dd3cb6a006286c9599d9226857f5d"
+    },
+    {
+      "path": "tests/client/kanban-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a0a8809a9518cdace2035e907d275fc81f723f0",
+      "size": 17663,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5a0a8809a9518cdace2035e907d275fc81f723f0"
+    },
+    {
+      "path": "tests/client/kanban-task-card.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "95c516f91b907f8f75aaa45c0a31282245b35b79",
+      "size": 2962,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/95c516f91b907f8f75aaa45c0a31282245b35b79"
+    },
+    {
+      "path": "tests/client/kanban-task-drawer.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8b2af31eca89e2b0c32e2fe402dede29938cfccd",
+      "size": 11181,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8b2af31eca89e2b0c32e2fe402dede29938cfccd"
+    },
+    {
+      "path": "tests/client/kanban-view.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4619ea08e25f8c6cdd577e1937bb36012a5720ab",
+      "size": 12075,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4619ea08e25f8c6cdd577e1937bb36012a5720ab"
+    },
+    {
+      "path": "tests/client/login-view.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "20d40d3ac082dcc5a55b843d56cf684e407ac282",
+      "size": 2354,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/20d40d3ac082dcc5a55b843d56cf684e407ac282"
+    },
+    {
+      "path": "tests/client/markdown-rendering-mermaid-import-timeout.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23a43472817f9e58e256113922c7f8257af90f2b",
+      "size": 1721,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/23a43472817f9e58e256113922c7f8257af90f2b"
+    },
+    {
+      "path": "tests/client/markdown-rendering.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "224a04e272fb2a73d31d71eb3757fd1ede906131",
+      "size": 21564,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/224a04e272fb2a73d31d71eb3757fd1ede906131"
+    },
+    {
+      "path": "tests/client/markdown-special-mentions.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4bec915afcabf052198aa7d49bb3911b5b978e0",
+      "size": 1870,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f4bec915afcabf052198aa7d49bb3911b5b978e0"
+    },
+    {
+      "path": "tests/client/message-item-highlight.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d48d4c4d2285239a61cfb202cd87ffc2e3f9d2cd",
+      "size": 7044,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d48d4c4d2285239a61cfb202cd87ffc2e3f9d2cd"
+    },
+    {
+      "path": "tests/client/models-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "782f470976eec150380a13111bad49ab973f2b5f",
+      "size": 3320,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/782f470976eec150380a13111bad49ab973f2b5f"
+    },
+    {
+      "path": "tests/client/profiles-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f1f83412e06994e9ccacb002230daf9428c6a49d",
+      "size": 8623,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f1f83412e06994e9ccacb002230daf9428c6a49d"
+    },
+    {
+      "path": "tests/client/session-browser-prefs.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a3ecfdad727a663afcd2d5200114be24a6e9f4f3",
+      "size": 2636,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a3ecfdad727a663afcd2d5200114be24a6e9f4f3"
+    },
+    {
+      "path": "tests/client/session-search.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a1fdac38c4c7ff77494703fd20ab096a39a61c9",
+      "size": 5865,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7a1fdac38c4c7ff77494703fd20ab096a39a61c9"
+    },
+    {
+      "path": "tests/client/session-settings.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "865af1725e4f1b5baf0fceb91e71dc33a3367d0a",
+      "size": 2429,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/865af1725e4f1b5baf0fceb91e71dc33a3367d0a"
+    },
+    {
+      "path": "tests/client/sidebar-search.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dd0c4688ec2df977d1a4475f10bb8b68a70b61b8",
+      "size": 4365,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dd0c4688ec2df977d1a4475f10bb8b68a70b61b8"
+    },
+    {
+      "path": "tests/client/skills-usage-view.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5481b4dcab252bea52d803335e8a20ceb425d888",
+      "size": 7665,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5481b4dcab252bea52d803335e8a20ceb425d888"
+    },
+    {
+      "path": "tests/client/thinking-parser.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e25ab16718f1ad2357a8923f1e67193573039c76",
+      "size": 6584,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e25ab16718f1ad2357a8923f1e67193573039c76"
+    },
+    {
+      "path": "tests/client/tool-trace-visibility.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8d3661b0bf8a21b32ffe49c2e7bab15836d3aebd",
+      "size": 3882,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8d3661b0bf8a21b32ffe49c2e7bab15836d3aebd"
+    },
+    {
+      "path": "tests/client/usage-components-cache-visuals.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea58b4ce6dc582cc5199a621d0005600e5f0b7e3",
+      "size": 2122,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ea58b4ce6dc582cc5199a621d0005600e5f0b7e3"
+    },
+    {
+      "path": "tests/client/usage-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c82e830e5f4bb24a84748cb5608840d421e74b10",
+      "size": 5980,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c82e830e5f4bb24a84748cb5608840d421e74b10"
+    },
+    {
+      "path": "tests/client/usage-view-period.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "caf2ce4127e933c934d7f5baa98747be9fc83a46",
+      "size": 2530,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/caf2ce4127e933c934d7f5baa98747be9fc83a46"
+    },
+    {
+      "path": "tests/e2e",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "46dc722aa14ea1f760dd1b8abb1605dd0641ea87",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/46dc722aa14ea1f760dd1b8abb1605dd0641ea87"
+    },
+    {
+      "path": "tests/e2e/auth.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "617f9eb219863547d349c127898025c3e58639dc",
+      "size": 1800,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/617f9eb219863547d349c127898025c3e58639dc"
+    },
+    {
+      "path": "tests/e2e/authenticated-shell.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8ff11870762b1c54136b951d1178c6fbe2fd1b13",
+      "size": 1301,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8ff11870762b1c54136b951d1178c6fbe2fd1b13"
+    },
+    {
+      "path": "tests/e2e/chat-streaming.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0c1009083b02d380646f3cdfedeade678b7dcfe",
+      "size": 31014,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b0c1009083b02d380646f3cdfedeade678b7dcfe"
+    },
+    {
+      "path": "tests/e2e/fixtures.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af45d9a5b6089cc01d3c4f7bf46810f64a7d4702",
+      "size": 11529,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/af45d9a5b6089cc01d3c4f7bf46810f64a7d4702"
+    },
+    {
+      "path": "tests/e2e/provider-models.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a249615e90f10d78357ded03a00a799e64dfb316",
+      "size": 1548,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a249615e90f10d78357ded03a00a799e64dfb316"
+    },
+    {
+      "path": "tests/e2e/terminal.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2ad21c4df95d739f913a1d593655e1bdb9163617",
+      "size": 2366,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2ad21c4df95d739f913a1d593655e1bdb9163617"
+    },
+    {
+      "path": "tests/server",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "64d8bd68dfb78b24ea14b678185c7e73dc40e087",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/64d8bd68dfb78b24ea14b678185c7e73dc40e087"
+    },
+    {
+      "path": "tests/server/agent-bridge-manager.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6a499a667e5e29b2baf0e94ad5dc9a52b82eaf07",
+      "size": 5180,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6a499a667e5e29b2baf0e94ad5dc9a52b82eaf07"
+    },
+    {
+      "path": "tests/server/agent-bridge-profile-env.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1536bf790d6fee158470c3a46e116a8c9af6e95",
+      "size": 9375,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c1536bf790d6fee158470c3a46e116a8c9af6e95"
+    },
+    {
+      "path": "tests/server/agent-bridge-python-concurrency.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d736d4d0f2cbbc8436369b8ea8775bd3cbf53bc9",
+      "size": 12892,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d736d4d0f2cbbc8436369b8ea8775bd3cbf53bc9"
+    },
+    {
+      "path": "tests/server/auth.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5cc9895d3fe8df33d4597e24d705b6bf7801ba3",
+      "size": 7117,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b5cc9895d3fe8df33d4597e24d705b6bf7801ba3"
+    },
+    {
+      "path": "tests/server/chat-run-message-flush.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bee06c39c741f3832c0d47707b86fc72ccf84c99",
+      "size": 10873,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/bee06c39c741f3832c0d47707b86fc72ccf84c99"
+    },
+    {
+      "path": "tests/server/cli-port-detection.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d41548f5dafd9aa6b32f2f0b060f937a3844056",
+      "size": 2927,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4d41548f5dafd9aa6b32f2f0b060f937a3844056"
+    },
+    {
+      "path": "tests/server/codex-credential-pool-auth.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cbbaba38ac52e71e360990635c2e0becf434025d",
+      "size": 3730,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cbbaba38ac52e71e360990635c2e0becf434025d"
+    },
+    {
+      "path": "tests/server/config-controller-file-lock.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "476b52706e026e4d332fbec27db29bf2ffe8455f",
+      "size": 5623,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/476b52706e026e4d332fbec27db29bf2ffe8455f"
+    },
+    {
+      "path": "tests/server/config-helpers-file-lock.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6e59b74f72b988b0d87f034c930c7786e60bac76",
+      "size": 4972,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6e59b74f72b988b0d87f034c930c7786e60bac76"
+    },
+    {
+      "path": "tests/server/config-mutating-controllers.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ff0a4c64490097486c87bf48586160b999b867f4",
+      "size": 3150,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ff0a4c64490097486c87bf48586160b999b867f4"
+    },
+    {
+      "path": "tests/server/config.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "de35253629e4feff69545c1de93bf2649c5a490b",
+      "size": 1035,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/de35253629e4feff69545c1de93bf2649c5a490b"
+    },
+    {
+      "path": "tests/server/context-compressor.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8aa096c6ff8419e49844afb64dc90f6c04660eaf",
+      "size": 17820,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8aa096c6ff8419e49844afb64dc90f6c04660eaf"
+    },
+    {
+      "path": "tests/server/context-engine.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "56b6bf59229c9513621c95ebfd00c9bfe7f8c9d7",
+      "size": 24768,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/56b6bf59229c9513621c95ebfd00c9bfe7f8c9d7"
+    },
+    {
+      "path": "tests/server/conversations-db.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be85f769652f6450da3e1f0a53f51e53ea717c60",
+      "size": 14380,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/be85f769652f6450da3e1f0a53f51e53ea717c60"
+    },
+    {
+      "path": "tests/server/conversations-service.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dfd417663f2804c090474902ae1049477430ebfa",
+      "size": 8544,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/dfd417663f2804c090474902ae1049477430ebfa"
+    },
+    {
+      "path": "tests/server/copilot-auth-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0dd2ac7f4a0e783d47bba07ccc65e014b32cbc33",
+      "size": 7773,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0dd2ac7f4a0e783d47bba07ccc65e014b32cbc33"
+    },
+    {
+      "path": "tests/server/copilot-device-flow.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b162718f1ef55b35daf797d1ae3c7cc17d6ef65e",
+      "size": 5196,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b162718f1ef55b35daf797d1ae3c7cc17d6ef65e"
+    },
+    {
+      "path": "tests/server/copilot-models.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "60075a178ac78151d4b1677c194c358ac6767b84",
+      "size": 13347,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/60075a178ac78151d4b1677c194c358ac6767b84"
+    },
+    {
+      "path": "tests/server/cron-history-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "113aa43605d48265204791465c7d6b99f48874e1",
+      "size": 5683,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/113aa43605d48265204791465c7d6b99f48874e1"
+    },
+    {
+      "path": "tests/server/db-index.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a0a032fa5241eea06b8a00798e8fa590a5546475",
+      "size": 4095,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a0a032fa5241eea06b8a00798e8fa590a5546475"
+    },
+    {
+      "path": "tests/server/file-provider-paths.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ef8d418e8a79d738ba82161af68e7050c37f4f1b",
+      "size": 1899,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ef8d418e8a79d738ba82161af68e7050c37f4f1b"
+    },
+    {
+      "path": "tests/server/files-routes.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "36f6e0ff92df5c3774ec2ca35a3cf8078ca83335",
+      "size": 2615,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/36f6e0ff92df5c3774ec2ca35a3cf8078ca83335"
+    },
+    {
+      "path": "tests/server/gateway-autostart.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "679522c9d2a2ac0d9cd8550d89473568f76bc2e1",
+      "size": 3882,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/679522c9d2a2ac0d9cd8550d89473568f76bc2e1"
+    },
+    {
+      "path": "tests/server/gateway-manager-diagnostics.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1d895e629c884652c76dc99629cbe038fc99c5fc",
+      "size": 1689,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1d895e629c884652c76dc99629cbe038fc99c5fc"
+    },
+    {
+      "path": "tests/server/gateway-manager.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e08b580119158c931f043b6f38ff0127c94a3731",
+      "size": 7246,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e08b580119158c931f043b6f38ff0127c94a3731"
+    },
+    {
+      "path": "tests/server/group-chat-context-cache.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1988504b4293784e2f64733fb0796771c6dd824d",
+      "size": 1087,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/1988504b4293784e2f64733fb0796771c6dd824d"
+    },
+    {
+      "path": "tests/server/group-chat-member-sync.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6b144b5f83f168ff44640128f22b2f18041942d7",
+      "size": 9151,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6b144b5f83f168ff44640128f22b2f18041942d7"
+    },
+    {
+      "path": "tests/server/group-chat-mention-routing.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "81c9bc8b2e8062ffc0c33b83ce94ed50207399f2",
+      "size": 4206,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/81c9bc8b2e8062ffc0c33b83ce94ed50207399f2"
+    },
+    {
+      "path": "tests/server/health-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0c3a6f9820b986a6a15324e1851ec1cde80ca5af",
+      "size": 3179,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0c3a6f9820b986a6a15324e1851ec1cde80ca5af"
+    },
+    {
+      "path": "tests/server/hermes-kanban-service.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "467ad9fd06c3c67db5b76d11beee2fb3fe3b77c7",
+      "size": 16957,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/467ad9fd06c3c67db5b76d11beee2fb3fe3b77c7"
+    },
+    {
+      "path": "tests/server/hermes-plugins-env.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e82a2068ee8d3f49b4b11f49373e000d2e12370d",
+      "size": 4116,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e82a2068ee8d3f49b4b11f49373e000d2e12370d"
+    },
+    {
+      "path": "tests/server/hermes-schemas.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0ff3eb3ed617a55e946d560f5f8af4742b87ecdf",
+      "size": 4392,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0ff3eb3ed617a55e946d560f5f8af4742b87ecdf"
+    },
+    {
+      "path": "tests/server/jobs-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "06666d74b897111375f9a3775dfc811ac6f9dc3f",
+      "size": 3723,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/06666d74b897111375f9a3775dfc811ac6f9dc3f"
+    },
+    {
+      "path": "tests/server/kanban-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "048d3fe8e32ad67f18bd28e54192ba75e7591419",
+      "size": 23112,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/048d3fe8e32ad67f18bd28e54192ba75e7591419"
+    },
+    {
+      "path": "tests/server/kanban-routes.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8aeadf24d313c2193c453f40ff870d8d586b0dbd",
+      "size": 3680,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8aeadf24d313c2193c453f40ff870d8d586b0dbd"
+    },
+    {
+      "path": "tests/server/media-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fbd81e07dd967936131a52ee64b0a0743ba808db",
+      "size": 1370,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fbd81e07dd967936131a52ee64b0a0743ba808db"
+    },
+    {
+      "path": "tests/server/message-content-normalization.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ba0985132b3db0f62a287ed75d3f94355b43e61d",
+      "size": 2133,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/ba0985132b3db0f62a287ed75d3f94355b43e61d"
+    },
+    {
+      "path": "tests/server/model-alias-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4fad9a042f4420a770e0d2779282173cc1438816",
+      "size": 4016,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/4fad9a042f4420a770e0d2779282173cc1438816"
+    },
+    {
+      "path": "tests/server/model-context.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6845a6f88b497c169c6ae663a002d0c9c3165e50",
+      "size": 11321,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/6845a6f88b497c169c6ae663a002d0c9c3165e50"
+    },
+    {
+      "path": "tests/server/model-visibility-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c67f5b0c987b59fc201b92889b50cacd30893906",
+      "size": 11986,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c67f5b0c987b59fc201b92889b50cacd30893906"
+    },
+    {
+      "path": "tests/server/plugins-routes.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0fc0479b807882962dc61b79011b24ba525d6fa7",
+      "size": 1151,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0fc0479b807882962dc61b79011b24ba525d6fa7"
+    },
+    {
+      "path": "tests/server/profile-credentials.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3af24a62486496702f448eda0ed1635b6561cec",
+      "size": 7042,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d3af24a62486496702f448eda0ed1635b6561cec"
+    },
+    {
+      "path": "tests/server/profiles-routes.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d2528d7deddbc14fa62ec17341e2c020262d4ea",
+      "size": 7740,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/7d2528d7deddbc14fa62ec17341e2c020262d4ea"
+    },
+    {
+      "path": "tests/server/provider-delete-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b046cbcd892683d3cd986d9bd2149df9ab068d3c",
+      "size": 5632,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/b046cbcd892683d3cd986d9bd2149df9ab068d3c"
+    },
+    {
+      "path": "tests/server/proxy-handler.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2ac6125f3893e3c305118efc00db18446a881308",
+      "size": 12978,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/2ac6125f3893e3c305118efc00db18446a881308"
+    },
+    {
+      "path": "tests/server/run-chat-bridge-delta.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55251f7e23597dfc86856398b5b17112f8f15bca",
+      "size": 1584,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/55251f7e23597dfc86856398b5b17112f8f15bca"
+    },
+    {
+      "path": "tests/server/run-chat-bridge-final-context.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c9ddd1c1372ba01e2b85319cf9a049ad74f736fe",
+      "size": 10053,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c9ddd1c1372ba01e2b85319cf9a049ad74f736fe"
+    },
+    {
+      "path": "tests/server/run-chat-bridge-terminal-error.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "465c74c4f03bad9cdc39905ab24bca2cc1ff3007",
+      "size": 2315,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/465c74c4f03bad9cdc39905ab24bca2cc1ff3007"
+    },
+    {
+      "path": "tests/server/run-chat-compression.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "256c73f455119644de1f8a76e40a9a4c9ce2b6be",
+      "size": 17135,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/256c73f455119644de1f8a76e40a9a4c9ce2b6be"
+    },
+    {
+      "path": "tests/server/run-chat-content-blocks.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85030301f3c268b5a3f451544c8549ba5a69e95e",
+      "size": 2022,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/85030301f3c268b5a3f451544c8549ba5a69e95e"
+    },
+    {
+      "path": "tests/server/run-chat-message-format.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d26f8cca1f82774193b83dad4e6018e7e744e868",
+      "size": 2301,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d26f8cca1f82774193b83dad4e6018e7e744e868"
+    },
+    {
+      "path": "tests/server/run-chat-model-config.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "89d9dd090d234537702674456a39da944a6cbb55",
+      "size": 2444,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/89d9dd090d234537702674456a39da944a6cbb55"
+    },
+    {
+      "path": "tests/server/run-chat-usage.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fd91540beed39d03136a440d1440e9768e47088e",
+      "size": 2804,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fd91540beed39d03136a440d1440e9768e47088e"
+    },
+    {
+      "path": "tests/server/safe-file-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "718c80c295540e21cc8220bb90d8c0861282a9c9",
+      "size": 1945,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/718c80c295540e21cc8220bb90d8c0861282a9c9"
+    },
+    {
+      "path": "tests/server/schema-sync.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "623c9b0e06d190c16eec88c1f4221dc0b57b4c90",
+      "size": 15896,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/623c9b0e06d190c16eec88c1f4221dc0b57b4c90"
+    },
+    {
+      "path": "tests/server/session-detail-db.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18e56fc05eb585b5877e88331c500d4a6534a25b",
+      "size": 7254,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/18e56fc05eb585b5877e88331c500d4a6534a25b"
+    },
+    {
+      "path": "tests/server/session-sync.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "39dbec72e728e2f8d0dc67d79116e992733f4640",
+      "size": 2093,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/39dbec72e728e2f8d0dc67d79116e992733f4640"
+    },
+    {
+      "path": "tests/server/sessions-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c0ba61a428b1a99c43504cab4bf086a4277f0a17",
+      "size": 18566,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/c0ba61a428b1a99c43504cab4bf086a4277f0a17"
+    },
+    {
+      "path": "tests/server/sessions-db-lineage.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "99d1759d33eef8aaa3776410bb6ee59b3dd3875e",
+      "size": 8551,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/99d1759d33eef8aaa3776410bb6ee59b3dd3875e"
+    },
+    {
+      "path": "tests/server/sessions-db.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fc0eeb306f3f0f52d2e72be772f389091d8e975a",
+      "size": 23455,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fc0eeb306f3f0f52d2e72be772f389091d8e975a"
+    },
+    {
+      "path": "tests/server/sessions-routes.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "72f032e69d6776268993f1bd41ee33ee000b3505",
+      "size": 6425,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/72f032e69d6776268993f1bd41ee33ee000b3505"
+    },
+    {
+      "path": "tests/server/skill-injector.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fdef5e5f586d2973ed8a61bccc287a22c0397104",
+      "size": 5801,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fdef5e5f586d2973ed8a61bccc287a22c0397104"
+    },
+    {
+      "path": "tests/server/skill-usage-stats-db.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "35d026a18413d952b08b708f092487705ef37e9f",
+      "size": 7009,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/35d026a18413d952b08b708f092487705ef37e9f"
+    },
+    {
+      "path": "tests/server/terminal-cwd.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fd9d02c40686abfa4e557cb9619a02b2bfa21e1a",
+      "size": 1429,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/fd9d02c40686abfa4e557cb9619a02b2bfa21e1a"
+    },
+    {
+      "path": "tests/server/update-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0123e949ce16c8cbe11948eea12ae57529622dc7",
+      "size": 6008,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/0123e949ce16c8cbe11948eea12ae57529622dc7"
+    },
+    {
+      "path": "tests/server/usage-analytics-db.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cc19556f397705ed83ec09489856ad8d755f1479",
+      "size": 7437,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/cc19556f397705ed83ec09489856ad8d755f1479"
+    },
+    {
+      "path": "tests/server/usage-store.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4afaa17c7510ff3c802c017439644f2bec530dd",
+      "size": 6810,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/f4afaa17c7510ff3c802c017439644f2bec530dd"
+    },
+    {
+      "path": "tests/server/weixin-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a31876f497ca9febbbfd716bfdf42d9695b07c3e",
+      "size": 2736,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/a31876f497ca9febbbfd716bfdf42d9695b07c3e"
+    },
+    {
+      "path": "tests/server/xai-auth-controller.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8655539d9626130615737e9fbbd5e39efb21c618",
+      "size": 972,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/8655539d9626130615737e9fbbd5e39efb21c618"
+    },
+    {
+      "path": "tests/setup.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3915cba02cbff22293561e392126a5b34fc9ad4a",
+      "size": 1188,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/3915cba02cbff22293561e392126a5b34fc9ad4a"
+    },
+    {
+      "path": "tests/shared",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2fcaa4a27fe3fcaf4e7e5b1b9d685d7df31fdba3",
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/trees/2fcaa4a27fe3fcaf4e7e5b1b9d685d7df31fdba3"
+    },
+    {
+      "path": "tests/shared/provider-presets.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "108c76b5d7e97ed6de809f0e1e8e6943133767db",
+      "size": 1620,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/108c76b5d7e97ed6de809f0e1e8e6943133767db"
+    },
+    {
+      "path": "tsconfig.app.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5f0e33fe3bedba30013ba383a77dbc226222e804",
+      "size": 599,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/5f0e33fe3bedba30013ba383a77dbc226222e804"
+    },
+    {
+      "path": "tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9d1e0e1c1cbbb383669b6059ee5ef054a74f641",
+      "size": 162,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/e9d1e0e1c1cbbb383669b6059ee5ef054a74f641"
+    },
+    {
+      "path": "tsconfig.node.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3c52ea64c6cd6bad118474410f5322f48e257a6",
+      "size": 591,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/d3c52ea64c6cd6bad118474410f5322f48e257a6"
+    },
+    {
+      "path": "tsconfig.website.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9b1ce43d7ecc4db9362e84a3249289bb28a2d8bb",
+      "size": 635,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9b1ce43d7ecc4db9362e84a3249289bb28a2d8bb"
+    },
+    {
+      "path": "vite.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9ba8292ca6fb5dfce9046e2d614557df6714421d",
+      "size": 2865,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/9ba8292ca6fb5dfce9046e2d614557df6714421d"
+    },
+    {
+      "path": "vite.config.website.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "903b012247cb9ce638e1e3fb4edf7c311095d24c",
+      "size": 1368,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/903b012247cb9ce638e1e3fb4edf7c311095d24c"
+    },
+    {
+      "path": "vitest.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "850ca0b192d3f5239756c70d3a2e7a447809f197",
+      "size": 425,
+      "url": "https://api.github.com/repos/EKKOLearnAI/hermes-web-ui/git/blobs/850ca0b192d3f5239756c70d3a2e7a447809f197"
+    }
+  ],
+  "truncated": false
+}
