@@ -36,6 +36,10 @@ from app.api.task_states import router as task_states_router
 from app.api.skills import router as skills_router
 from app.api.acceptance import router as acceptance_router
 from app.api.ws import router as chat_ws_router
+from app.api.workflow import router as workflow_router
+from app.api.qa import router as qa_router
+from app.api.swarms import router as swarms_router
+from app.api.security import router as security_router
 
 main_router.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 main_router.include_router(boards_router, prefix="/api/boards", tags=["boards"])
@@ -76,6 +80,10 @@ main_router.include_router(task_states_router, prefix="/api/task-states", tags=[
 main_router.include_router(skills_router, prefix="/api/skills", tags=["skills"])
 main_router.include_router(acceptance_router, prefix="/api/acceptance", tags=["acceptance"])
 main_router.include_router(chat_ws_router, prefix="/api", tags=["chat-ws"])
+main_router.include_router(workflow_router, prefix="/api/v1/workflow", tags=["workflow"])
+main_router.include_router(qa_router, prefix="/api/v1/qa", tags=["qa"])
+main_router.include_router(swarms_router, prefix="/api/v1/swarms", tags=["swarms"])
+main_router.include_router(security_router, prefix="/api/v1/security", tags=["security"])
 
 from app.api.scheduling import router as scheduling_router
 main_router.include_router(scheduling_router, tags=["scheduling"])

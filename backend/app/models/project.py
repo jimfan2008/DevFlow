@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Index, CheckConstraint
+from sqlalchemy import Column, String, Text, Boolean, DateTime, ForeignKey, Index, CheckConstraint, Integer
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 import uuid
@@ -16,6 +16,8 @@ class Project(Base):
     tech_stack = Column(String(100), nullable=True)
     deadline = Column(DateTime(timezone=True), nullable=True)
     status = Column(String(20), nullable=False, default="created")
+    current_step = Column(Integer, nullable=False, default=1)
+    core_goal = Column(Text, nullable=True)
     review_group_id = Column(String, ForeignKey("groups.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -27,6 +29,7 @@ class Project(Base):
     requirements = relationship("Requirement", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     repos = relationship("Repo", back_populates="project", cascade="all, delete-orphan")
+    workflow_steps = relationship("WorkflowStep", back_populates="project", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_projects_creator", "creator_id"),

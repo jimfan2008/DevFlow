@@ -73,3 +73,39 @@ dmypy.json
 
 # Ruff
 .ruff_cache/
+
+# Node.js (MUST exclude - huge repo bloat)
+frontend/node_modules/
+node_modules/
+
+# Database files (binary, large, not source code)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Large binary files / test artifacts
+*.lock
+
+# E2E test artifacts
+frontend/e2e/cli/screenshots/
+frontend/e2e/cli/results/
+frontend/e2e/results/
+
+# Frontend build output
+frontend/dist/
+
+# Temp & debug files
+nul
+test_results.txt
+tests/e2e_*.py
+tests/debug_*.py
+tests/playwright_*.py
+tests/srs_*.py
+tests/screenshots/
+tests/e2e_*.json
+tests/*.png
+tests/run_e2e*
+
+# Backups
+backups/

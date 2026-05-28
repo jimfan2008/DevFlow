@@ -17,6 +17,11 @@ from app.models.comment import Comment
 from app.models.attachment import Attachment
 from app.models.task_execution import TaskExecution
 from app.models.hermes_session import HermesSession, HermesMessage
+from app.models.workflow_step import WorkflowStep
+from app.models.qa_record import QARecord
+from app.models.swarm import Swarm, SwarmTask
+from app.models.security_audit import SecurityAudit
+from app.models.doc_version import DocVersion
 
 __all__ = [
     "User", "Project", "ProjectMember", "Board", "BoardColumn",
@@ -27,4 +32,6 @@ __all__ = [
     "Group", "GroupMessage", "MeetingOutcome", "GroupTask",
     "Repo", "RepoBranch", "PullRequest", "Commit", "TaskCommit",
     "HermesSession", "HermesMessage",
+    "WorkflowStep", "QARecord",
+    "Swarm", "SwarmTask", "SecurityAudit", "DocVersion",
 ]

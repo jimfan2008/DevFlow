@@ -126,3 +126,37 @@ class NotificationChannel(str, enum.Enum):
     platform = "platform"
     email = "email"
     sms = "sms"
+
+
+class StepStatus(str, enum.Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    QA_REVIEW = "qa_review"
+    PASSED = "passed"
+    REJECTED = "rejected"
+    COMPLETED = "completed"
+
+
+class QAStatus(str, enum.Enum):
+    PENDING = "pending"
+    PASSED = "passed"
+    FAILED = "failed"
+
+
+class SwarmPurpose(str, enum.Enum):
+    CODE_WRITING = "code_writing"
+    TEST_EXECUTION = "test_execution"
+
+
+class RoleType(str, enum.Enum):
+    PROJECT_MANAGER = "project_manager"
+    REQUIREMENT_ANALYST = "requirement_analyst"
+    ARCHITECT = "architect"
+    PROGRAMMER = "programmer"
+    TESTER = "tester"
+    CICD_ENGINEER = "cicd_engineer"
+    DOC_MANAGER = "doc_manager"
+    QA = "qa"
+    SECURITY_OFFICER = "security_officer"
+    SYSTEM_ADMIN = "system_admin"
+    SWARM_MEMBER = "swarm_member"
