@@ -1,4 +1,4 @@
-# DevFlow - AI Agent 全自动软件开发项目管理平台
+# DevFlow - AI Agent驱动的全自动软件开发项目管理平台
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](backend/requirements.txt)
@@ -8,7 +8,7 @@
 
 ## 项目简介
 
-DevFlow v4.0 是一个面向人类用户与 AI Agent 协同的**全自动化软件开发项目管理平台**。平台以 **16 步 AI Agent 全自动开发流程**为主线，通过 **10 个命名 Hermes Agent** 角色紧密协作（海梅/后兴/后旺/后发/后达/后富/后贵/后荣/后华），围绕项目讨论群实时沟通，每步产出经 **QA 门控**（后荣检验）合格方可进入下一步，检验合格产出全部提交 Gitea 代码库。支持 **Agent 蜂群**并行执行代码编写与测试，以 **TDD** 驱动开发，实现从需求分析到部署交付的全流程自动化。
+DevFlow v4.0 是一个面向人类用户与 AI Agent 协同的**AI驱动的全自动化软件开发项目管理平台**。平台以 **16 步 AI Agent 全自动开发流程**为主线，通过 **10 个命名 Hermes Agent** 角色紧密协作（海梅/后兴/后旺/后发/后达/后富/后贵/后荣/后华），围绕项目讨论群实时沟通，每步产出经 **QA 门控**（后荣检验）合格方可进入下一步，检验合格产出全部提交 Gitea 代码库。支持 **Agent 蜂群**并行执行代码编写与测试，以 **TDD** 驱动开发，实现从需求分析到部署交付的全流程自动化。
 
 ### 核心价值
 
