@@ -507,7 +507,7 @@ Profile 存储路径：
 * **处理**:
 
   1. 海梅安排后富，依据上述文档建立软件开发环境
-  2. 包括：代码仓库初始化、开发框架搭建、依赖配置、数据库初始化、CI/CD流水线配置等
+  2. 包括：代码仓库初始化、开发框架搭建、依赖配置、数据库初始化、CI/CD流水线配置
 * **产出成果**: 可用的软件开发环境
 * **QA门控**: 开发环境必须经 HouRong（后荣/QA）检验合格才可以进行下一步
 * **代码库提交**: 环境配置文件提交到代码库
@@ -961,7 +961,7 @@ Profile 存储路径：
 
 3. **执行阶段**：Agent接收后发/后达分派的任务，通过任务执行接口接收任务详情、执行代码编写或测试任务、定期上报进度、完成后交付成果
 
-4. **退出阶段**：满足以下任一条件时Agent退出：(a)任务完成且成果已通过QA检验（正常退出） (b)蜂群调度者手动解散蜂群 `DELETE /api/swarms/:id`（手动退出） (c)Agent执行超时超过30分钟且重试3次仍失败（超时退出） (d)Agent进程异常崩溃（异常退出，调度者自动记录并更换备用Agent）
+4. **退出阶段**：满足以下任一条件时Agent退出：(a)任务完成且成果已通过QA检验（正常退出） (b)蜂群调度者手动解散蜂群 `DELETE /api/swarms/:id`（手动退出） (c)Agent执行超时超过30分钟，自动终止当前执行并触发重试机制（最多重试3次，3次均失败后执行超时退出） (d)Agent进程异常崩溃（异常退出，调度者自动记录并更换备用Agent）
 
 5. **资源清理**：Agent退出后，DevFlow平台自动清理其临时文件、断开通信连接、释放占用的计算资源
 
@@ -1549,7 +1549,8 @@ Profile 存储路径：
    * id, project_id, name, description, mode, host_agent_id, created_at
 10. **group_members** - 群组-成员关联表
 
-    * id, group_id(FK→groups.id), agent_id(FK→agents.id), joined_at, role_in_group
+    * id, group_id(FK→groups.id), user_id(FK→users.id), agent_id(FK→agents.id), member_type(user/agent), joined_at, role_in_group
+    * user_id和agent_id二选一必填：成员为人类用户时user_id必填且agent_id为空，成员为Agent时agent_id必填且user_id为空；member_type标识成员类型
 11. **group_messages** - 群聊消息表
 
     * id, group_id, sender_id, sender_type(user/agent), role, content, timestamp, is_streaming, metadata(JSON)
