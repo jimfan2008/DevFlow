@@ -5,11 +5,13 @@
       <div class="app-layout">
         <app-sidebar />
         <main class="app-main">
-          <router-view v-slot="{ Component }">
-            <transition name="fade" mode="out-in">
-              <component :is="Component" />
-            </transition>
-          </router-view>
+          <div class="app-main__inner">
+            <router-view v-slot="{ Component }">
+              <transition name="fade" mode="out-in">
+                <component :is="Component" />
+              </transition>
+            </router-view>
+          </div>
         </main>
       </div>
     </template>
@@ -42,17 +44,33 @@ watch(isLoggedIn, (val) => {
 <style lang="scss">
 .app-layout {
   display: flex;
-  min-height: calc(100vh - #{$header-height});
+  height: calc(100vh - #{$global-nav-height});
+  overflow: hidden;
 }
 
 .app-main {
   flex: 1;
-  padding: $spacing-6;
   overflow-y: auto;
-  background-color: $bg-color-body;
+  background-color: $canvas-parchment;
+  display: flex;
+  flex-direction: column;
+
+  &__inner {
+    max-width: $grid-max-width;
+    margin: 0 auto;
+    padding: $spacing-section $spacing-xxl;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+
+    &:has(.step3-view) {
+      padding: 0;
+    }
+  }
 }
 
 .is-logout {
-  background-color: $bg-color-light;
+  background-color: $canvas;
 }
 </style>

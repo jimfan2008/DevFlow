@@ -21,7 +21,7 @@
             v-for="task in getTasksByStatus(status.key)"
             :key="task.id"
             class="task-board-view__card"
-            shadow="hover"
+            shadow="never"
             @click="openTaskDetail(task)"
           >
             <div class="task-board-view__card-title">{{ task.title }}</div>
@@ -161,8 +161,12 @@ function getStatusColor(status: string) {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
   &__actions {
     display: flex;
@@ -177,64 +181,72 @@ function getStatusColor(status: string) {
   &__column {
     min-width: 260px;
     flex: 1;
-    background: $bg-color-body;
-    border-radius: $radius-md;
-    padding: $spacing-3;
+    background: $canvas-parchment;
+    border-radius: $radius-lg;
+    padding: $spacing-sm;
     &-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: $spacing-3;
-      font-weight: $font-weight-semibold;
+      margin-bottom: $spacing-sm;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
     }
     &-body {
       display: flex;
       flex-direction: column;
-      gap: $spacing-2;
+      gap: $spacing-xs;
     }
   }
   &__card {
     cursor: pointer;
     &-title {
-      font-weight: $font-weight-medium;
-      margin-bottom: $spacing-1;
+      font-family: $font-text;
+      font-size: $body-size;
+      font-weight: $body-weight;
+      letter-spacing: $body-tracking;
+      margin-bottom: $spacing-xxs;
     }
     &-progress {
-      font-size: $font-size-xs;
-      color: $text-color-secondary;
-      margin-top: 4px;
+      font-size: $caption-size;
+      color: $ink-muted-48;
+      margin-top: $spacing-xxs;
     }
     &-meta {
       display: flex;
       align-items: center;
-      gap: $spacing-2;
-      margin-top: $spacing-2;
+      gap: $spacing-xs;
+      margin-top: $spacing-xs;
       flex-wrap: wrap;
     }
     &-assignee, &-skill {
-      font-size: $font-size-xs;
-      color: $text-color-secondary;
+      font-size: $caption-size;
+      color: $ink-muted-48;
     }
   }
   &__dep-item {
-    font-size: $font-size-sm;
-    padding: 4px 0;
-    color: $text-color-secondary;
+    font-family: $font-text;
+    font-size: $body-size;
+    padding: $spacing-xxs 0;
+    color: $ink-muted-48;
   }
   &__dag {
     min-height: 400px;
     &-graph {
       display: flex;
       flex-wrap: wrap;
-      gap: $spacing-3;
+      gap: $spacing-sm;
     }
     &-node {
-      padding: $spacing-2 $spacing-3;
-      border: 1px solid $border-color-light;
+      padding: $spacing-xs $spacing-sm;
+      border: 1px solid $hairline;
       border-left-width: 4px;
-      border-radius: $radius-base;
-      font-size: $font-size-sm;
-      background: $bg-color-card;
+      font-family: $font-text;
+      font-size: $body-size;
+      background: $canvas;
+      border-radius: $radius-sm;
     }
   }
   &__empty {

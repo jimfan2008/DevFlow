@@ -4,7 +4,7 @@
       <h2 class="delivery-view__title">项目交付</h2>
     </div>
 
-    <el-card shadow="never">
+    <el-card shadow="never" class="delivery-view__card">
       <template #header>选择项目</template>
       <el-select v-model="selectedProjectId" placeholder="选择项目" style="width: 320px" @change="handleProjectChange">
         <el-option v-for="p in projectStore.projects" :key="p.id" :label="p.name" :value="p.id" />
@@ -12,7 +12,7 @@
     </el-card>
 
     <template v-if="selectedProjectId">
-      <el-card shadow="never" style="margin-top: 16px">
+      <el-card shadow="never" class="delivery-view__card" style="margin-top: 16px">
         <template #header>项目状态</template>
         <el-descriptions :column="2" border v-if="projectStore.currentProject">
           <el-descriptions-item label="项目名称">{{ projectStore.currentProject.name }}</el-descriptions-item>
@@ -24,7 +24,7 @@
         </el-descriptions>
       </el-card>
 
-      <el-card shadow="never" style="margin-top: 16px">
+      <el-card shadow="never" class="delivery-view__card" style="margin-top: 16px">
         <template #header>交付操作</template>
         <el-result v-if="deliveryResult" icon="success" title="项目已成功交付" :sub-title="deliveryResult.summary || ''">
           <template #extra>
@@ -93,8 +93,15 @@ async function handleDeliver() {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
+  }
+  &__card {
+    border-radius: $radius-lg;
   }
 }
 </style>

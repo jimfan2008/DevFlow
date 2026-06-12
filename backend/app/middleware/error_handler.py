@@ -50,6 +50,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    logger.warning(f"ValueError: {exc}")
+    return JSONResponse(
+        status_code=400,
+        content={
+            "code": "BAD_REQUEST",
+            "message": str(exc),
+            "details": {},
+        },
+    )
+
+
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.error(f"Unhandled exception: {traceback.format_exc()}")
     return JSONResponse(
@@ -66,3 +78,5 @@ def register_error_handlers(app):
     app.add_exception_handler(DevFlowException, devflow_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(ValueError, value_error_handler)
+    app.add_exception_handler(Exception, generic_exception_handler)

@@ -116,7 +116,7 @@ class TestAgentMatching:
         agent.status = "online"
         db.commit()
 
-        project = Project(id=str(uuid.uuid4()), name="AssignProj", description="",
+        project = Project(id=str(uuid.uuid4()), name="AssignProj", slug="assignproj", description="",
                           creator_id=user.id, status=ProjectStatus.created.value)
         db.add(project)
         task = Task(id=str(uuid.uuid4()), project_id=project.id, name="Test Task",
@@ -133,7 +133,7 @@ class TestAgentMatching:
         user = _make_user(db)
         svc = AgentSchedulerService(db)
 
-        project = Project(id=str(uuid.uuid4()), name="NoAgentProj", description="",
+        project = Project(id=str(uuid.uuid4()), name="NoAgentProj", slug="noagentproj", description="",
                           creator_id=user.id, status=ProjectStatus.created.value)
         db.add(project)
         task = Task(id=str(uuid.uuid4()), project_id=project.id, name="Orphan Task",
@@ -153,7 +153,7 @@ class TestAcceptanceFlow:
                       status="online", api_endpoint="http://localhost:8081", config={})
         db.add(agent)
 
-        project = Project(id=str(uuid.uuid4()), name="AccProj", description="",
+        project = Project(id=str(uuid.uuid4()), name="AccProj", slug="accproj", description="",
                           creator_id=user.id, status=ProjectStatus.in_progress.value)
         db.add(project)
         task = Task(id=str(uuid.uuid4()), project_id=project.id, name="Acc Task",
@@ -183,7 +183,7 @@ class TestAcceptanceFlow:
                       status="online", api_endpoint="http://localhost:8082", config={})
         db.add(agent)
 
-        project = Project(id=str(uuid.uuid4()), name="FailProj", description="",
+        project = Project(id=str(uuid.uuid4()), name="FailProj", slug="failproj", description="",
                           creator_id=user.id, status=ProjectStatus.in_progress.value)
         db.add(project)
         task = Task(id=str(uuid.uuid4()), project_id=project.id, name="Fail Task",

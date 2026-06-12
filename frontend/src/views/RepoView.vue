@@ -7,7 +7,7 @@
     <el-tabs v-model="activeTab">
       <el-tab-pane label="仓库列表" name="list">
         <div v-loading="store.loading" class="repo-view__grid">
-          <el-card v-for="repo in store.repos" :key="repo.id" shadow="hover" class="repo-view__card" @click="goToRepoDetail(repo.id)">
+          <el-card v-for="repo in store.repos" :key="repo.id" shadow="never" class="repo-view__card" @click="goToRepoDetail(repo.id)">
             <template #header>
               <div class="repo-view__card-header">
                 <span class="repo-view__card-name">{{ repo.full_name || repo.name }}</span>
@@ -140,32 +140,43 @@ async function handleCreateBranch() {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
   &__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: $spacing-4;
+    gap: $spacing-lg;
   }
   &__card {
     cursor: pointer;
+    border-radius: $radius-lg;
     &-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     &-name {
-      font-weight: $font-weight-semibold;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
     }
     &-body {
-      font-size: $font-size-sm;
+      font-size: $caption-size;
     }
   }
   &__detail {
     h3 {
-      font-size: $font-size-lg;
-      font-weight: $font-weight-semibold;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
+      color: $ink;
     }
   }
 }

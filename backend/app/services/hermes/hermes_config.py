@@ -21,7 +21,7 @@ class HermesConfigReader:
         if hermes_home:
             self._home = Path(hermes_home)
         else:
-            self._home = Path(os.environ.get("HERMES_PROFILES_PATH", "/hermes-home"))
+            self._home = Path(os.environ.get("HERMES_PROFILES_PATH", os.path.expanduser("~/.hermes")))
 
     @property
     def home(self) -> Path:

@@ -23,8 +23,8 @@ class RepoService:
         if existing:
             return existing
 
-        owner = org or settings.GITEA_ADMIN_USER
         from app.config import settings
+        owner = org or settings.GITEA_ADMIN_USER
 
         try:
             repo_data = await gitea_client.create_org_repo(

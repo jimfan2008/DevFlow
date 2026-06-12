@@ -80,26 +80,22 @@ function formatTime(timestamp: string): string {
 .message-system {
   display: flex;
   justify-content: center;
-  margin: $spacing-2 0;
+  margin: $spacing-xs 0;
 }
 
 .message-bubble {
   display: flex;
-  gap: $spacing-3;
-  margin-bottom: $spacing-3;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
 
-  &.is-user {
-    flex-direction: row-reverse;
-  }
+  &.is-user { flex-direction: row-reverse; }
 
   &__avatar {
     flex-shrink: 0;
-    font-weight: $font-weight-semibold;
-    font-size: $font-size-sm;
+    font-weight: 600;
+    font-size: $caption-strong-size;
 
-    &.avatar-user {
-      background: $primary-color;
-    }
+    &.avatar-user { background: $primary; }
 
     &.avatar-purple { background: #7c3aed; }
     &.avatar-green { background: #059669; }
@@ -113,66 +109,63 @@ function formatTime(timestamp: string): string {
 
   &__body {
     max-width: 70%;
-
-    &.body-user {
-      text-align: right;
-    }
+    &.body-user { text-align: right; }
   }
 
   &__meta {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
-    margin-bottom: $spacing-1;
+    gap: $spacing-xs;
+    margin-bottom: $spacing-xxs;
 
-    &.meta-user {
-      justify-content: flex-end;
-    }
+    &.meta-user { justify-content: flex-end; }
   }
 
   &__sender {
-    font-weight: $font-weight-medium;
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $caption-strong-size;
+    font-weight: $caption-strong-weight;
+    letter-spacing: $caption-strong-tracking;
+    color: $ink;
   }
 
   &__speaker {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: $font-size-xs;
+    gap: $spacing-xxs;
+    font-size: $fine-print-size;
     color: #22c55e;
-    font-weight: $font-weight-medium;
+    font-weight: 500;
   }
 
   &__time {
-    font-size: $font-size-xs;
-    color: $text-color-secondary;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 
   &__content {
-    padding: $spacing-3 $spacing-4;
+    padding: $spacing-sm $spacing-4;
     border-radius: $radius-md;
     text-align: left;
-    line-height: 1.6;
+    line-height: $body-leading;
 
     &.content-user {
-      background: $primary-color;
-      color: $text-color-inverse;
+      background: $primary;
+      color: $on-primary;
       border-bottom-right-radius: $radius-sm;
     }
 
     &.content-agent {
-      background: $bg-color-card;
-      border: 1px solid $border-color-light;
-      color: $text-color-primary;
+      background: $canvas;
+      border: 1px solid $hairline;
+      color: $ink;
       border-bottom-left-radius: $radius-sm;
     }
 
     &.content-speaker {
-      background: #f0f9ff;
-      border: 2px solid #7dd3fc;
-      color: $text-color-primary;
+      background: $canvas-parchment;
+      border: 1px solid $primary;
+      color: $ink;
       border-bottom-left-radius: $radius-sm;
     }
   }
@@ -210,13 +203,12 @@ function formatTime(timestamp: string): string {
 .markdown-body {
   white-space: pre-wrap;
   word-break: break-word;
+  font-family: $font-text;
 
-  :deep(p) {
-    margin: 0;
-  }
+  :deep(p) { margin: 0; }
 
   :deep(ul), :deep(ol) {
-    margin: $spacing-1 0;
+    margin: $spacing-xxs 0;
     padding-left: $spacing-5;
   }
 
@@ -224,15 +216,15 @@ function formatTime(timestamp: string): string {
     background: rgba(0, 0, 0, 0.06);
     padding: 1px 4px;
     border-radius: $radius-sm;
-    font-size: $font-size-xs;
+    font-size: $fine-print-size;
   }
 
   :deep(pre) {
     background: rgba(0, 0, 0, 0.06);
-    padding: $spacing-3;
+    padding: $spacing-sm;
     border-radius: $radius-sm;
     overflow-x: auto;
-    margin: $spacing-2 0;
+    margin: $spacing-xs 0;
   }
 }
 </style>

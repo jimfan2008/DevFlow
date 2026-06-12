@@ -82,5 +82,9 @@ def get_db() -> Session:
     db = sync_session_maker()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

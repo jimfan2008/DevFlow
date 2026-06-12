@@ -198,9 +198,12 @@ function handleTaskCreated() {
 
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
-    color: $text-color-primary;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
 
   &__actions {
@@ -210,7 +213,7 @@ function handleTaskCreated() {
 
   &__columns {
     display: flex;
-    gap: $spacing-4;
+    gap: $spacing-lg;
     overflow-x: auto;
     flex: 1;
     padding-bottom: $spacing-4;

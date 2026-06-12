@@ -13,7 +13,7 @@
     </div>
 
     <div v-loading="store.loading" class="agent-list-view__grid">
-      <el-card v-for="agent in store.agents" :key="agent.id" class="agent-list-view__card" shadow="hover" @click="goToDetail(agent.id)">
+      <el-card v-for="agent in store.agents" :key="agent.id" class="agent-list-view__card" shadow="never" @click="goToDetail(agent.id)">
         <template #header>
           <div class="agent-list-view__card-header">
             <span class="agent-list-view__card-name">{{ agent.name }}</span>
@@ -98,42 +98,50 @@ async function handleDeleteAgent(agent: any) {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
   &__actions {
     display: flex;
-    gap: $spacing-2;
+    gap: $spacing-xs;
   }
   &__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: $spacing-4;
+    gap: $spacing-lg;
   }
   &__card {
     cursor: pointer;
+    border-radius: $radius-lg;
     &-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     &-name {
-      font-weight: $font-weight-semibold;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
     }
     &-body {
       display: flex;
       align-items: center;
-      gap: $spacing-2;
-      margin-bottom: $spacing-2;
+      gap: $spacing-xs;
+      margin-bottom: $spacing-xs;
     }
     &-actions {
       display: flex;
-      gap: $spacing-2;
+      gap: $spacing-xs;
     }
   }
   &__discovered, &__version {
-    font-size: $font-size-xs;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
   }
   &__empty {
     display: flex;

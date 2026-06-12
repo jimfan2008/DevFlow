@@ -192,77 +192,84 @@ function formatDate(dateStr: string): string {
   &__field {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-sm;
 
     label {
       width: 70px;
-      font-size: $font-size-sm;
-      color: $text-color-secondary;
+      font-family: $font-text;
+      font-size: $body-size;
+      color: $ink-muted-48;
       flex-shrink: 0;
     }
 
-    .is-overdue {
-      color: $status-blocked;
-    }
+    .is-overdue { color: $status-blocked; }
   }
 
   &__assignee {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: $spacing-xxs;
   }
 
   &__section {
     h4 {
-      margin: 0 0 12px;
-      font-size: $font-size-base;
-      color: $text-color-primary;
+      margin: 0 0 $spacing-sm;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
+      color: $ink;
     }
   }
 
   &__description {
-    font-size: $font-size-sm;
-    color: $text-color-primary;
-    line-height: 1.6;
+    font-family: $font-text;
+    font-size: $body-size;
+    font-weight: $body-weight;
+    letter-spacing: $body-tracking;
+    color: $ink;
+    line-height: $body-leading;
     white-space: pre-wrap;
   }
 
   &__comment {
-    margin-bottom: 12px;
-    padding: 8px;
-    background: $bg-color-body;
-    border-radius: $radius-base;
+    margin-bottom: $spacing-sm;
+    padding: $spacing-xs;
+    background: $canvas-parchment;
+    border-radius: $radius-sm;
   }
 
   &__comment-header {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 4px;
+    gap: $spacing-xxs;
+    margin-bottom: $spacing-xxs;
   }
 
   &__comment-user {
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
   }
 
   &__comment-time {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
     margin-left: auto;
   }
 
   &__comment-body {
-    margin: 4px 0 0;
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+    margin: $spacing-xxs 0 0;
+    font-size: $body-size;
+    color: $ink;
     white-space: pre-wrap;
   }
 
   &__add-comment {
-    margin-top: 12px;
+    margin-top: $spacing-sm;
   }
 }
 </style>

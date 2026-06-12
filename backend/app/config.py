@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     HERMES_API_KEY: str = os.getenv("HERMES_API_KEY", "")
     HERMES_MODEL: str = os.getenv("HERMES_MODEL", "hermes-agent")
     HERMES_PROFILES_PATH: str = os.getenv(
-        "HERMES_PROFILES_PATH", "/hermes-home"
+        "HERMES_PROFILES_PATH", os.path.expanduser("~/.hermes")
     )
     HERMES_BFF_URL: str = os.getenv("HERMES_BFF_URL", "")
     HERMES_HEALTH_INTERVAL: int = int(os.getenv("HERMES_HEALTH_INTERVAL", "30"))
@@ -99,6 +99,18 @@ class Settings(BaseSettings):
     GITEA_DB_NAME: str = os.getenv("GITEA_DB_NAME", "gitea")
     GITEA_DB_USER: str = os.getenv("GITEA_DB_USER", "gitea")
     GITEA_DB_PASSWORD: str = os.getenv("GITEA_DB_PASSWORD", "gitea_password")
+
+    # ── 项目存储 ───────────────────────────────────────────
+    PROJECTS_BASE_DIR: str = os.getenv(
+        "PROJECTS_BASE_DIR",
+        os.path.join(os.path.expanduser("~"), "DevFlow", "projects"),
+    )
+
+    # ── 项目存储 ───────────────────────────────────────────
+    PROJECTS_BASE_DIR: str = os.getenv(
+        "PROJECTS_BASE_DIR",
+        os.path.join(os.path.expanduser("~"), "DevFlow", "projects"),
+    )
 
     # ── 文件上传 ──────────────────────────────────────────
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "/tmp/attachments")

@@ -78,19 +78,22 @@ function handleRefresh() {
 
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
-    color: $text-color-primary;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
 
   &__subtitle {
-    font-size: $font-size-sm;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
   }
 
   &__actions {
     display: flex;
-    gap: 8px;
+    gap: $spacing-xs;
   }
 
   &__list {

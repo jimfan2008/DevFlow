@@ -436,6 +436,17 @@ export interface ProjectCreateRequest {
   tech_stack?: Record<string, unknown>
 }
 
+export interface ProjectCreateResult {
+  id: string
+  name: string
+  slug: string
+  status: string
+  project_dir: string
+  workflow_initialized: boolean
+  board_created: boolean
+  repo_created: boolean
+}
+
 // ==================== Agent模块 ====================
 
 export interface Agent {

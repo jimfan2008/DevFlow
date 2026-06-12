@@ -1,22 +1,29 @@
 # 项目级 SRS API - 创建、任务查看、通知、完成
 import uuid
+import os
+import logging
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 from app.database import get_db
 from app.api.deps import get_current_user
 from app.models.user import User
-from app.models.project import Project
+from app.models.project import Project, ProjectMember
 from app.models.task import Task
 from app.models.board import Board, BoardColumn
+from app.models.group import Group
 from app.models.notification import InboxItem
+from app.models.enums import ProjectStatus
 from app.services.decomposition_service import DecompositionService
 from app.services.delivery_service import DeliveryService
+from app.config import settings
 from app.schemas.project_srs import (
     ProjectCreate, ProjectTaskListResponse,
     NotificationItem, NotificationListResponse,
     ProjectCompleteResponse,
 )
+
+logger = logging.getLogger("devflow.projects")
 
 router = APIRouter(redirect_slashes=False)
 
@@ -40,6 +47,7 @@ def list_projects(
                     "description": p.description,
                     "status": p.status if hasattr(p, 'status') else "draft",
                     "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "project_dir": os.path.join(settings.PROJECTS_BASE_DIR, p.slug if hasattr(p, 'slug') else p.name.lower().replace(" ", "-")),
                 }
                 for p in projects
             ],
@@ -54,25 +62,139 @@ def create_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """SRS §3.1.1 - 人类用户创建项目"""
+    """SRS §3.1.1 - 人类用户创建项目
+    
+    创建项目时同时初始化：
+    1. 项目数据库记录
+    2. 项目文件夹结构
+    3. Gitea 代码仓库
+    4. 工作流步骤（16步）
+    5. 默认看板
+    """
     existing = db.query(Project).filter(Project.name == data.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="Project name already exists")
 
+    # 1. 创建项目数据库记录（含创建者成员、评审群组、状态）
     project = Project(
         id=str(uuid.uuid4()),
         name=data.name,
         slug=data.name.lower().replace(" ", "-").replace("_", "-"),
         description=data.description or "",
         creator_id=current_user.id,
+        status=ProjectStatus.created.value,
     )
     db.add(project)
+    db.flush()
+
+    # 创建创建者成员记录
+    member = ProjectMember(
+        id=str(uuid.uuid4()),
+        project_id=project.id,
+        user_id=current_user.id,
+        role="owner",
+    )
+    db.add(member)
+
+    # 创建需求评审群组
+    review_group = Group(
+        id=str(uuid.uuid4()),
+        name=f"{data.name}-需求评审",
+        description=f"项目 {data.name} 的需求评审群组",
+        members=[current_user.id],
+        mode="discussion",
+        project_id=project.id,
+    )
+    db.add(review_group)
+    project.review_group_id = review_group.id
+
     db.commit()
     db.refresh(project)
+
+    project_dir = None
+    repo_created = False
+    workflow_initialized = False
+    board_created = False
+
+    # 2. 附加初始化（文件夹、工作流、看板、仓库）
+    # 如果失败不影响核心项目记录，但返回对应标记
+    try:
+        # 2a. 创建项目文件夹结构
+        from app.config import settings
+        project_dir = os.path.join(settings.PROJECTS_BASE_DIR, project.slug)
+        os.makedirs(project_dir, exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "docs"), exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "src"), exist_ok=True)
+        os.makedirs(os.path.join(project_dir, "tests"), exist_ok=True)
+
+        readme_path = os.path.join(project_dir, "README.md")
+        with open(readme_path, "w", encoding="utf-8") as f:
+            f.write(f"# {project.name}\n\n")
+            if project.description:
+                f.write(f"{project.description}\n\n")
+            f.write(f"Created: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}\n")
+        logger.info(f"Project directory created: {project_dir}")
+
+        # 2b. 初始化工作流步骤（16步）
+        from app.services.workflow_engine import WorkflowEngine
+        engine = WorkflowEngine(project_id=project.id, db=db)
+        workflow_initialized = True
+        logger.info(f"Workflow steps initialized for project {project.id}")
+
+        # 2c. 创建默认看板
+        board = Board(
+            id=str(uuid.uuid4()),
+            project_id=project.id,
+            name=f"{project.name} - 开发看板",
+            slug="default",
+        )
+        db.add(board)
+        db.flush()
+        db.refresh(board)
+
+        column = BoardColumn(
+            id=str(uuid.uuid4()),
+            board_id=board.id,
+            name="待办",
+            slug="todo",
+            position=0,
+        )
+        db.add(column)
+        board_created = True
+        logger.info(f"Default board created for project {project.id}")
+
+        # 2d. 创建 Gitea 代码仓库（如果 Gitea 不可用，不影响项目创建）
+        try:
+            import asyncio
+            from app.services.repo_service import RepoService
+            repo_svc = RepoService(db)
+            repo = asyncio.run(repo_svc.create_project_repo(project.id, project.name))
+            repo_created = True
+            logger.info(f"Gitea repo created for project {project.id}: {repo.name}")
+        except Exception as e:
+            logger.warning(f"Failed to create Gitea repo for project {project.id}: {e}")
+
+        db.commit()
+
+    except Exception as e:
+        logger.error(f"Project initialization partially failed for {project.id}: {e}", exc_info=True)
+        db.rollback()
+
     return {
         "code": 0,
         "message": "success",
-        "data": {"project": {"id": project.id, "name": project.name, "slug": project.slug}},
+        "data": {
+            "project": {
+                "id": project.id,
+                "name": project.name,
+                "slug": project.slug,
+                "status": project.status,
+                "project_dir": project_dir or "",
+                "workflow_initialized": workflow_initialized,
+                "board_created": board_created,
+                "repo_created": repo_created,
+            }
+        },
     }
 
 
@@ -87,8 +209,7 @@ def get_project_tasks(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Task -> board_id -> Board.project_id
-    tasks = db.query(Task).join(Board).filter(Board.project_id == project_id).all()
+    tasks = db.query(Task).filter(Task.project_id == project_id).all()
 
     return {
         "code": 0,

@@ -395,9 +395,12 @@ function formatDate(dateStr: string): string {
 
   &__title {
     margin: 0 0 12px;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
-    color: $text-color-primary;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
 
   &__status-bar {
@@ -418,8 +421,8 @@ function formatDate(dateStr: string): string {
     gap: 2px;
 
     label {
-      font-size: $font-size-xs;
-      color: $text-color-placeholder;
+      font-size: $fine-print-size;
+      color: $ink-muted-48;
     }
 
     .is-overdue {
@@ -428,7 +431,7 @@ function formatDate(dateStr: string): string {
   }
 
   &__na {
-    color: $text-color-placeholder;
+    color: $ink-muted-48;
     font-style: italic;
   }
 
@@ -441,8 +444,11 @@ function formatDate(dateStr: string): string {
   &__section {
     h3 {
       margin: 0 0 12px;
-      font-size: $font-size-lg;
-      color: $text-color-primary;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
+      color: $ink;
     }
   }
 
@@ -453,17 +459,20 @@ function formatDate(dateStr: string): string {
   }
 
   &__description {
-    font-size: $font-size-base;
-    color: $text-color-primary;
-    line-height: 1.6;
+    font-family: $font-text;
+    font-size: $body-size;
+    font-weight: $body-weight;
+    letter-spacing: $body-tracking;
+    color: $ink;
+    line-height: $body-leading;
     white-space: pre-wrap;
   }
 
   &__comment {
     margin-bottom: 12px;
     padding: 12px;
-    background: $bg-color-body;
-    border-radius: $radius-md;
+    background: $canvas-parchment;
+    border-radius: $radius-sm;
   }
 
   &__comment-header {
@@ -474,21 +483,25 @@ function formatDate(dateStr: string): string {
   }
 
   &__comment-user {
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
   }
 
   &__comment-time {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
     margin-left: auto;
   }
 
   &__comment-body {
     margin: 0;
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-size;
+    letter-spacing: $body-tracking;
+    color: $ink;
     white-space: pre-wrap;
   }
 
@@ -526,30 +539,32 @@ function formatDate(dateStr: string): string {
   &__chat-bubble {
     max-width: 85%;
     padding: 6px 10px;
-    border-radius: 8px;
-    font-size: $font-size-sm;
-    line-height: 1.4;
+    border-radius: $radius-sm;
+    font-family: $font-text;
+    font-size: $body-size;
+    line-height: $body-leading;
     word-break: break-word;
     white-space: pre-wrap;
     .user & {
-      background: $primary-color;
-      color: #fff;
+      background: $primary;
+      color: $on-primary;
     }
     .hermes & {
-      background: $bg-color-body;
-      color: $text-color-primary;
+      background: $canvas-parchment;
+      color: $ink;
     }
     &.hermes-thinking {
       font-style: italic;
-      color: $text-color-placeholder;
+      color: $ink-muted-48;
     }
   }
 
   &__sidebar-text {
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-size;
+    color: $ink;
     white-space: pre-wrap;
-    line-height: 1.5;
+    line-height: $body-leading;
   }
 
   &__chat-input-row {

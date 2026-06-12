@@ -1,74 +1,87 @@
 @use './reset';
 @use './mixins';
 
-/* 全局字体和基础样式 */
+/* ── Base Body ─────────────────────────────────────────── */
 html, body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
-  font-size: $font-size-base;
-  color: $text-color-primary;
-  background-color: $bg-color-body;
+  font-family: $font-text;
+  font-size: $body-size;
+  font-weight: $body-weight;
+  line-height: $body-leading;
+  letter-spacing: $body-tracking;
+  color: $ink;
+  background-color: $canvas-parchment;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
 }
 
-/* Element Plus 主题覆盖 */
+/* ── Apple's Ink Headlines ──────────────────────────────── */
+h1 { font-family: $font-display; font-size: $hero-display-size; font-weight: $hero-display-weight; line-height: $hero-display-leading; letter-spacing: $hero-display-tracking; }
+h2 { font-family: $font-display; font-size: $display-lg-size; font-weight: $display-lg-weight; line-height: $display-lg-leading; letter-spacing: $display-lg-tracking; }
+h3 { font-family: $font-text; font-size: $display-md-size; font-weight: $display-md-weight; line-height: $display-md-leading; letter-spacing: $display-md-tracking; }
+
+/* ── Element Plus Theme Overrides (Apple palette) ──────── */
 :root {
-  --el-color-primary: #{$primary-color};
-  --el-color-primary-light-3: #{$primary-color-light-3};
-  --el-color-primary-light-5: #{$primary-color-light-5};
-  --el-color-primary-light-7: #{$primary-color-light-7};
-  --el-color-primary-light-9: #{$primary-color-light-9};
+  --el-color-primary: #{$primary};
+  --el-color-primary-light-3: #{mix($primary, #fff, 60%)};
+  --el-color-primary-light-5: #{mix($primary, #fff, 40%)};
+  --el-color-primary-light-7: #{mix($primary, #fff, 20%)};
+  --el-color-primary-light-9: #{mix($primary, #fff, 10%)};
+  --el-border-radius-base: #{$radius-sm};
+  --el-border-radius-small: #{$radius-xs};
+  --el-border-radius-round: #{$radius-pill};
+  --el-border-radius-circle: #{$radius-full};
+  --el-font-size-base: #{$body-size};
+  --el-font-size-small: #{$caption-size};
+  --el-font-size-large: #{$body-strong-size};
+  --el-font-weight-primary: 400;
 }
 
-/* 滚动条样式 */
+/* ── Element Plus Component Overrides ───────────────────── */
+.el-button {
+  --el-button-border-radius: #{$radius-pill};
+}
+.el-button--small {
+  --el-button-border-radius: #{$radius-pill};
+}
+.el-card {
+  --el-card-border-radius: #{$radius-lg};
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.el-tag {
+  --el-tag-border-radius: #{$radius-sm};
+}
+.el-input__wrapper {
+  border-radius: $radius-pill !important;
+}
+
+/* ── Scrollbar ──────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  background: $bg-color-light;
-  border-radius: 3px;
+  background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: $border-color-light;
+  background: $hairline;
   border-radius: 3px;
-
-  &:hover {
-    background: $border-color-dark;
-  }
+  &:hover { background: $ink-muted-48; }
 }
 
-/* 过渡动画 */
+/* ── Transitions ────────────────────────────────────────── */
 .fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
+.fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-leave-to { opacity: 0; }
 
-/* 滑动动画 */
 .slide-enter-active,
-.slide-leave-active {
-  transition: transform 0.3s ease;
-}
-
-.slide-enter-from {
-  transform: translateX(100%);
-}
-
-.slide-leave-to {
-  transform: translateX(100%);
-}
+.slide-leave-active { transition: transform 0.3s ease; }
+.slide-enter-from { transform: translateX(100%); }
+.slide-leave-to { transform: translateX(100%); }

@@ -202,19 +202,22 @@ async function fetchWorkload() {
   gap: $spacing-6;
 
   &__card {
-    background: $bg-color-card;
-    border-radius: $radius-md;
+    background: $canvas;
+    border-radius: $radius-lg;
     padding: $spacing-6;
-    box-shadow: $shadow-sm;
+    border: 1px solid rgba(0, 0, 0, 0.06);
   }
 
   &__title {
     margin: 0 0 $spacing-6;
-    font-size: $font-size-xl;
-    font-weight: $font-weight-semibold;
-    color: $text-color-primary;
+    font-family: $font-display;
+    font-size: $display-md-size;
+    font-weight: $display-md-weight;
+    line-height: $display-md-leading;
+    letter-spacing: $display-md-tracking;
+    color: $ink;
     padding-bottom: $spacing-4;
-    border-bottom: 1px solid $border-color-light;
+    border-bottom: 1px solid $hairline;
   }
 }
 </style>

@@ -127,6 +127,28 @@ const routes = [
     meta: { requiresAuth: true, title: '需求管理' }
   },
   {
+    path: '/step2/:projectId',
+    name: 'Step2',
+    component: () => import('@/views/Step2View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第二步：确认核心目标与搭建组织架构' }
+  },
+  {
+    path: '/step3/:projectId',
+    name: 'Step3',
+    component: () => import('@/views/Step3View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第三步：需求分析' }
+  },
+  {
+    path: '/step4/:projectId',
+    name: 'Step4',
+    component: () => import('@/views/Step4View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第四步：架构设计' }
+  },
+
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('@/views/ProfileView.vue'),

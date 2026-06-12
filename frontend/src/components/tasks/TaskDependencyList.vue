@@ -137,12 +137,15 @@ async function removeDependency(dependencyId: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: $spacing-xs;
 
     h5 {
       margin: 0;
-      font-size: $font-size-sm;
-      color: $text-color-primary;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
+      color: $ink;
     }
   }
 
@@ -150,41 +153,41 @@ async function removeDependency(dependencyId: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
-    background: $bg-color-body;
-    border-radius: $radius-base;
-    margin-bottom: 4px;
+    padding: $spacing-xxs $spacing-xs;
+    background: $canvas-parchment;
+    border-radius: $radius-sm;
+    margin-bottom: $spacing-xxs;
   }
 
   &__item-info {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $spacing-xs;
     overflow: hidden;
   }
 
   &__item-title {
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-size;
+    color: $ink;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   &__empty {
-    font-size: $font-size-sm;
-    color: $text-color-placeholder;
-    padding: 8px 0;
+    font-family: $font-text;
+    font-size: $body-size;
+    color: $ink-muted-48;
+    padding: $spacing-xs 0;
   }
 
-  &__add {
-    margin-bottom: 8px;
-  }
+  &__add { margin-bottom: $spacing-xs; }
 
   &__search-results {
-    margin-top: 4px;
-    border: 1px solid $border-color-light;
-    border-radius: $radius-base;
+    margin-top: $spacing-xxs;
+    border: 1px solid $hairline;
+    border-radius: $radius-sm;
     max-height: 200px;
     overflow-y: auto;
   }
@@ -193,19 +196,18 @@ async function removeDependency(dependencyId: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 8px;
+    padding: $spacing-xxs $spacing-xs;
     cursor: pointer;
-    font-size: $font-size-sm;
+    font-family: $font-text;
+    font-size: $body-size;
 
-    &:hover {
-      background: $bg-color-body;
-    }
+    &:hover { background: $canvas-parchment; }
   }
 
   &__actions {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
+    gap: $spacing-xs;
+    margin-top: $spacing-xs;
   }
 }
 </style>

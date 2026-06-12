@@ -100,19 +100,19 @@ async function handleLogin() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: $bg-color-body;
+  background: $canvas-parchment;
 
   &__card {
     width: 400px;
-    padding: 40px;
-    background: $bg-color-card;
+    padding: 48px;
+    background: $canvas;
     border-radius: $radius-lg;
-    box-shadow: $shadow-lg;
+    border: 1px solid $hairline;
   }
 
   &__header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: $spacing-xl;
   }
 
   &__logo {
@@ -121,18 +121,21 @@ async function handleLogin() {
     justify-content: center;
     width: 48px;
     height: 48px;
-    background: $primary-color;
-    color: $text-color-inverse;
+    background: $primary;
+    color: $on-primary;
     font-size: 24px;
-    font-weight: $font-weight-bold;
+    font-weight: 600;
     border-radius: $radius-lg;
     margin-bottom: 16px;
   }
 
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    color: $text-color-primary;
+    font-size: $display-md-size;
+    font-weight: $display-md-weight;
+    font-family: $font-display;
+    letter-spacing: $display-md-tracking;
+    color: $ink;
   }
 
   &__form {
@@ -148,11 +151,11 @@ async function handleLogin() {
   &__footer {
     margin-top: 24px;
     text-align: center;
-    font-size: $font-size-sm;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
 
     a {
-      color: $primary-color;
+      color: $primary;
       text-decoration: none;
 
       &:hover {

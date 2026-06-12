@@ -1,125 +1,61 @@
+# =============================================================================
+# DevFlow Docker Compose - Staging / Integration Environment
+# =============================================================================
+# Purpose: Full-stack deployment for staging/integration testing
+# Usage: docker-compose up -d
+# ===========================================================================
 version: "3.8"
 
 services:
-  nginx:
-    image: nginx:alpine
-    container_name: devflow-nginx
-    ports:
-      - "8080:80"
-    volumes:
-      - ./docker/nginx/dev.conf:/etc/nginx/nginx.conf:ro
-      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro
-    environment:
-      - NGINX_WORKER_PROCESSES=auto
-      - NGINX_WORKER_CONNECTIONS=1024
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - devflow-network
-
-  backend:
+  # --------------------------------------------------------------
+  # FastAPI Backend Service
+  # ================================================================
+  fastapi:
     build:
       context: .
       dockerfile: Dockerfile
       target: runtime
-    container_name: devflow-backend
+    container_name: devflow-fastapi
     ports:
       - "8000:8000"
     environment:
+      # --- Core App ------------------------------------------------
       - APP_NAME=DevFlow
       - APP_DEBUG=false
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
-      - FRONTEND_URL=http://localhost
-      - JWT_SECRET=dev-jwt-secret-key-change-in-production
+      # --- JWT Auth --------------------------------------------------
+      - JWT_SECRET=staging-jwt-secret-change-in-prod
       - JWT_ALGORITHM=HS256
       - JWT_EXPIRE_MINUTES=30
+      - SECRET_KEY=staging-secret-key-change-in-prod
+      # --- Database (PostgreSQL) -------------------------------------
       - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
+      # --- Redis (caching & rate-limiting) ---------------------------
       - REDIS_URL=redis://redis:6379/0
+      # --- Celery (queue processing) ---------------------------------
       - CELERY_BROKER_URL=redis://redis:6379/1
       - CELERY_RESULT_BACKEND=redis://redis:6379/2
-      - GITEA_URL=http://gitea:3000
-      - HERMES_PROFILES_PATH=/hermes-home
-    volumes:
-      - /c/Users/Lenovo/AppData/Local/hermes:/hermes-home:ro
+      # --- Frontend CORS                                             ---
+      - FRONTEND_URL=http://localhost:3000
+      # --- Hermes Integration                                          ---
+      - HERMES_API_BASE=${HERMES_API_BASE:-http://localhost:8642/v1}
+      - HERMES_API_KEY=${HERMES_API_KEY:-}
+      - HERMES_MODEL=${HERMES_MODEL:-hermes-agent}
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    env_file:
-      - .env.production
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     networks:
       - devflow-network
 
-  celery-worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
-    container_name: devflow-celery-worker
-    command: celery -A app.tasks worker --loglevel=info --concurrency=2
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-    env_file:
-      - .env.production
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - devflow-network
-
-  celery-beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: runtime
-    container_name: devflow-celery-beat
-    command: celery -A app.tasks beat --loglevel=info -s /tmp/celerybeat-schedule
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_BROKER_URL=redis://redis:6379/1
-      - CELERY_RESULT_BACKEND=redis://redis:6379/2
-    env_file:
-      - .env.production
-    depends_on:
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - devflow-network
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: build
-    container_name: devflow-frontend-builder
-    volumes:
-      - frontend_dist:/app/dist
-    restart: "no"
-    networks:
-      - devflow-network
-
+  # --------------------------------------------------------------
+  # PostgreSQL Database
+  # ======================================================================
   postgres:
     image: postgres:16-alpine
     container_name: devflow-postgres
@@ -137,10 +73,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     restart: unless-stopped
     networks:
       - devflow-network
 
+  # --------------------------------------------------------------
+  # Redis Cache
+  # ======================================================================
   redis:
     image: redis:7-alpine
     container_name: devflow-redis
@@ -158,54 +98,63 @@ services:
     networks:
       - devflow-network
 
-  gitea:
-    image: gitea/gitea:latest
-    container_name: devflow-gitea
+  # --------------------------------------------------------------
+  # Nginx (Frontend SPA + Reverse Proxy)
+  # ======================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: devflow-nginx
     ports:
-      - "3000:3000"
-      - "2222:22"
-    environment:
-      - GITEA__database__DB_TYPE=postgres
-      - GITEA__database__HOST=gitea-db:5432
-      - GITEA__database__NAME=gitea
-      - GITEA__database__USER=gitea
-      - GITEA__database__PASSWD=gitea_password
-      - GITEA__server__ROOT_URL=http://localhost:3000
-      - GITEA__server__DOMAIN=localhost
-      - GITEA__server__HTTP_PORT=3000
+      - "3000:80"
     volumes:
-      - gitea_data:/data
+      - ./docker/nginx/staging.conf:/etc/nginx/nginx.conf:ro
+      - nginx_static:/usr/share/nginx/html
     depends_on:
-      gitea-db:
+      fastapi:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - devflow-network
 
-  gitea-db:
-    image: postgres:16-alpine
-    container_name: devflow-gitea-db
-    environment:
-      - POSTGRES_USER=gitea
-      - POSTGRES_PASSWORD=gitea_password
-      - POSTGRES_DB=gitea
+  # --------------------------------------------------------------
+  # Frontend Builder (one-shot: builds Vue app -> volume)
+  # ======================================================================
+  frontend-builder:
+    image: node:20-alpine
+    container_name: devflow-frontend-builder
+    working_dir: /app
+    command: >
+      sh -c "npm ci && npm run build"
     volumes:
-      - gitea_db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gitea -d gitea"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - devflow-network
+      - ./frontend:/app
+      - nginx_static:/app/dist
+    restart: "no"
+
+  # --------------------------------------------------------------
+  # Wait-for-dependency bootstrap (runs once to build + serve frontend)
+  # ======================================================================
+  #  This wrapper starts frontend-builder, waits for dist output,
+  #  then exits — nginx picks up the volume automatically.
+  # -----------------------------------------------------------------
+  wait-build:
+    image: alpine:3.18
+    container_name: devflow-wait-build
+    command: >
+      sh -c "apk add --no-cache curl &&
+             dockerize -wait http://nginx:80/nginx-health -timeout 120s || true &&
+             # Just spin: nginx pulls static files from shared volume"
+    depends_on:
+      - nginx
+      - frontend-builder
+    restart: "no"
 
 volumes:
   postgres_data:
+    name: devflow_postgres_data
   redis_data:
-  gitea_data:
-  gitea_db_data:
-  frontend_dist:
+    name: devflow_redis_data
+  nginx_static:
+    name: devflow_nginx_static
 
 networks:
   devflow-network:

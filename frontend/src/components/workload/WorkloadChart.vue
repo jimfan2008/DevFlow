@@ -139,10 +139,6 @@ function getHoursWidth(completed: number, total: number): string {
 
 <style lang="scss" scoped>
 .workload-chart {
-  background: $bg-color-card;
-  border-radius: $radius-md;
-  padding: $spacing-4;
-
   &__header {
     display: flex;
     align-items: center;
@@ -151,22 +147,25 @@ function getHoursWidth(completed: number, total: number): string {
 
     h3 {
       margin: 0;
-      font-size: $font-size-lg;
-      font-weight: $font-weight-semibold;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
+      color: $ink;
     }
   }
 
   &__legend {
     display: flex;
-    gap: 12px;
+    gap: $spacing-sm;
   }
 
   &__legend-item {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: $font-size-xs;
-    color: $text-color-secondary;
+    gap: $spacing-xxs;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 
   &__legend-color {
@@ -182,10 +181,10 @@ function getHoursWidth(completed: number, total: number): string {
 
   &__summary {
     display: flex;
-    gap: 24px;
+    gap: $spacing-lg;
     margin-bottom: $spacing-4;
     padding-bottom: $spacing-4;
-    border-bottom: 1px solid $border-color-light;
+    border-bottom: 1px solid $hairline;
   }
 
   &__stat {
@@ -195,45 +194,46 @@ function getHoursWidth(completed: number, total: number): string {
   }
 
   &__stat-value {
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
-    color: $text-color-primary;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
 
   &__stat-label {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $caption-size;
+    color: $ink-muted-48;
   }
 
   &__member {
-    padding: 12px 0;
-    border-bottom: 1px solid $border-color-light;
-
-    &:last-child {
-      border-bottom: none;
-    }
+    padding: $spacing-sm 0;
+    border-bottom: 1px solid $hairline;
+    &:last-child { border-bottom: none; }
   }
 
   &__member-info {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: $spacing-xs;
   }
 
   &__member-name {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-    color: $text-color-primary;
+    gap: $spacing-xs;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
   }
 
   &__bars {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $spacing-xs;
   }
 
   &__bar-group {
@@ -242,7 +242,7 @@ function getHoursWidth(completed: number, total: number): string {
     flex: 1;
     border-radius: 6px;
     overflow: hidden;
-    background: $bg-color-body;
+    background: $canvas-parchment;
   }
 
   &__bar {
@@ -256,8 +256,8 @@ function getHoursWidth(completed: number, total: number): string {
   }
 
   &__bar-total {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
     min-width: 24px;
     text-align: right;
   }
@@ -265,14 +265,14 @@ function getHoursWidth(completed: number, total: number): string {
   &__hours {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 6px;
+    gap: $spacing-xs;
+    margin-top: $spacing-xxs;
   }
 
   &__hours-bar {
     flex: 1;
     height: 4px;
-    background: $bg-color-body;
+    background: $canvas-parchment;
     border-radius: 2px;
     overflow: hidden;
   }
@@ -280,14 +280,14 @@ function getHoursWidth(completed: number, total: number): string {
   &__hours-fill {
     display: block;
     height: 100%;
-    background: $primary-color;
+    background: $primary;
     border-radius: 2px;
     transition: width 0.3s;
   }
 
   &__hours-text {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
     min-width: 60px;
     text-align: right;
   }

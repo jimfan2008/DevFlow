@@ -1,0 +1,68 @@
+import json as _json
+import logging
+from typing import Dict, List
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+
+from app.api.ws.auth import verify_token
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter()
+
+# 每个 project_id 对应的活跃 WebSocket 连接列表
+_active_connections: Dict[str, List[WebSocket]] = {}
+
+
+async def broadcast(project_id: str, message: dict):
+    """向项目的所有 WS 客户端广播消息"""
+    dead: List[WebSocket] = []
+    for ws in _active_connections.get(project_id, []):
+        try:
+            await ws.send_json(message)
+        except Exception:
+            dead.append(ws)
+    if dead:
+        _active_connections[project_id] = [
+            ws for ws in _active_connections.get(project_id, [])
+            if ws not in dead
+        ]
+
+
+@router.websocket("/step4/progress/{project_id}")
+async def step4_progress_ws(websocket: WebSocket, project_id: str,
+                            token: str = Query(...)):
+    await websocket.accept()
+
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        user = await verify_token(token, db)
+        if not user:
+            await websocket.send_json({"type": "error", "message": "Invalid token"})
+            await websocket.close()
+            return
+
+        # 注册连接
+        _active_connections.setdefault(project_id, []).append(websocket)
+        try:
+            while True:
+                data = await websocket.receive_text()
+                payload = _json.loads(data)
+                action = payload.get("action", "")
+                if action == "ping":
+                    await websocket.send_json({"type": "pong"})
+        except WebSocketDisconnect:
+            pass
+        finally:
+            # 移除连接
+            conns = _active_connections.get(project_id, [])
+            if websocket in conns:
+                conns.remove(websocket)
+    except Exception as e:
+        logger.error(f"Step4 WS error: {e}", exc_info=True)
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+    finally:
+        db.close()

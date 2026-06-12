@@ -105,80 +105,79 @@ function getStatusText(profileName: string): string {
 
 <style lang="scss" scoped>
 .member-list {
-  background: $bg-color-card;
-  border-left: 1px solid $border-color-light;
+  background: $canvas;
+  border-left: 1px solid $hairline;
   display: flex;
   flex-direction: column;
   height: 100%;
 
   &__header {
     padding: $spacing-4;
-    border-bottom: 1px solid $border-color-light;
+    border-bottom: 1px solid $hairline;
   }
 
   &__title {
     margin: 0;
-    font-size: $font-size-base;
-    font-weight: $font-weight-semibold;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
   }
 
   &__body {
     flex: 1;
     overflow-y: auto;
-    padding: $spacing-3;
+    padding: $spacing-sm;
   }
 
   &__empty {
     text-align: center;
-    padding: $spacing-8 0;
-    color: $text-color-placeholder;
+    padding: $spacing-lg 0;
+    color: $ink-muted-48;
   }
 
   &__meeting-info {
     margin-bottom: $spacing-4;
-    padding: $spacing-3;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: $radius-md;
+    padding: $spacing-sm;
+    background: mix(white, #f59e0b, 90%);
+    border: 1px solid #f59e0b;
+    border-radius: $radius-sm;
   }
 
-  &__meeting-tag {
-    margin-bottom: $spacing-1;
-  }
+  &__meeting-tag { margin-bottom: $spacing-xxs; }
 
   &__meeting-host {
-    font-size: $font-size-sm;
-    color: #92400e;
-    margin-top: $spacing-1;
+    font-family: $font-text;
+    font-size: $body-size;
+    color: mix(black, #f59e0b, 40%);
+    margin-top: $spacing-xxs;
   }
 
   &__meeting-speaker {
     display: flex;
     align-items: center;
-    gap: $spacing-1;
-    font-size: $font-size-xs;
-    color: #16a34a;
-    margin-top: $spacing-1;
+    gap: $spacing-xxs;
+    font-size: $fine-print-size;
+    color: #10b981;
+    margin-top: $spacing-xxs;
   }
 
   &__items {
     display: flex;
     flex-direction: column;
-    gap: $spacing-1;
+    gap: $spacing-xxs;
   }
 
   &__item {
     display: flex;
     align-items: center;
-    gap: $spacing-3;
-    padding: $spacing-2;
-    border-radius: $radius-base;
-    transition: background 0.2s;
+    gap: $spacing-sm;
+    padding: $spacing-xs;
+    border-radius: $radius-sm;
+    transition: background 0.15s;
 
-    &:hover {
-      background: $bg-color-body;
-    }
+    &:hover { background: $canvas-parchment; }
   }
 
   &__status-dot {
@@ -187,18 +186,9 @@ function getStatusText(profileName: string): string {
     border-radius: $radius-full;
     flex-shrink: 0;
 
-    &.dot-active {
-      background: #22c55e;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-
-    &.dot-idle {
-      background: $text-color-disabled;
-    }
-
-    &.dot-offline {
-      background: #ef4444;
-    }
+    &.dot-active { background: #10b981; animation: pulse 1.5s ease-in-out infinite; }
+    &.dot-idle { background: $ink-muted-48; }
+    &.dot-offline { background: #ef4444; }
   }
 
   &__item-info {
@@ -207,17 +197,19 @@ function getStatusText(profileName: string): string {
   }
 
   &__item-name {
-    font-weight: $font-weight-medium;
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   &__item-status {
-    font-size: $font-size-xs;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
   }
 }
 

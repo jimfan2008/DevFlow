@@ -29,10 +29,6 @@ class GatewayClient:
         self.timeout = timeout
         self._api_key: Optional[str] = None
         self._use_cli = False
-        effective_profile = profile_name or "default"
-        if not port:
-            self._use_cli = True
-            logger.info(f"Using CLI mode for profile '{effective_profile}'")
 
     def _get_base_url(self) -> str:
         if self.port:
@@ -132,12 +128,6 @@ class GatewayClient:
         temperature: float = 0.7,
         max_tokens: int = 2000,
     ) -> AsyncGenerator[str, None]:
-        if self._use_cli:
-            combined = "\n".join(m.get("content", "") for m in messages if m.get("content"))
-            result = await self._cli_send(combined)
-            yield result
-            return
-
         port, api_key = await self._resolve_profile()
         
         if self._use_cli:
@@ -208,13 +198,6 @@ class GatewayClient:
         message: str,
         conversation_history: List[Dict[str, str]] = None,
     ) -> str:
-        logger.info(f"send_message_non_stream: _use_cli={self._use_cli}, port={self.port}, profile={self.profile_name}")
-        if self._use_cli:
-            logger.info("send_message_non_stream: Using CLI mode")
-            result = await self._cli_send(message)
-            logger.info(f"CLI send result length: {len(result) if result else 0}")
-            return result
-        logger.info("send_message_non_stream: Using HTTP mode")
         full_response = []
         async for chunk in self.send_message(message, conversation_history, stream=False):
             full_response.append(chunk)
@@ -247,6 +230,122 @@ class GatewayClient:
                 return resp.status_code == 200
         except Exception:
             return check_gateway_running(self.profile_name)
+
+    async def chat_isolated(
+        self,
+        messages: List[Dict[str, str]],
+        project_id: str,
+        project_name: str,
+        project_description: str = "",
+        core_goal: str = "",
+        agent_name: str = "",
+        stream: bool = False,
+        max_tokens: int = 2000,
+    ) -> AsyncGenerator[str, None]:
+        """项目隔离的对话模式
+        
+        核心问题：Hermes gateway 在每次请求时加载 profile 的 memory.md/user.md，
+        导致 A 项目的上下文会泄漏到 B 项目。
+        
+        解决方案：
+        1. 构建强力的项目隔离系统消息，明确指定当前项目
+        2. 指示 LLM 忽略记忆中其他项目的信息
+        3. 使用 HTTP API 模式（无状态请求）
+        """
+        # 构建项目隔离的系统消息
+        system_content_parts = []
+        
+        if agent_name:
+            system_content_parts.append(
+                f"你是{agent_name}，DevFlow 16步开发流程中的专业角色。"
+            )
+        
+        system_content_parts.append(
+            f"\n【当前项目上下文】\n"
+            f"项目名称: {project_name}\n"
+            f"项目ID: {project_id}"
+        )
+        
+        if project_description:
+            system_content_parts.append(f"项目描述: {project_description}")
+        
+        if core_goal:
+            system_content_parts.append(f"核心目标: {core_goal}")
+        
+        system_content_parts.append(
+            "\n【重要工作规则 - 项目隔离】\n"
+            "1. 你正在为上述「当前项目」工作\n"
+            "2. 请只引用上述项目信息，不要引用其他任何项目的上下文\n"
+            "3. 如果你的记忆中存在其他项目的信息，请完全忽略它们\n"
+            "4. 所有回答、分析、设计都只针对当前项目\n"
+            "5. 不得将其他项目的数据、需求、设计带入当前项目"
+        )
+        
+        system_message = {"role": "system", "content": "\n".join(system_content_parts)}
+        
+        # 将系统消息作为第一条消息
+        isolated_messages = [system_message]
+        
+        # 过滤并添加用户提供的消息
+        for msg in messages:
+            # 跳过用户可能传入的旧系统消息，使用我们构建的新系统消息
+            if msg.get("role") == "system":
+                continue
+            isolated_messages.append(msg)
+        
+        # 使用 HTTP API 模式发送（无状态，不加载 profile 的会话历史）
+        port, api_key = await self._resolve_profile()
+        
+        if self._use_cli:
+            # CLI 模式：将所有消息合并为单条消息（包含系统提示）
+            combined = "\n".join(m.get("content", "") for m in isolated_messages if m.get("content"))
+            result = await self._cli_send(combined)
+            yield result
+            return
+        
+        import os
+        host = os.environ.get("HERMES_GATEWAY_HOST", "localhost")
+        url = f"http://{host}:{port}/v1/chat/completions"
+        headers = self._get_headers(api_key)
+        payload = {
+            "model": "hermes-agent",
+            "messages": isolated_messages,
+            "stream": stream,
+            "temperature": 0.7,
+            "max_tokens": max_tokens,
+        }
+        
+        async with _semaphore:
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    if stream:
+                        async with client.stream("POST", url, headers=headers, json=payload) as response:
+                            if response.status_code != 200:
+                                error_text = await response.aread()
+                                raise Exception(f"Gateway error {response.status_code}: {error_text.decode()}")
+                            async for line in response.aiter_lines():
+                                if line.startswith("data: "):
+                                    data = line[6:]
+                                    if data == "[DONE]":
+                                        break
+                                    try:
+                                        chunk = json.loads(data)
+                                        content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                                        if content:
+                                            yield content
+                                    except json.JSONDecodeError:
+                                        continue
+                    else:
+                        response = await client.post(url, headers=headers, json=payload)
+                        if response.status_code != 200:
+                            raise Exception(f"Gateway error {response.status_code}: {response.text}")
+                        result = response.json()
+                        content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        yield content
+            except httpx.TimeoutException:
+                raise TimeoutError(f"Request timed out after {self.timeout}s")
+            except httpx.ConnectError:
+                raise ConnectionError(f"Cannot connect to gateway at port {port}")
 
 
 gateway_client = GatewayClient()

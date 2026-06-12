@@ -47,8 +47,9 @@ const tooltip = computed(() => {
   gap: 4px;
   padding: 2px 8px;
   border-radius: $radius-full;
-  font-size: $font-size-xs;
-  font-weight: $font-weight-medium;
+  font-family: $font-text;
+  font-size: $fine-print-size;
+  font-weight: 500;
 
   &--overload {
     background: rgba($workload-busy, 0.1);

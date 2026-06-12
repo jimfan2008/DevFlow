@@ -7,7 +7,7 @@
     <el-tabs v-model="activeTab">
       <el-tab-pane label="状态概览" name="overview">
         <div v-loading="store.loading" class="skill-view__grid">
-          <el-card v-for="skill in store.skills" :key="skill.id" shadow="hover" class="skill-view__card">
+          <el-card v-for="skill in store.skills" :key="skill.id" shadow="never" class="skill-view__card">
             <template #header>
               <div class="skill-view__card-header">
                 <span>{{ skill.name }}</span>
@@ -212,15 +212,20 @@ function formatTime(t: string) {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
   &__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: $spacing-4;
+    gap: $spacing-lg;
   }
   &__card {
+    border-radius: $radius-lg;
     &-header {
       display: flex;
       align-items: center;
@@ -229,21 +234,21 @@ function formatTime(t: string) {
     &-body {
       display: flex;
       flex-direction: column;
-      gap: $spacing-2;
+      gap: $spacing-xs;
     }
   }
   &__status-row {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
-    span { font-size: $font-size-sm; color: $text-color-secondary; white-space: nowrap; }
+    gap: $spacing-xs;
+    span { font-size: $caption-size; color: $ink-muted-48; white-space: nowrap; }
   }
   &__paired {
-    font-size: $font-size-sm;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
     display: flex;
     align-items: center;
-    gap: $spacing-2;
+    gap: $spacing-xs;
   }
 }
 </style>

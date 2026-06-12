@@ -108,49 +108,41 @@ function formatDueDate(dateStr: string): string {
 
 <style lang="scss" scoped>
 .kanban-card {
-  background: $bg-color-card;
-  border-radius: $radius-md;
-  padding: $spacing-3;
-  margin-bottom: $spacing-2;
+  background: $canvas;
+  border-radius: $radius-sm;
+  padding: $spacing-sm;
+  margin-bottom: $spacing-xs;
   cursor: grab;
-  box-shadow: $shadow-sm;
-  border: 1px solid $border-color-light;
-  transition: box-shadow 0.2s, transform 0.2s;
+  border: 1px solid $hairline;
+  transition: border-color 0.15s, transform 0.15s;
 
   &:hover {
-    box-shadow: $shadow-md;
+    border-color: $primary;
   }
 
-  &:active {
-    cursor: grabbing;
-  }
+  &:active { cursor: grabbing; }
 
-  &--dragging {
-    opacity: 0.5;
-    transform: rotate(2deg);
-  }
+  &--dragging { opacity: 0.5; transform: rotate(2deg); }
 
-  &--blocked {
-    border-left: 3px solid $status-blocked;
-  }
+  &--blocked { border-left: 3px solid $status-blocked; }
 
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: $spacing-xs;
   }
 
-  &__blocked {
-    color: $status-blocked;
-  }
+  &__blocked { color: $status-blocked; }
 
   &__title {
-    margin: 0 0 8px;
-    font-size: $font-size-base;
-    font-weight: $font-weight-medium;
-    color: $text-color-primary;
-    line-height: 1.4;
+    margin: 0 0 $spacing-xs;
+    font-family: $font-text;
+    font-size: $body-size;
+    font-weight: $body-weight;
+    letter-spacing: $body-tracking;
+    color: $ink;
+    line-height: $body-leading;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -160,8 +152,8 @@ function formatDueDate(dateStr: string): string {
   &__tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
+    gap: $spacing-xxs;
+    margin-bottom: $spacing-xs;
   }
 
   &__footer {
@@ -173,17 +165,13 @@ function formatDueDate(dateStr: string): string {
   &__meta {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    gap: $spacing-xs;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
 
-    .is-overdue {
-      color: $status-blocked;
-    }
+    .is-overdue { color: $status-blocked; }
   }
 
-  &__assignee {
-    flex-shrink: 0;
-  }
+  &__assignee { flex-shrink: 0; }
 }
 </style>

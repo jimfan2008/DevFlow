@@ -25,7 +25,7 @@ class Project(Base):
 
     creator = relationship("User", back_populates="projects", foreign_keys=[creator_id])
     boards = relationship("Board", back_populates="project")
-    members = relationship("ProjectMember", back_populates="project")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
     requirements = relationship("Requirement", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     repos = relationship("Repo", back_populates="project", cascade="all, delete-orphan")

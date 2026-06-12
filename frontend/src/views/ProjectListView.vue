@@ -19,7 +19,7 @@
         v-for="project in store.filteredProjects"
         :key="project.id"
         class="project-list-view__card"
-        shadow="hover"
+        shadow="never"
         @click="goToDetail(project.id)"
       >
         <template #header>
@@ -68,11 +68,28 @@
         <el-button type="primary" :loading="store.loading" :disabled="!createForm.name.trim()" @click="handleCreate">创建</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="showResultDialog" title="项目创建结果" width="560px" :close-on-click-modal="false" :show-close="false">
+      <div class="project-list-view__result">
+        <div class="project-list-view__result-icon" :class="resultSuccess ? 'success' : 'partial'">
+          {{ resultSuccess ? '✅' : '⚠️' }}
+        </div>
+        <h3>{{ store.createResult?.name || '项目' }} 创建{{ resultSuccess ? '成功' : '部分成功' }}</h3>
+        <el-table :data="resultItems" style="width: 100%" :show-header="false">
+          <el-table-column prop="label" width="120" />
+          <el-table-column prop="value" />
+          <el-table-column prop="status" width="80" align="center" />
+        </el-table>
+      </div>
+      <template #footer>
+        <el-button type="primary" size="large" @click="handleConfirmResult" style="width: 100%">确 定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Plus, Delete } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -81,6 +98,7 @@ import { useProjectStore } from '@/stores/useProjectStore'
 const router = useRouter()
 const store = useProjectStore()
 const showCreateDialog = ref(false)
+const showResultDialog = ref(false)
 const createForm = ref({ name: '', description: '' })
 
 onMounted(() => {
@@ -99,12 +117,38 @@ function goToDetail(projectId: string) {
   router.push({ name: 'ProjectDetail', params: { projectId } })
 }
 
+const resultSuccess = computed(() => {
+  const r = store.createResult
+  return !!(r && r.workflow_initialized && r.board_created)
+})
+
+const resultItems = computed(() => {
+  const r = store.createResult
+  if (!r) return []
+  return [
+    { label: '项目名称', value: r.name, status: '✅' },
+    { label: '项目状态', value: r.status || 'created', status: '✅' },
+    { label: '项目文件夹', value: r.project_dir || '未设置', status: r.project_dir ? '✅' : '❌' },
+    { label: '代码仓库', value: r.repo_created ? `${r.slug}` : '未创建', status: r.repo_created ? '✅' : 'ℹ️' },
+    { label: '工作流步骤', value: r.workflow_initialized ? '16步已初始化' : '未初始化', status: r.workflow_initialized ? '✅' : '❌' },
+    { label: '默认看板', value: r.board_created ? '已创建' : '未创建', status: r.board_created ? '✅' : '❌' },
+    { label: '数据库写入', value: '已持久化', status: '✅' },
+  ]
+})
+
 async function handleCreate() {
   const project = await store.createProject({ name: createForm.value.name, description: createForm.value.description || undefined })
   if (project) {
-    ElMessage.success('项目创建成功')
     showCreateDialog.value = false
     createForm.value = { name: '', description: '' }
+    showResultDialog.value = true
+  }
+}
+
+function handleConfirmResult() {
+  showResultDialog.value = false
+  if (store.createResult) {
+    router.push({ name: 'Step2', params: { projectId: store.createResult.id } })
   }
 }
 
@@ -141,9 +185,12 @@ function formatDate(d: string) {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
-    color: $text-color-primary;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
   &__actions {
     display: flex;
@@ -152,27 +199,31 @@ function formatDate(d: string) {
   &__grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: $spacing-4;
+    gap: $spacing-lg;
   }
   &__card {
     cursor: pointer;
+    border-radius: $radius-lg;
     &-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     &-name {
-      font-weight: $font-weight-semibold;
-      font-size: $font-size-md;
+      font-family: $font-text;
+      font-size: $body-strong-size;
+      font-weight: $body-strong-weight;
+      letter-spacing: $body-strong-tracking;
     }
     &-desc {
-      color: $text-color-secondary;
-      font-size: $font-size-sm;
-      margin: 0 0 $spacing-2 0;
+      color: $ink-muted-48;
+      font-size: $caption-size;
+      margin: 0 0 $spacing-xs 0;
+      line-height: $caption-leading;
     }
     &-meta {
-      font-size: $font-size-xs;
-      color: $text-color-placeholder;
+      font-size: $fine-print-size;
+      color: $ink-muted-48;
     }
   }
   &__empty {
@@ -184,6 +235,32 @@ function formatDate(d: string) {
     display: flex;
     justify-content: center;
     padding: $spacing-6 0;
+  }
+
+  &__result {
+    text-align: center;
+    padding: $spacing-4 0;
+
+    &-icon {
+      font-size: 48px;
+      margin-bottom: $spacing-4;
+    }
+
+    h3 {
+      margin: 0 0 $spacing-6 0;
+      font-family: $font-display;
+      font-size: $lead-size;
+      font-weight: $display-md-weight;
+    }
+
+    :deep(.el-table) {
+      margin: 0 auto;
+      max-width: 480px;
+
+      .el-table__cell {
+        padding: 8px 12px;
+      }
+    }
   }
 }
 </style>

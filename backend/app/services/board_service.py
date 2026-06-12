@@ -35,7 +35,7 @@ class BoardService:
             if existing:
                 project_id = existing.id
             else:
-                p = Project(id=str(uuid.uuid4()), name="Default", slug="default")
+                p = Project(id=str(uuid.uuid4()), name="Default", slug="default", creator_id=self.current_user_id)
                 self.db.add(p)
                 self.db.flush()
                 project_id = p.id

@@ -11,6 +11,7 @@ from app.schemas.group import (
     MeetingOutcomeResponse, GroupTaskResponse
 )
 from app.services.group_service import GroupService
+from app.services.chat_store import chat_store
 
 router = APIRouter(prefix="/api/groups", tags=["groups"], redirect_slashes=False)
 
@@ -35,6 +36,17 @@ async def create_group(request: GroupCreate, db: Session = Depends(get_db), curr
             description=request.description,
             members=request.members
         )
+        # 同步到 chat_store (SQLite) 供 WebSocket 使用
+        try:
+            chat_store.create_group(
+                group_id=group.id,
+                name=group.name,
+                description=group.description or "",
+                members=group.members or []
+            )
+        except Exception as sync_err:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to sync group to chat_store: {sync_err}")
         return {"code": 0, "message": "success", "data": group.to_dict()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create group: {str(e)}")
@@ -57,6 +69,12 @@ async def update_group(group_id: str, request: GroupUpdate, db: Session = Depend
     group = service.update_group(group_id, **update_data)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+    # 同步到 chat_store
+    try:
+        chat_store.update_group(group_id, **update_data)
+    except Exception as sync_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to sync group update to chat_store: {sync_err}")
     return {"code": 0, "message": "success", "data": group.to_dict()}
 
 
@@ -66,6 +84,12 @@ async def delete_group(group_id: str, db: Session = Depends(get_db)):
     success = service.delete_group(group_id)
     if not success:
         raise HTTPException(status_code=404, detail="Group not found")
+    # 同步删除 chat_store 中的群
+    try:
+        chat_store.delete_group(group_id)
+    except Exception as sync_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to sync group delete to chat_store: {sync_err}")
     return {"code": 0, "message": "success", "data": None}
 
 
@@ -75,6 +99,12 @@ async def add_member(group_id: str, request: AddMemberRequest, db: Session = Dep
     group = service.add_member(group_id, request.profile_name)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+    # 同步到 chat_store
+    try:
+        chat_store.add_member(group_id, request.profile_name)
+    except Exception as sync_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to sync member to chat_store: {sync_err}")
     return {"code": 0, "message": "success", "data": group.to_dict()}
 
 
@@ -84,6 +114,12 @@ async def remove_member(group_id: str, profile_name: str, db: Session = Depends(
     group = service.remove_member(group_id, profile_name)
     if not group:
         raise HTTPException(status_code=404, detail="Group not found")
+    # 同步到 chat_store
+    try:
+        chat_store.remove_member(group_id, profile_name)
+    except Exception as sync_err:
+        import logging
+        logging.getLogger(__name__).warning(f"Failed to sync member removal to chat_store: {sync_err}")
     return {"code": 0, "message": "success", "data": group.to_dict()}
 
 

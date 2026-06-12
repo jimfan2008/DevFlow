@@ -382,7 +382,6 @@ def _register_hermes_agent(
         config={k: v for k, v in profile_info.items() if k not in ("config_raw", "env_partial")},
         discovered_by="profile_scan",
         profile_path=location,
-        created_by=user_id,
     )
     db.add(agent)
     try:

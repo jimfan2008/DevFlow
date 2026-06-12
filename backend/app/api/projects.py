@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
 from datetime import datetime
@@ -8,6 +9,7 @@ from app.models.user import User
 from app.models.project import Project
 from app.services.project_service import ProjectService
 from app.schemas.project import ProjectCreate
+from app.config import settings
 
 router = APIRouter(redirect_slashes=False)
 
@@ -45,8 +47,10 @@ def list_projects(
             "projects": [
                 {
                     "id": p.id, "name": p.name, "description": p.description,
+                    "slug": p.slug,
                     "status": p.status, "review_group_id": p.review_group_id,
                     "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "project_dir": os.path.join(settings.PROJECTS_BASE_DIR, p.slug),
                 }
                 for p in projects
             ],
@@ -67,10 +71,12 @@ def get_project(
         raise HTTPException(status_code=404, detail="Project not found")
     return {"code": 0, "message": "success", "data": {"project": {
         "id": project.id, "name": project.name, "description": project.description,
+        "slug": project.slug,
         "status": project.status, "tech_stack": project.tech_stack,
         "review_group_id": project.review_group_id, "creator_id": project.creator_id,
         "created_at": project.created_at.isoformat() if project.created_at else None,
         "completed_at": project.completed_at.isoformat() if project.completed_at else None,
+        "project_dir": os.path.join(settings.PROJECTS_BASE_DIR, project.slug),
     }}}
 
 
@@ -203,9 +209,13 @@ def delete_project(
     from app.models.requirement import Requirement
     from app.models.task import Task
     from app.models.board import Board
+    from app.models.project import ProjectMember
+    from app.models.group import Group
     db.query(Task).filter(Task.project_id == project_id).delete()
     db.query(Requirement).filter(Requirement.project_id == project_id).delete()
     db.query(Board).filter(Board.project_id == project_id).delete()
+    db.query(ProjectMember).filter(ProjectMember.project_id == project_id).delete()
+    db.query(Group).filter(Group.project_id == project_id).delete()
     db.delete(project)
     db.commit()
     return {"code": 0, "message": "success", "data": {"deleted": project_id}}

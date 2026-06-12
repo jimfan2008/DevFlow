@@ -27,6 +27,7 @@ class ProjectService:
         project = Project(
             id=str(uuid.uuid4()),
             name=name,
+            slug=name.lower().replace(" ", "-").replace("_", "-"),
             description=description,
             creator_id=creator_id,
             tech_stack=tech_stack,

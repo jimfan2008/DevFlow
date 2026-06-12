@@ -7,11 +7,26 @@ from app.models.user import User
 from app.models.agent import Agent
 from app.models.project import Project
 from app.services.gateway_client import GatewayClient
+from app.services.hermes.hermes_api_client import HermesAPIClient
+from app.config import settings
 import logging
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 chat_logger = logging.getLogger("devflow.chat")
+
+_fallback_client: HermesAPIClient | None = None
+
+
+def _get_fallback_client() -> HermesAPIClient:
+    global _fallback_client
+    if _fallback_client is None:
+        _fallback_client = HermesAPIClient(
+            base_url=settings.HERMES_API_BASE,
+            api_key=settings.HERMES_API_KEY,
+            model=settings.HERMES_MODEL,
+        )
+    return _fallback_client
 
 
 class AgentChatRequest(BaseModel):
@@ -34,26 +49,49 @@ async def agent_chat_endpoint(
     port = config.get("gateway_port")
     use_cli = config.get("use_cli", False)
 
-    if port:
-        client = GatewayClient(port=port)
-        api_key = config.get("api_key")
-        if api_key:
-            client._api_key = api_key
-    elif use_cli:
-        client = GatewayClient(profile_name=agent.name)
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Agent '{agent.name}' has no gateway port configured and CLI mode is not enabled"
-        )
+    last_error = None
 
+    # Try 1: Gateway via HTTP port
+    if port:
+        try:
+            client = GatewayClient(port=port)
+            api_key = config.get("api_key")
+            if api_key:
+                client._api_key = api_key
+            result = await client.send_message_non_stream(data.message)
+            chat_logger.info(f"Agent chat response received via gateway, length={len(result)}")
+            return {"code": 0, "message": "success", "data": {"reply": result}}
+        except Exception as e:
+            chat_logger.warning(f"Gateway port chat failed: {e}")
+            last_error = e
+
+    # Try 2: CLI mode
+    if use_cli or (not port and not last_error):
+        try:
+            client = GatewayClient(profile_name=agent.name)
+            result = await client.send_message_non_stream(data.message)
+            chat_logger.info(f"Agent chat response received via CLI, length={len(result)}")
+            return {"code": 0, "message": "success", "data": {"reply": result}}
+        except Exception as e:
+            chat_logger.warning(f"CLI chat failed: {e}")
+            last_error = e
+
+    # Try 3: Fallback via global HermesAPIClient (uses HERMES_API_BASE)
     try:
-        result = await client.send_message_non_stream(data.message)
-        chat_logger.info(f"Agent chat response received, length={len(result)}")
-        return {"code": 0, "message": "success", "data": {"reply": result}}
+        client = _get_fallback_client()
+        messages = [{"role": "user", "content": data.message}]
+        result = await client.chat_completions(messages)
+        reply = result.content or ""
+        chat_logger.info(f"Agent chat response received via fallback API, length={len(reply)}")
+        return {"code": 0, "message": "success", "data": {"reply": reply}}
     except Exception as e:
-        chat_logger.error(f"Agent chat error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        chat_logger.error(f"Fallback API chat also failed: {e}")
+        last_error = e
+
+    raise HTTPException(
+        status_code=503,
+        detail=f"与 Hermes Agent '{agent.name}' 通信失败: {last_error or '所有连接方式均不可用'}"
+    )
 
 
 @router.get("/projects/chat/test")

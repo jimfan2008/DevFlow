@@ -12,7 +12,18 @@
           :class="['chat-view__group-item', { active: currentGroupId === group.id }]"
           @click="handleSelectGroup(group)"
         >
-          <div class="chat-view__group-name">{{ group.name }}</div>
+          <div class="chat-view__group-name-row">
+            <span class="chat-view__group-name">{{ group.name }}</span>
+            <el-button
+              type="danger"
+              size="small"
+              :icon="Delete"
+              circle
+              text
+              class="chat-view__group-delete"
+              @click.stop="handleDeleteGroup(group)"
+            />
+          </div>
           <div class="chat-view__group-meta">
             <el-tag size="small" :type="group.mode === 'meeting' ? 'warning' : 'info'">
               {{ group.mode === 'meeting' ? '会议' : '讨论' }}
@@ -91,8 +102,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { Plus } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { Plus, Delete } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatStore } from '@/stores/chat'
 import { useTasksStore } from '@/stores/tasks'
 import { useProfilesStore } from '@/stores/profiles'
@@ -338,6 +349,41 @@ function handleGroupCreated(group: GroupInfo) {
   handleSelectGroup(group)
 }
 
+async function handleDeleteGroup(group: GroupInfo) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除群组「${group.name}」吗？此操作不可撤销。`,
+      '删除群组',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return // 用户取消
+  }
+
+  try {
+    await apiClient.delete(`/groups/${group.id}`)
+    ElMessage.success('群组已删除')
+
+    // 从本地列表中移除
+    const idx = groups.value.findIndex(g => g.id === group.id)
+    if (idx >= 0) groups.value.splice(idx, 1)
+
+    // 如果删除的是当前选中的群，清除所有相关状态
+    if (currentGroupId.value === group.id) {
+      ws.unsubscribe(group.id)
+      chatStore.clearMessages(group.id)
+      chatStore.clearMeetingState(group.id)
+      // 清理 tasks store 中的相关数据
+      delete (tasksStore.meetingOutcomes as any)[group.id]
+      delete (tasksStore.tasks as any)[group.id]
+      currentGroupId.value = ''
+      currentGroup.value = null
+    }
+  } catch (e: any) {
+    ElMessage.error(e.message || '删除群组失败')
+  }
+}
+
 function updateGroup(groupId: string, updates: Partial<GroupInfo>) {
   const idx = groups.value.findIndex(g => g.id === groupId)
   if (idx >= 0) {
@@ -364,67 +410,96 @@ function formatDate(d: string) {
 <style lang="scss" scoped>
 .chat-view {
   display: flex;
-  height: calc(100vh - #{$header-height} - #{$spacing-6 * 2});
+  height: calc(100vh - #{$global-nav-height} - #{$spacing-section});
 
   &__sidebar {
     width: 280px;
-    border-right: 1px solid $border-color-light;
+    border-right: 1px solid $hairline;
     display: flex;
     flex-direction: column;
-    background: $bg-color-card;
+    background: $canvas;
 
     &-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: $spacing-3 $spacing-4;
-      border-bottom: 1px solid $border-color-light;
-      h3 { margin: 0; font-size: $font-size-md; }
+      padding: $spacing-sm $spacing-4;
+      border-bottom: 1px solid $hairline;
+      h3 {
+        margin: 0;
+        font-family: $font-text;
+        font-size: $body-strong-size;
+        font-weight: $body-strong-weight;
+        letter-spacing: $body-strong-tracking;
+      }
     }
   }
 
   &__group-list {
     flex: 1;
     overflow-y: auto;
-    padding: $spacing-2;
+    padding: $spacing-xs;
   }
 
   &__group-item {
-    padding: $spacing-3;
-    border-radius: $radius-md;
+    padding: $spacing-sm;
+    border-radius: $radius-sm;
     cursor: pointer;
-    margin-bottom: $spacing-1;
-    transition: background 0.2s;
-    &:hover { background: $bg-color-body; }
-    &.active { background: $primary-color-light-9; }
+    margin-bottom: $spacing-xxs;
+    transition: background 0.15s;
+    &:hover { background: $canvas-parchment; }
+    &.active { background: rgba($primary, 0.08); }
+  }
+
+  &__group-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: $spacing-xxs;
   }
 
   &__group-name {
-    font-weight: $font-weight-medium;
-    font-size: $font-size-base;
-    margin-bottom: $spacing-1;
+    font-family: $font-text;
+    font-weight: $body-strong-weight;
+    font-size: $body-size;
+    letter-spacing: $body-tracking;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__group-delete {
+    margin-left: $spacing-xxs;
+    opacity: 0;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  &__group-item:hover &__group-delete {
+    opacity: 1;
   }
 
   &__group-meta {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
+    gap: $spacing-xs;
   }
 
   &__group-member-count {
-    font-size: $font-size-xs;
-    color: $text-color-secondary;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 
   &__group-time {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 
   &__empty-sidebar {
     text-align: center;
-    padding: $spacing-8 $spacing-4;
-    color: $text-color-placeholder;
+    padding: $spacing-xl $spacing-4;
+    color: $ink-muted-48;
   }
 
   &__main {
@@ -446,19 +521,19 @@ function formatDate(d: string) {
     padding: $spacing-4;
     display: flex;
     flex-direction: column;
-    gap: $spacing-3;
+    gap: $spacing-sm;
   }
 
   &__input-area {
-    border-top: 1px solid $border-color-light;
-    padding: $spacing-3 $spacing-4;
-    background: $bg-color-card;
+    border-top: 1px solid $hairline;
+    padding: $spacing-sm $spacing-4;
+    background: $canvas;
   }
 
   &__input-wrapper {
     position: relative;
     display: flex;
-    gap: $spacing-2;
+    gap: $spacing-xs;
     align-items: flex-end;
   }
 
@@ -467,21 +542,20 @@ function formatDate(d: string) {
     bottom: 100%;
     left: 0;
     right: 0;
-    background: white;
-    border: 1px solid $border-color-light;
-    border-radius: $radius-md;
-    box-shadow: $shadow-lg;
+    background: $canvas;
+    border: 1px solid $hairline;
+    border-radius: $radius-sm;
     max-height: 200px;
     overflow-y: auto;
     z-index: 100;
   }
 
   &__mention-item {
-    padding: $spacing-2 $spacing-3;
+    padding: $spacing-xs $spacing-sm;
     cursor: pointer;
-    font-size: $font-size-sm;
+    font-size: $caption-size;
     transition: background 0.15s;
-    &:hover { background: $primary-color-light-9; }
+    &:hover { background: rgba($primary, 0.08); }
   }
 
   &__placeholder {

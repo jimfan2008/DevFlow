@@ -1,13 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { Project, ProjectCreateRequest } from '@/types/api'
+import type { Project, ProjectCreateRequest, ProjectCreateResult } from '@/types/api'
 import { projectSrsApi } from '@/api'
 import { apiClient } from '@/api/client'
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
   const currentProject = ref<Project | null>(null)
+  const createResult = ref<ProjectCreateResult | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
   const currentPage = ref(1)
@@ -58,12 +59,11 @@ export const useProjectStore = defineStore('project', () => {
     error.value = null
     try {
       const res = await projectSrsApi.create(data) as any
-      // axios 响应拦截器会 return response.data，所以 res = {code, message, data: {project: {...}}}
-      // 安全地取项目对象
       const proj = res?.data?.project ?? res?.project
       if (proj) {
+        createResult.value = proj as ProjectCreateResult
         await fetchProjects(currentPage.value)
-        return res.data.project
+        return createResult.value
       }
     } catch (e: any) {
       error.value = e.message || '创建项目失败'
@@ -120,6 +120,7 @@ export const useProjectStore = defineStore('project', () => {
   return {
     projects,
     currentProject,
+    createResult,
     loading,
     error,
     currentPage,

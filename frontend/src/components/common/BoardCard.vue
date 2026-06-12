@@ -2,7 +2,7 @@
   <el-card
     class="board-card"
     :body-style="{ padding: '16px' }"
-    shadow="hover"
+    shadow="never"
     @click="handleClick"
   >
     <div class="board-card__header">
@@ -62,11 +62,7 @@ async function handleDelete() {
 <style lang="scss" scoped>
 .board-card {
   cursor: pointer;
-  transition: transform 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-  }
+  border-radius: $radius-lg;
 
   &__header {
     display: flex;
@@ -76,28 +72,28 @@ async function handleDelete() {
 
   &__title {
     margin: 0;
-    font-size: $font-size-lg;
-    font-weight: $font-weight-semibold;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   &__delete {
-    color: $text-color-placeholder;
+    color: $ink-muted-48;
     cursor: pointer;
     flex-shrink: 0;
-
-    &:hover {
-      color: $priority-urgent;
-    }
+    &:hover { color: $priority-urgent; }
   }
 
   &__description {
     margin: 8px 0 0;
-    font-size: $font-size-sm;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
+    line-height: $caption-leading;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -106,18 +102,18 @@ async function handleDelete() {
 
   &__meta {
     display: flex;
-    gap: 16px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid $border-color-light;
+    gap: $spacing-4;
+    margin-top: $spacing-sm;
+    padding-top: $spacing-sm;
+    border-top: 1px solid $hairline;
   }
 
   &__stat {
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    gap: $spacing-xxs;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 }
 </style>

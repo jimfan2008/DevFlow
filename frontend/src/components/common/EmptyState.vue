@@ -46,14 +46,17 @@ const iconColor = computed(() => 'var(--el-text-color-placeholder)')
 
   &__title {
     margin-top: 16px;
-    font-size: $font-size-lg;
-    color: $text-color-secondary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    color: $ink-muted-48;
   }
 
   &__description {
     margin-top: 8px;
-    font-size: $font-size-sm;
-    color: $text-color-placeholder;
+    font-family: $font-text;
+    font-size: $caption-size;
+    color: $ink-muted-48;
   }
 }
 </style>

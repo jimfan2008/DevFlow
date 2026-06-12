@@ -1,42 +1,146 @@
 @use "variables" as *;
 
-/* 弹性布局居中 */
+/* ── Apple Button: Primary Pill ─────────────────────────── */
+@mixin apple-button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 22px;
+  font-family: $font-text;
+  font-size: $body-size;
+  font-weight: $body-weight;
+  line-height: 1;
+  color: $on-primary;
+  background: $primary;
+  border: none;
+  border-radius: $radius-pill;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  user-select: none;
+  &:hover { opacity: 0.92; }
+  &:active { transform: scale(0.95); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+}
+
+/* ── Apple Button: Secondary Pill (ghost) ──────────────── */
+@mixin apple-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 22px;
+  font-family: $font-text;
+  font-size: $body-size;
+  font-weight: $body-weight;
+  line-height: 1;
+  color: $primary;
+  background: transparent;
+  border: 1px solid $primary;
+  border-radius: $radius-pill;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  user-select: none;
+  &:hover { opacity: 0.85; }
+  &:active { transform: scale(0.95); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+}
+
+/* ── Apple Button: Dark Utility ─────────────────────────── */
+@mixin apple-button-utility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 15px;
+  font-family: $font-text;
+  font-size: $button-utility-size;
+  font-weight: $button-utility-weight;
+  line-height: $button-utility-leading;
+  letter-spacing: $button-utility-tracking;
+  color: $on-dark;
+  background: $ink;
+  border: none;
+  border-radius: $radius-sm;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  &:active { transform: scale(0.95); }
+}
+
+/* ── Apple Tile: Light ──────────────────────────────────── */
+@mixin apple-tile-light {
+  background: $canvas;
+  color: $ink;
+  padding: $spacing-section 0;
+  border-radius: 0;
+}
+
+/* ── Apple Tile: Parchment ──────────────────────────────── */
+@mixin apple-tile-parchment {
+  background: $canvas-parchment;
+  color: $ink;
+  padding: $spacing-section 0;
+  border-radius: 0;
+}
+
+/* ── Apple Tile: Dark ───────────────────────────────────── */
+@mixin apple-tile-dark {
+  background: $surface-tile-1;
+  color: $body-on-dark;
+  padding: $spacing-section 0;
+  border-radius: 0;
+}
+
+/* ── Apple Utility Card ─────────────────────────────────── */
+@mixin apple-utility-card {
+  background: $canvas;
+  color: $ink;
+  border: 1px solid $hairline;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+}
+
+/* ── Product Shadow (for imagery only) ─────────────────── */
+@mixin apple-product-shadow {
+  box-shadow: $product-shadow;
+}
+
+/* ── Frosted Glass ─────────────────────────────────────── */
+@mixin apple-frosted {
+  background: rgba($canvas-parchment, 0.8);
+  backdrop-filter: $frosted-blur;
+  -webkit-backdrop-filter: $frosted-blur;
+}
+
+/* ── Legacy Flex Helpers ────────────────────────────────── */
 @mixin flex-center {
   display: flex;
   align-items: center;
   justify-content: center;
 }
-
-/* 弹性布局一行 */
 @mixin flex-row($gap: 0) {
   display: flex;
   flex-direction: row;
   gap: $gap;
 }
-
-/* 弹性布局垂直 */
 @mixin flex-col($gap: 0) {
   display: flex;
   flex-direction: column;
   gap: $gap;
 }
 
-/* 文本截断 */
+/* ── Text ────────────────────────────────────────────────── */
 @mixin text-truncate {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* 多行文本截断 */
 @mixin text-truncate-multiline($lines: 2) {
   display: -webkit-box;
   -webkit-line-clamp: $lines;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-/* 绝对居中 */
 @mixin absolute-center {
   position: absolute;
   top: 50%;
@@ -44,51 +148,207 @@
   transform: translate(-50%, -50%);
 }
 
-/* 响应式断点 */
-@mixin respond-to($breakpoint) {
-  @if $breakpoint == 'sm' {
-    @media (min-width: 640px) { @content; }
-  } @else if $breakpoint == 'md' {
-    @media (min-width: 768px) { @content; }
-  } @else if $breakpoint == 'lg' {
-    @media (min-width: 1024px) { @content; }
-  } @else if $breakpoint == 'xl' {
-    @media (min-width: 1280px) { @content; }
-  }
+/* ── Responsive ──────────────────────────────────────────── */
+@mixin respond-to($bp) {
+  @if $bp == 'sm' { @media (min-width: 640px) { @content; } }
+  @else if $bp == 'md' { @media (min-width: 768px) { @content; } }
+  @else if $bp == 'lg' { @media (min-width: 1024px) { @content; } }
+  @else if $bp == 'xl' { @media (min-width: 1280px) { @content; } }
 }
 
-/* 卡片阴影 */
-@mixin card-shadow {
-  box-shadow: $shadow-base;
-  border-radius: $radius-md;
-  background: $bg-color-card;
-}
-
-/* 按钮样式 */
-@mixin btn-base {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: $spacing-2;
-  padding: $spacing-2 $spacing-4;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
-  border-radius: $radius-base;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  user-select: none;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-}
-
-/* 空状态 */
+/* ── Empty State ─────────────────────────────────────────── */
 @mixin empty-state {
   @include flex-center;
   flex-direction: column;
   gap: $spacing-4;
-  padding: $spacing-12;
-  color: $text-color-secondary;
+  padding: $spacing-section;
+  color: $ink-muted-48;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DESIGN.md Components (Apple Design System Spec)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Button: Store Hero (larger primary CTA) ────────────── */
+@mixin apple-button-store-hero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  font-family: $font-text;
+  font-size: $button-large-size;
+  font-weight: $button-large-weight;
+  line-height: $button-large-leading;
+  letter-spacing: $button-large-tracking;
+  color: $on-primary;
+  background: $primary;
+  border: none;
+  border-radius: $radius-pill;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  &:hover { opacity: 0.92; }
+  &:active { transform: scale(0.95); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+}
+
+/* ── Button: Pearl Capsule ──────────────────────────────── */
+@mixin apple-button-pearl-capsule {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: $font-text;
+  font-size: $caption-size;
+  font-weight: $caption-weight;
+  line-height: $caption-leading;
+  letter-spacing: $caption-tracking;
+  color: $ink-muted-80;
+  background: $surface-pearl;
+  border: 3px solid $divider-soft;
+  border-radius: $radius-md;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  &:hover { opacity: 0.85; }
+  &:active { transform: scale(0.95); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+}
+
+/* ── Button: Icon Circular (44x44) ──────────────────────── */
+@mixin apple-button-icon-circular {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  color: $ink;
+  background: rgba($surface-chip-translucent, 0.64);
+  border: none;
+  border-radius: $radius-full;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  &:hover { opacity: 0.85; }
+  &:active { transform: scale(0.95); }
+}
+
+/* ── Search Input (pill-shaped, 44px) ───────────────────── */
+@mixin apple-search-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  height: 44px;
+  font-family: $font-text;
+  font-size: $body-size;
+  font-weight: $body-weight;
+  line-height: $body-leading;
+  letter-spacing: $body-tracking;
+  color: $ink;
+  background: $canvas;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: $radius-pill;
+  outline: none;
+  transition: border-color 0.15s;
+  &:focus { border-color: $primary; }
+  &::placeholder { color: $ink-muted-48; }
+}
+
+/* ── Sub-Nav Frosted (52px, backdrop blur) ──────────────── */
+@mixin apple-sub-nav-frosted {
+  height: $sub-nav-height;
+  padding: 0 $spacing-section;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba($canvas-parchment, 0.8);
+  backdrop-filter: $frosted-blur;
+  -webkit-backdrop-filter: $frosted-blur;
+  border-bottom: 1px solid $hairline;
+}
+
+/* ── Floating Sticky Bar ────────────────────────────────── */
+@mixin apple-floating-sticky-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba($canvas-parchment, 0.8);
+  backdrop-filter: $frosted-blur;
+  -webkit-backdrop-filter: $frosted-blur;
+  border-top: 1px solid $hairline;
+  z-index: 100;
+}
+
+/* ── Configurator Option Chip (pill chip) ───────────────── */
+@mixin apple-configurator-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-family: $font-text;
+  font-size: $caption-size;
+  font-weight: $caption-weight;
+  line-height: $caption-leading;
+  letter-spacing: $caption-tracking;
+  color: $ink;
+  background: $canvas;
+  border: 1px solid $hairline;
+  border-radius: $radius-pill;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+  &:hover { border-color: $primary; }
+  &:active { transform: scale(0.95); }
+  &.is-selected { border: 2px solid $primary-focus; }
+}
+
+/* ── Product Tile (full-bleed section) ──────────────────── */
+@mixin apple-product-tile($surface: light) {
+  padding: $spacing-section 0;
+  border-radius: 0;
+  text-align: center;
+  @if $surface == 'light' {
+    background: $canvas;
+    color: $ink;
+  } @else if $surface == 'parchment' {
+    background: $canvas-parchment;
+    color: $ink;
+  } @else {
+    background: $surface-tile-1;
+    color: $body-on-dark;
+  }
+}
+
+/* ── Footer Section ─────────────────────────────────────── */
+@mixin apple-footer {
+  padding: 64px 0;
+  background: $canvas-parchment;
+  color: $ink-muted-80;
+  font-family: $font-text;
+  font-size: $fine-print-size;
+  font-weight: $fine-print-weight;
+  line-height: $fine-print-leading;
+  letter-spacing: $fine-print-tracking;
+  a { color: $ink-muted-80; text-decoration: none; &:hover { color: $ink; } }
+  h5 {
+    font-family: $font-text;
+    font-size: $caption-strong-size;
+    font-weight: $caption-strong-weight;
+    line-height: $caption-strong-leading;
+    letter-spacing: $caption-strong-tracking;
+    margin: 0 0 $spacing-sm;
+    color: $ink;
+  }
+  .link-column {
+    a {
+      display: block;
+      line-height: $dense-link-leading;
+      padding: 2px 0;
+    }
+  }
 }

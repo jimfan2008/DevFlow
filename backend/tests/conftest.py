@@ -189,6 +189,7 @@ async def test_project(test_project_owner: User, db_session) -> Project:
     project = Project(
         id=data["id"],
         name=data["name"],
+        slug=data.get("slug", data["name"].lower().replace(" ", "-")),
         description=data["description"],
         creator_id=test_project_owner.id,
     )

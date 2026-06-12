@@ -164,5 +164,33 @@ class GiteaClient:
     async def get_repo_url(self, owner: str, repo: str) -> str:
         return f"{self.base_url}/{owner}/{repo}.git"
 
+    async def create_file(self, owner: str, repo: str, filepath: str,
+                          content: str, message: str,
+                          branch: str = "main") -> Dict:
+        import base64
+        encoded = base64.b64encode(content.encode("utf-8")).decode("utf-8")
+        return await self._request(
+            "POST", f"/repos/{owner}/{repo}/contents/{filepath}",
+            json_data={
+                "content": encoded,
+                "message": message,
+                "branch": branch,
+            },
+        )
+
+    async def create_release(self, owner: str, repo: str, tag_name: str,
+                             title: str = "", body: str = "",
+                             target: str = "main") -> Dict:
+        """创建 Gitea 发布标签（Release Tag）"""
+        return await self._request(
+            "POST", f"/repos/{owner}/{repo}/releases",
+            json_data={
+                "tag_name": tag_name,
+                "title": title,
+                "body": body,
+                "target": target,
+            },
+        )
+
 
 gitea_client = GiteaClient()

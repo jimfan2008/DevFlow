@@ -283,49 +283,60 @@ watch(() => messages.value.length, () => scrollToBottom())
   &__header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: $spacing-sm;
+    margin-bottom: $spacing-5;
 
     &-info {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: 8px;
-      h2 { margin: 0; font-size: 22px; font-weight: 600; }
+      gap: $spacing-xs;
+      h2 {
+        margin: 0;
+        font-family: $font-display;
+        font-size: $display-lg-size;
+        font-weight: $display-lg-weight;
+        line-height: $display-lg-leading;
+        letter-spacing: $display-lg-tracking;
+        color: $ink;
+      }
     }
 
     &-actions {
       display: flex;
-      gap: 8px;
+      gap: $spacing-xs;
     }
   }
 
   &__version {
-    font-size: 12px;
-    color: #909399;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 
   &__body {
-    margin-bottom: 16px;
+    margin-bottom: $spacing-4;
   }
 
   &__card {
-    margin-bottom: 16px;
+    margin-bottom: $spacing-4;
+    border-radius: $radius-lg;
   }
 
   &__card-title {
     display: flex;
     align-items: center;
-    font-weight: 600;
-    font-size: 14px;
+    font-family: $font-text;
+    font-weight: $body-strong-weight;
+    font-size: $body-strong-size;
+    letter-spacing: $body-strong-tracking;
   }
 
   &__hermes-icon {
-    margin-right: 6px;
+    margin-right: $spacing-xxs;
   }
 
   &__no-skills {
-    padding: 8px 0;
+    padding: $spacing-xs 0;
   }
 
   // ── Chat Panel ──────────────────────────
@@ -333,6 +344,7 @@ watch(() => messages.value.length, () => scrollToBottom())
     height: calc(100vh - 200px);
     display: flex;
     flex-direction: column;
+    border-radius: $radius-lg;
     :deep(.el-card__body) {
       flex: 1;
       display: flex;
@@ -345,11 +357,11 @@ watch(() => messages.value.length, () => scrollToBottom())
   &__chat {
     flex: 1;
     overflow-y: auto;
-    padding: 16px;
+    padding: $spacing-4;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    background: #fafafa;
+    gap: $spacing-sm;
+    background: $canvas-parchment;
 
     &-empty {
       flex: 1;
@@ -357,49 +369,49 @@ watch(() => messages.value.length, () => scrollToBottom())
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 16px;
+      gap: $spacing-4;
     }
 
     &-welcome {
       text-align: center;
-      p { margin: 4px 0; font-size: 15px; }
+      p { margin: $spacing-xxs 0; font-size: $body-size; }
     }
 
-    &-sub { color: #909399; font-size: 13px !important; }
+    &-sub { color: $ink-muted-48; font-size: $caption-size !important; }
     &-avatar { font-size: 48px; }
 
     &-starters {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: $spacing-xs;
       justify-content: center;
     }
 
     &-avatar-small {
-      font-size: 24px;
+      font-size: $spacing-lg;
       flex-shrink: 0;
     }
 
     &-msg {
       display: flex;
-      gap: 8px;
+      gap: $spacing-xs;
       align-items: flex-start;
 
       &.user {
         flex-direction: row-reverse;
         .agent-detail-view__chat-bubble {
-          background: #409eff;
-          color: #fff;
-          border-bottom-right-radius: 4px;
+          background: $primary;
+          color: $on-primary;
+          border-bottom-right-radius: $radius-xs;
         }
       }
 
       &.hermes {
         .agent-detail-view__chat-bubble {
-          background: #fff;
-          color: #303133;
-          border: 1px solid #e4e7ed;
-          border-bottom-left-radius: 4px;
+          background: $canvas;
+          color: $ink;
+          border: 1px solid $hairline;
+          border-bottom-left-radius: $radius-xs;
         }
       }
     }
@@ -407,25 +419,27 @@ watch(() => messages.value.length, () => scrollToBottom())
     &-bubble {
       max-width: 80%;
       padding: 10px 14px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.6;
+      border-radius: $radius-sm;
+      font-family: $font-text;
+      font-size: $body-size;
+      line-height: $body-leading;
+      letter-spacing: $body-tracking;
       white-space: pre-wrap;
       word-break: break-word;
 
       &.hermes-thinking {
-        color: #909399;
+        color: $ink-muted-48;
       }
     }
   }
 
   &__chat-input {
     display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid #e4e7ed;
+    gap: $spacing-xs;
+    padding: $spacing-sm $spacing-4;
+    border-top: 1px solid $hairline;
     align-items: flex-end;
-    background: #fff;
+    background: $canvas;
   }
 
   &__chat-send-btn {

@@ -40,6 +40,7 @@ from app.api.workflow import router as workflow_router
 from app.api.qa import router as qa_router
 from app.api.swarms import router as swarms_router
 from app.api.security import router as security_router
+from app.api.hermes_integration import router as hermes_integration_router
 
 main_router.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 main_router.include_router(boards_router, prefix="/api/boards", tags=["boards"])
@@ -84,6 +85,7 @@ main_router.include_router(workflow_router, prefix="/api/v1/workflow", tags=["wo
 main_router.include_router(qa_router, prefix="/api/v1/qa", tags=["qa"])
 main_router.include_router(swarms_router, prefix="/api/v1/swarms", tags=["swarms"])
 main_router.include_router(security_router, prefix="/api/v1/security", tags=["security"])
+main_router.include_router(hermes_integration_router, prefix="/api", tags=["hermes-integration"])
 
 from app.api.scheduling import router as scheduling_router
 main_router.include_router(scheduling_router, tags=["scheduling"])

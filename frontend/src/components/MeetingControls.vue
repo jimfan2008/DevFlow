@@ -106,7 +106,8 @@ function handleClose() {
 <style lang="scss" scoped>
 .member-list__duration-label {
   margin-left: $spacing-2;
-  font-size: $font-size-sm;
-  color: $text-color-secondary;
+  font-family: $font-text;
+  font-size: $caption-size;
+  color: $ink-muted-48;
 }
 </style>

@@ -105,46 +105,36 @@ function toggleTask(task: TaskItem) {
   &__title {
     display: flex;
     align-items: center;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-semibold;
-    color: #1e40af;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
   }
 
-  &__count {
-    margin-left: $spacing-1;
-  }
+  &__count { margin-left: $spacing-xxs; }
 
-  &__body {
-    padding: 0;
-  }
+  &__body { padding: 0; }
 
   &__items {
-    border-top: 1px solid $border-color-light;
+    border-top: 1px solid $hairline;
   }
 
   &__item {
     display: flex;
     align-items: flex-start;
-    gap: $spacing-3;
-    padding: $spacing-3 $spacing-4;
-    transition: background 0.2s;
+    gap: $spacing-sm;
+    padding: $spacing-sm $spacing-4;
+    transition: background 0.15s;
 
-    &:hover {
-      background: $bg-color-body;
-    }
+    &:hover { background: $canvas-parchment; }
 
-    & + & {
-      border-top: 1px solid $border-color-light;
-    }
+    & + & { border-top: 1px solid $hairline; }
 
-    &.is-completed {
-      background: #f0fdf4;
-    }
+    &.is-completed { background: mix(white, #10b981, 90%); }
   }
 
-  &__checkbox {
-    margin-top: 2px;
-  }
+  &__checkbox { margin-top: 2px; }
 
   &__item-body {
     flex: 1;
@@ -153,12 +143,15 @@ function toggleTask(task: TaskItem) {
 
   &__item-desc {
     margin: 0;
-    font-size: $font-size-sm;
-    color: $text-color-primary;
-    line-height: 1.5;
+    font-family: $font-text;
+    font-size: $body-size;
+    font-weight: $body-weight;
+    letter-spacing: $body-tracking;
+    color: $ink;
+    line-height: $body-leading;
 
     &.is-done {
-      color: $text-color-disabled;
+      color: $ink-muted-48;
       text-decoration: line-through;
     }
   }
@@ -167,8 +160,8 @@ function toggleTask(task: TaskItem) {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: $spacing-1;
-    margin-top: $spacing-1;
+    gap: $spacing-xxs;
+    margin-top: $spacing-xxs;
   }
 }
 </style>

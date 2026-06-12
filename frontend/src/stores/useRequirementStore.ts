@@ -15,6 +15,7 @@ export interface ProjectItem {
   name: string
   slug: string
   description?: string
+  project_dir?: string
 }
 
 export interface RequirementDoc {

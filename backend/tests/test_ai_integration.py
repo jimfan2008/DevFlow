@@ -22,6 +22,7 @@ class TestProjectCreationWorkflow:
         project = Project(
             id="project_integration_001",
             name="AI 测试项目",
+            slug="ai-测试项目",
             description="集成测试项目",
             creator_id=test_project_owner.id,
         )
@@ -49,6 +50,7 @@ class TestProjectCreationWorkflow:
         project1 = Project(
             id="project_unique_1",
             name="唯一名称项目",
+            slug="唯一名称项目",
             description="第一个项目",
             creator_id=test_project_owner.id,
         )

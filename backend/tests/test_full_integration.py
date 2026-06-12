@@ -158,7 +158,7 @@ class TestCommunicationConstraint:
         hermes = _make_hermes(db)
         coding = _make_coding_agent(db)
 
-        project = Project(id=str(uuid.uuid4()), name="CommProj", description="",
+        project = Project(id=str(uuid.uuid4()), name="CommProj", slug="commproj", description="",
                           creator_id=user.id, status=ProjectStatus.in_progress.value)
         db.add(project)
         task = Task(id=str(uuid.uuid4()), project_id=project.id, name="Comm Task",

@@ -86,19 +86,18 @@ function handleReset() {
 .inbox-filter {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: $spacing-sm;
   flex-wrap: wrap;
   padding: $spacing-4;
-  background: $bg-color-card;
-  border-radius: $radius-md;
+  background: $canvas;
+  border-radius: $radius-lg;
+  border: 1px solid $hairline;
 
   &__search {
     flex: 1;
     min-width: 200px;
   }
 
-  &__actions {
-    flex-shrink: 0;
-  }
+  &__actions { flex-shrink: 0; }
 }
 </style>

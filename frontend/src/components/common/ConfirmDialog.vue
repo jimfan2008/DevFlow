@@ -103,9 +103,12 @@ defineExpose({ open, close })
 
   &__message {
     margin: 0;
-    font-size: $font-size-base;
-    color: $text-color-primary;
-    line-height: 1.6;
+    font-family: $font-text;
+    font-size: $body-size;
+    font-weight: $body-weight;
+    letter-spacing: $body-tracking;
+    color: $ink;
+    line-height: $body-leading;
   }
 }
 </style>

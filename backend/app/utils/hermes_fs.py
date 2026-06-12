@@ -47,7 +47,7 @@ def get_hermes_home_path() -> Path:
         if dirs:
             return dirs[0]
 
-    return get_profiles_path().parent
+    return get_profiles_path()
 
 
 def get_profiles_path() -> Path:
@@ -230,6 +230,13 @@ def get_gateway_port(config: Optional[Dict[str, Any]] = None) -> Optional[int]:
 def get_gateway_api_key(config: Dict[str, Any]) -> Optional[str]:
     try:
         key = config.get("platforms", {}).get("api_server", {}).get("key")
+        if key:
+            return key
+    except Exception:
+        pass
+
+    try:
+        key = config.get("platforms", {}).get("api_server", {}).get("extra", {}).get("key")
         if key:
             return key
     except Exception:

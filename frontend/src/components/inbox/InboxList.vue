@@ -137,16 +137,14 @@ function handlePageChange(page: number) {
 
 <style lang="scss" scoped>
 .inbox-list {
-  &__empty {
-    padding: 60px 0;
-  }
+  &__empty { padding: 60px 0; }
 
   &__items {
     display: flex;
     flex-direction: column;
     gap: 1px;
-    background: $border-color-light;
-    border-radius: $radius-md;
+    background: $hairline;
+    border-radius: $radius-lg;
     overflow: hidden;
   }
 
@@ -154,21 +152,16 @@ function handlePageChange(page: number) {
     display: flex;
     align-items: flex-start;
     padding: $spacing-4;
-    background: $bg-color-card;
+    background: $canvas;
     cursor: pointer;
-    transition: background 0.2s;
-    gap: 12px;
+    transition: background 0.15s;
+    gap: $spacing-sm;
 
-    &:hover {
-      background: $bg-color-body;
-    }
+    &:hover { background: $canvas-parchment; }
 
     &.is-unread {
-      background: $primary-color-light-9;
-
-      &:hover {
-        background: $primary-color-light-7;
-      }
+      background: mix(white, $primary, 95%);
+      &:hover { background: mix(white, $primary, 92%); }
     }
   }
 
@@ -176,15 +169,12 @@ function handlePageChange(page: number) {
     display: inline-block;
     width: 8px;
     height: 8px;
-    background: $primary-color;
+    background: $primary;
     border-radius: $radius-full;
     margin-top: 6px;
   }
 
-  &__item-indicator {
-    width: 16px;
-    flex-shrink: 0;
-  }
+  &__item-indicator { width: 16px; flex-shrink: 0; }
 
   &__item-content {
     flex: 1;
@@ -194,35 +184,39 @@ function handlePageChange(page: number) {
   &__item-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: $spacing-xs;
+    margin-bottom: $spacing-xxs;
   }
 
   &__item-type {
-    font-size: $font-size-xs;
-    color: $primary-color;
-    background: $primary-color-light-9;
+    font-family: $font-text;
+    font-size: $fine-print-size;
+    color: $primary;
+    background: mix(white, $primary, 95%);
     padding: 1px 6px;
     border-radius: $radius-sm;
   }
 
   &__item-time {
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
     margin-left: auto;
   }
 
   &__item-title {
     margin: 0 0 2px;
-    font-size: $font-size-base;
-    font-weight: $font-weight-medium;
-    color: $text-color-primary;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
   }
 
   &__item-body {
     margin: 0;
-    font-size: $font-size-sm;
-    color: $text-color-secondary;
+    font-size: $body-size;
+    color: $ink-muted-48;
+    line-height: $body-leading;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -232,23 +226,21 @@ function handlePageChange(page: number) {
   &__item-actor {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-top: 6px;
-    font-size: $font-size-xs;
-    color: $text-color-placeholder;
+    gap: $spacing-xxs;
+    margin-top: $spacing-xxs;
+    font-size: $fine-print-size;
+    color: $ink-muted-48;
   }
 
   &__item-actions {
     display: flex;
-    gap: 4px;
+    gap: $spacing-xxs;
     flex-shrink: 0;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: opacity 0.15s;
   }
 
-  &__item:hover &__item-actions {
-    opacity: 1;
-  }
+  &__item:hover &__item-actions { opacity: 1; }
 
   &__pagination {
     display: flex;

@@ -1,17 +1,37 @@
-/* =================== 颜色变量 =================== */
-$primary-color: #409eff;
-$primary-color-light-3: #79bbff;
-$primary-color-light-5: #a0cfff;
-$primary-color-light-7: #c6e2ff;
-$primary-color-light-9: #eef5ff;
+/* ============================================================
+   Apple-Inspired Design Tokens (from DESIGN.md)
+   ============================================================ */
 
-/* 优先级颜色 */
+/* ── Colors: Brand & Accent ──────────────────────────────── */
+$primary: #0066cc;
+$primary-focus: #0071e3;
+$primary-on-dark: #2997ff;
+$ink: #1d1d1f;
+$body: #1d1d1f;
+$body-on-dark: #ffffff;
+$body-muted: #cccccc;
+$ink-muted-80: #333333;
+$ink-muted-48: #7a7a7a;
+$divider-soft: #f0f0f0;
+$hairline: #e0e0e0;
+$canvas: #ffffff;
+$canvas-parchment: #f5f5f7;
+$surface-pearl: #fafafc;
+$surface-tile-1: #272729;
+$surface-tile-2: #2a2a2c;
+$surface-tile-3: #252527;
+$surface-black: #000000;
+$surface-chip-translucent: #d2d2d7;
+$on-primary: #ffffff;
+$on-dark: #ffffff;
+
+/* ── Priority Colors ────────────────────────────────────── */
 $priority-high: #f59e0b;
 $priority-urgent: #ef4444;
 $priority-normal: #6b7280;
 $priority-low: #10b981;
 
-/* 状态颜色 */
+/* ── Status Colors ──────────────────────────────────────── */
 $status-todo: #6b7280;
 $status-in-progress: #3b82f6;
 $status-review: #f59e0b;
@@ -19,76 +39,168 @@ $status-done: #10b981;
 $status-blocked: #ef4444;
 $status-feedback: #8b5cf6;
 
-/* 负载等级颜色 */
+/* ── Workload Colors ────────────────────────────────────── */
 $workload-idle: #10b981;
 $workload-normal: #f59e0b;
 $workload-busy: #ef4444;
 
-/* 文本颜色 */
-$text-color-primary: #1f2937;
-$text-color-secondary: #6b7280;
-$text-color-placeholder: #9ca3af;
-$text-color-disabled: #d1d5db;
-$text-color-inverse: #ffffff;
+/* ── Semantic Aliases ────────────────────────────────────── */
+$primary-color: $primary;
+$text-color-primary: $ink;
+$text-color-secondary: $ink-muted-48;
+$text-color-placeholder: $ink-muted-48;
+$text-color-disabled: $ink-muted-48;
+$text-color-inverse: $on-primary;
+$bg-color-body: $canvas-parchment;
+$bg-color-light: $canvas;
+$bg-color-card: $canvas;
+$bg-color-dark: $surface-black;
+$border-color-light: $hairline;
+$border-color-dark: $ink-muted-48;
+$border-color-focus: $primary;
 
-/* 背景颜色 */
-$bg-color-body: #f3f4f6;
-$bg-color-light: #f9fafb;
-$bg-color-card: #ffffff;
-$bg-color-dark: #111827;
+/* ── Elevation ───────────────────────────────────────────── */
+/* Apple uses exactly one product shadow — none on UI chrome */
+$product-shadow: 0 3px 5px 30px rgba(0, 0, 0, 0.22);
+$shadow-sm: none;
+$shadow-base: none;
+$shadow-md: none;
+$shadow-lg: none;
+$shadow-xl: none;
 
-/* 边框颜色 */
-$border-color-light: #e5e7eb;
-$border-color-dark: #d1d5db;
-$border-color-focus: $primary-color;
-
-/* 阴影 */
-$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-$shadow-base: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-
-/* 圆角 */
-$radius-sm: 4px;
-$radius-base: 6px;
-$radius-md: 8px;
-$radius-lg: 12px;
+/* ── Border Radius ────────────────────────────────────────── */
+$radius-none: 0px;
+$radius-xs: 5px;
+$radius-sm: 8px;
+$radius-md: 11px;
+$radius-lg: 18px;
+$radius-pill: 9999px;
 $radius-full: 9999px;
 
-/* 字体大小 */
-$font-size-xs: 12px;
-$font-size-sm: 13px;
-$font-size-base: 14px;
-$font-size-md: 15px;
-$font-size-lg: 16px;
-$font-size-xl: 18px;
-$font-size-2xl: 20px;
-$font-size-3xl: 24px;
+/* ── Typography: Font Family ──────────────────────────────── */
+$font-display: 'SF Pro Display', 'Inter', system-ui, -apple-system, sans-serif;
+$font-text: 'SF Pro Text', 'Inter', system-ui, -apple-system, sans-serif;
 
-/* 字体粗细 */
+/* ── Typography: Size / Weight / Leading / Tracking ──────── */
+$hero-display-size: 56px;
+$hero-display-weight: 600;
+$hero-display-leading: 1.07;
+$hero-display-tracking: -0.28px;
+
+$display-lg-size: 40px;
+$display-lg-weight: 600;
+$display-lg-leading: 1.10;
+$display-lg-tracking: 0;
+
+$display-md-size: 34px;
+$display-md-weight: 600;
+$display-md-leading: 1.47;
+$display-md-tracking: -0.374px;
+
+$lead-size: 28px;
+$lead-weight: 400;
+$lead-leading: 1.14;
+$lead-tracking: 0.196px;
+
+$tagline-size: 21px;
+$tagline-weight: 600;
+$tagline-leading: 1.19;
+$tagline-tracking: 0.231px;
+
+$body-strong-size: 17px;
+$body-strong-weight: 600;
+$body-strong-leading: 1.24;
+$body-strong-tracking: -0.374px;
+
+/* Body (default paragraph) */
+$body-size: 17px;
+$body-weight: 400;
+$body-leading: 1.47;
+$body-tracking: -0.374px;
+
+$dense-link-size: 17px;
+$dense-link-weight: 400;
+$dense-link-leading: 2.41;
+$dense-link-tracking: 0;
+
+$caption-size: 14px;
+$caption-weight: 400;
+$caption-leading: 1.43;
+$caption-tracking: -0.224px;
+
+$caption-strong-size: 14px;
+$caption-strong-weight: 600;
+$caption-strong-leading: 1.29;
+$caption-strong-tracking: -0.224px;
+
+$button-large-size: 18px;
+$button-large-weight: 300;
+$button-large-leading: 1.0;
+$button-large-tracking: 0;
+
+$button-utility-size: 14px;
+$button-utility-weight: 400;
+$button-utility-leading: 1.29;
+$button-utility-tracking: -0.224px;
+
+$fine-print-size: 12px;
+$fine-print-weight: 400;
+$fine-print-leading: 1.0;
+$fine-print-tracking: -0.12px;
+
+$nav-link-size: 12px;
+$nav-link-weight: 400;
+$nav-link-leading: 1.0;
+$nav-link-tracking: -0.12px;
+
+/* ── Legacy Font Aliases ──────────────────────────────────── */
+$font-size-xs: $caption-size;
+$font-size-sm: $caption-size;
+$font-size-base: $body-size;
+$font-size-md: $body-size;
+$font-size-lg: $body-strong-size;
+$font-size-xl: 20px;
+$font-size-2xl: $display-md-size;
+$font-size-3xl: $display-lg-size;
 $font-weight-normal: 400;
 $font-weight-medium: 500;
 $font-weight-semibold: 600;
 $font-weight-bold: 700;
 
-/* 间距 */
-$spacing-1: 4px;
-$spacing-2: 8px;
-$spacing-3: 12px;
+/* ── Spacing (8px base unit) ──────────────────────────────── */
+$spacing-xxs: 4px;
+$spacing-xs: 8px;
+$spacing-sm: 12px;
+$spacing-md: 17px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+$spacing-section: 80px;
+
+/* Legacy spacing aliases */
+$spacing-1: $spacing-xxs;
+$spacing-2: $spacing-xs;
+$spacing-3: $spacing-sm;
 $spacing-4: 16px;
 $spacing-5: 20px;
-$spacing-6: 24px;
-$spacing-8: 32px;
+$spacing-6: $spacing-lg;
+$spacing-8: $spacing-xl;
 $spacing-10: 40px;
-$spacing-12: 48px;
-$spacing-16: 64px;
+$spacing-12: $spacing-xxl;
+$spacing-16: $spacing-section;
 
-/* 侧边栏宽度 */
+/* ── Layout ───────────────────────────────────────────────── */
+$global-nav-height: 44px;
+$sub-nav-height: 52px;
 $sidebar-width: 220px;
 $sidebar-collapsed-width: 64px;
-$header-height: 56px;
+$header-height: $global-nav-height;
+$content-max-width: 980px;
+$grid-max-width: 1440px;
 
-/* 看板列最小宽度 */
+/* ── Kanban ───────────────────────────────────────────────── */
 $kanban-column-min-width: 280px;
 $kanban-column-max-width: 360px;
+
+/* ── Backdrop Blur ────────────────────────────────────────── */
+$frosted-blur: saturate(180%) blur(20px);

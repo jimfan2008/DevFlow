@@ -32,22 +32,29 @@ function goHome() {
 
   &__code {
     font-size: 96px;
-    font-weight: $font-weight-bold;
-    color: $primary-color;
+    font-family: $font-display;
+    font-weight: 600;
+    color: $primary;
     margin: 0;
     line-height: 1;
   }
 
   &__title {
-    font-size: $font-size-3xl;
-    color: $text-color-primary;
-    margin: 16px 0 8px;
+    margin: $spacing-4 0 $spacing-xs;
+    font-family: $font-text;
+    font-size: $display-md-size;
+    font-weight: $display-md-weight;
+    letter-spacing: $display-md-tracking;
+    color: $ink;
   }
 
   &__description {
-    font-size: $font-size-base;
-    color: $text-color-secondary;
-    margin: 0 0 24px;
+    font-family: $font-text;
+    font-size: $body-size;
+    font-weight: $body-weight;
+    letter-spacing: $body-tracking;
+    color: $ink-muted-48;
+    margin: 0 0 $spacing-lg;
   }
 }
 </style>

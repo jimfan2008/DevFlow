@@ -581,55 +581,20 @@ class ConversationCoordinator:
         conversation_history: List[Dict[str, str]] = None,
         progress_callback: Callable[[str, str], None] = None
     ) -> AsyncGenerator[Dict[str, str], None]:
-        async for result in self.broadcast_message(
-            profile_names, message, conversation_history, progress_callback
-        ):
-            yield result
-
-    async def broadcast_message(
-        self,
-        profile_names: List[str],
-        message: str,
-        conversation_history: List[Dict[str, str]] = None,
-        progress_callback: Callable[[str, str], None] = None
-    ) -> AsyncGenerator[Dict[str, str], None]:
-        tasks = []
-
+        """讨论模式：顺序处理每个 agent，流式输出响应"""
         for profile_name in profile_names:
-            task = asyncio.create_task(
-                self._collect_agent_response(profile_name, message, conversation_history, progress_callback)
-            )
-            tasks.append((profile_name, task))
-
-        for profile_name, task in tasks:
             try:
-                result = await task
-                for chunk in result:
-                    yield chunk
+                first_chunk = True
+                async for chunk in self._send_to_agent(profile_name, message, conversation_history or []):
+                    if first_chunk and progress_callback:
+                        progress_callback(profile_name, "typing")
+                        first_chunk = False
+                    yield {"profile": profile_name, "content": chunk}
             except Exception as e:
                 yield {"profile": profile_name, "error": str(e)}
-
-    async def _collect_agent_response(
-        self,
-        profile_name: str,
-        message: str,
-        conversation_history: List[Dict[str, str]] = None,
-        progress_callback: Callable[[str, str], None] = None
-    ) -> List[Dict[str, str]]:
-        chunks = []
-        first_chunk_sent = False
-
-        try:
-            async for chunk in self._send_to_agent(profile_name, message, conversation_history):
-                if not first_chunk_sent and progress_callback:
-                    progress_callback(profile_name, "typing")
-                    first_chunk_sent = True
-                chunks.append({"profile": profile_name, "content": chunk})
-        finally:
-            if progress_callback:
-                progress_callback(profile_name, "idle")
-
-        return chunks
+            finally:
+                if progress_callback:
+                    progress_callback(profile_name, "idle")
 
 
 coordinator = ConversationCoordinator()

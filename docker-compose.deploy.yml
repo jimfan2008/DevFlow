@@ -1,106 +1,233 @@
 # =============================================================================
-# DevFlow Docker Compose - Full Deployment (验证用)
+# DevFlow Docker Compose - Production Environment
 # =============================================================================
+# Purpose: Production deployment with isolation, health checks, logging, and resilience
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+# Prerequisite: Create .env.production with required secrets
+# NOTE: Prometheus/Grafana/SSL/RateLimit not included (configs missing – add manually)
+# =============================================================================
+
 version: "3.8"
 
 services:
+  # ---------------------------------------------------------------------------
+  # FastAPI Application (Production)
+  # =============================================================================
   fastapi:
     build:
       context: .
       dockerfile: Dockerfile
       target: runtime
-    container_name: devflow-fastapi
-    ports:
-      - "8000:8000"
+      args:
+        - APP_VERSION=${APP_VERSION:-1.0.0}
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+    container_name: devflow-fastapi-prod
+    # No direct port exposure — behind nginx or LB
+    # ports:
+    #   - "8000:8000"
     environment:
-      - APP_NAME=DevFlow
-      - APP_DEBUG=false
+      - APP_NAME=${APP_NAME:-DevFlow}
+      - APP_DEBUG=${APP_DEBUG:-false}
       - APP_HOST=0.0.0.0
       - APP_PORT=8000
-      - JWT_SECRET=devflow-jwt-secret-for-deployment-testing-2026
-      - JWT_ALGORITHM=HS256
-      - JWT_EXPIRE_MINUTES=60
-      - DATABASE_URL=postgresql+asyncpg://devflow_user:devflow_password@postgres:5432/devflow_db
-      - POSTGRES_USER=devflow_user
-      - POSTGRES_PASSWORD=devflow_password
-      - POSTGRES_DB=devflow_db
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
-      - REDIS_URL=redis://redis:6379/0
-      - FRONTEND_URL=http://localhost
-      - DB_POOL_SIZE=10
-      - DB_MAX_OVERFLOW=20
-      - DB_POOL_TIMEOUT=30
-      - ENABLE_REDIS_CACHE=true
-      - ENABLE_METRICS=true
-      - LOG_LEVEL=INFO
-      - RUN_MIGRATIONS=1
-      - LLM_API_BASE=http://host.docker.internal:8642
-      - HERMES_API_BASE=${HERMES_API_BASE:-http://10.28.83.151:8000/v1}
-      - HERMES_API_KEY=${HERMES_API_KEY:-placeholder}
-      - HERMES_MODEL=${HERMES_MODEL:-qwen3.6-35b-4.75bit}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-30}
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-20}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-30}
+      - DB_POOL_TIMEOUT=${DB_POOL_TIMEOUT:-30}
+      - ENABLE_REDIS_CACHE=${ENABLE_REDIS_CACHE:-true}
+      - ENABLE_METRICS=${ENABLE_METRICS:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - WORKERS=${GUNICORN_WORKERS:-4}
+      - WORKER_TIMEOUT=${GUNICORN_TIMEOUT:-120}
+    env_file:
+      - .env.production
+    healthcheck:
+      test: ["CMD", "python", "-c",
+        "import httpx; import sys; sys.exit(0 if httpx.get('http://localhost:8000/health', timeout=5).status_code == 200 else 1)"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      disable: false
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
-      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
     networks:
-      - devflow-network
+      - devflow-prod-network
+      - devflow-internal-network
 
+  # ---------------------------------------------------------------------------
+  # PostgreSQL Database (Production)
+  # =============================================================================
   postgres:
     image: postgres:16-alpine
-    container_name: devflow-postgres
-    ports:
-      - "15432:5432"
+    container_name: devflow-postgres-prod
+    # Internal only
+    # ports:
+    #   - "5432:5432"
     environment:
-      - POSTGRES_USER=devflow_user
-      - POSTGRES_PASSWORD=devflow_password
-      - POSTGRES_DB=devflow_db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-devflow_db}
+      - PGDATABASE=${POSTGRES_DB:-devflow_db}
+      - PGUSER=${POSTGRES_USER}
+      - PGPASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_prod_data:/var/lib/postgresql/data
+      # Production config (exists)
+      - ./docker/postgres/prod.conf:/etc/postgresql.conf:ro
+      # Init scripts (exists)
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U devflow_user -d devflow_db"]
-      interval: 5s
+      test: ["CMD-SHELL",
+        "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-devflow_db} && pg_isready -U ${POSTGRES_USER} -d postgres"]
+      interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 8G
+        reservations:
+          cpus: "1.0"
+          memory: 2G
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        compress: "true"
     networks:
-      - devflow-network
+      - devflow-prod-network
+      - devflow-internal-network
 
+  # ---------------------------------------------------------------------------
+  # Redis Cache Server (Production)
+  # =============================================================================
   redis:
     image: redis:7-alpine
-    container_name: devflow-redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    container_name: devflow-redis-prod
+    # Internal only
+    # ports:
+    #   - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory ${REDIS_MAXMEMORY:-512mb}
+      --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+      --protected-mode yes
     volumes:
-      - redis_data:/data
+      - redis_prod_data:/data
+      # Prod config (exists)
+      - ./docker/redis/prod.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        compress: "true"
     networks:
-      - devflow-network
+      - devflow-prod-network
+      - devflow-internal-network
 
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy (Production)
+  # =============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: devflow-nginx-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Prod nginx config (exists)
+      - ./docker/nginx/prod.conf:/etc/nginx/nginx.conf:ro
+      # Static files
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        compress: "true"
+    networks:
+      - devflow-prod-network
+      - devflow-public-network
+
+# =============================================================================
+# Volumes
+# =============================================================================
 volumes:
-  postgres_data:
-    name: devflow_postgres_data
-  redis_data:
-    name: devflow_redis_data
+  postgres_prod_data:
+    name: devflow_postgres_prod_data
+  redis_prod_data:
+    name: devflow_redis_prod_data
 
+# =============================================================================
+# Networks
+# =============================================================================
 networks:
-  devflow-network:
-    name: devflow-network
+  devflow-prod-network:
+    name: devflow-prod-network
+    driver: bridge
+  devflow-internal-network:
+    name: devflow-internal-network
+    driver: bridge
+    internal: true
+  devflow-public-network:
+    name: devflow-public-network
     driver: bridge

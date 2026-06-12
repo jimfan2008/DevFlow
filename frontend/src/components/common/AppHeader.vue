@@ -1,48 +1,46 @@
 <template>
-  <header class="app-header">
-    <div class="app-header__left">
-      <router-link to="/boards" class="app-header__logo">
-        <span class="app-header__logo-icon">D</span>
-        <span class="app-header__logo-text">DevFlow</span>
+  <header class="global-nav">
+    <div class="global-nav__left">
+      <router-link to="/boards" class="global-nav__logo">
+        <span class="global-nav__mark"></span>
+        <span class="global-nav__title">DevFlow</span>
       </router-link>
     </div>
 
-    <div class="app-header__center">
+    <nav class="global-nav__center">
+      <router-link
+        v-for="item in navItems"
+        :key="item.path"
+        :to="item.path"
+        class="global-nav__link"
+        :class="{ active: isActive(item.path) }"
+      >
+        {{ item.label }}
+      </router-link>
+    </nav>
+
+    <div class="global-nav__right">
       <el-input
         v-model="searchQuery"
-        placeholder="搜索任务..."
+        placeholder="搜索"
         :prefix-icon="Search"
         clearable
-        size="small"
-        class="app-header__search"
+        class="global-nav__search"
         @keyup.enter="handleSearch"
       />
-    </div>
-
-    <div class="app-header__right">
-      <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
-        <el-button
-          :icon="Bell"
-          circle
-          size="small"
-          @click="goToInbox"
-        />
-      </el-badge>
-
+      <button class="global-nav__icon-btn" @click="goToInbox">
+        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
+          <Bell />
+        </el-badge>
+      </button>
       <el-dropdown trigger="click" @command="handleCommand">
-        <span class="app-header__user">
-          <el-avatar :size="28">{{ displayName.charAt(0).toUpperCase() }}</el-avatar>
-          <span class="app-header__username">{{ displayName }}</span>
-          <el-icon><ArrowDown /></el-icon>
-        </span>
+        <button class="global-nav__user-btn">
+          <el-avatar :size="22" class="global-nav__avatar">{{ displayName.charAt(0).toUpperCase() }}</el-avatar>
+        </button>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="profile">
-              <el-icon><User /></el-icon>个人资料
-            </el-dropdown-item>
-            <el-dropdown-item command="logout" divided>
-              <el-icon><SwitchButton /></el-icon>退出登录
-            </el-dropdown-item>
+            <el-dropdown-item command="profile">个人资料</el-dropdown-item>
+            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
@@ -52,18 +50,31 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Search, Bell, ArrowDown, User, SwitchButton } from '@element-plus/icons-vue'
+import { useRouter, useRoute } from 'vue-router'
+import { Search, Bell } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { useInboxStore } from '@/stores/useInboxStore'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const inboxStore = useInboxStore()
 
 const searchQuery = ref('')
-const displayName = authStore.displayName
+const displayName = authStore.displayName || authStore.username || 'User'
 const unreadCount = inboxStore.unreadCount
+
+const navItems = [
+  { path: '/projects', label: '项目' },
+  { path: '/agents', label: 'Agent' },
+  { path: '/task-board', label: '任务' },
+  { path: '/chat', label: '对话' },
+  { path: '/boards', label: '看板' },
+]
+
+function isActive(path: string) {
+  return route.path.startsWith(path)
+}
 
 function handleSearch() {
   if (searchQuery.value.trim()) {
@@ -86,85 +97,127 @@ function handleCommand(command: string) {
 </script>
 
 <style lang="scss" scoped>
-.app-header {
+.global-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: $header-height;
-  padding: 0 $spacing-6;
-  background: $bg-color-card;
-  border-bottom: 1px solid $border-color-light;
-  box-shadow: $shadow-sm;
+  height: $global-nav-height;
+  padding: 0 $spacing-xxl;
+  background: $surface-black;
+  color: $body-on-dark;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 200;
 
   &__left {
     display: flex;
     align-items: center;
+    margin-right: $spacing-xl;
   }
 
   &__logo {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: $spacing-xs;
     text-decoration: none;
+    color: $body-on-dark;
   }
 
-  &__logo-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    background: $primary-color;
-    color: $text-color-inverse;
-    font-weight: $font-weight-bold;
-    font-size: $font-size-lg;
-    border-radius: $radius-md;
+  &__mark {
+    font-size: 18px;
+    line-height: 1;
   }
 
-  &__logo-text {
-    font-size: $font-size-xl;
-    font-weight: $font-weight-semibold;
-    color: $text-color-primary;
+  &__title {
+    font-family: $font-text;
+    font-size: $nav-link-size;
+    font-weight: $nav-link-weight;
+    letter-spacing: $nav-link-tracking;
+    opacity: 0.8;
   }
 
   &__center {
     flex: 1;
     display: flex;
-    justify-content: center;
-    max-width: 400px;
-    margin: 0 $spacing-6;
+    align-items: center;
+    gap: $spacing-5;
   }
 
-  &__search {
-    width: 100%;
+  &__link {
+    font-family: $font-text;
+    font-size: $nav-link-size;
+    font-weight: $nav-link-weight;
+    letter-spacing: $nav-link-tracking;
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: none;
+    transition: color 0.15s;
+    white-space: nowrap;
+
+    &:hover { color: $body-on-dark; }
+    &.active { color: $body-on-dark; }
   }
 
   &__right {
     display: flex;
     align-items: center;
-    gap: $spacing-4;
+    gap: $spacing-3;
   }
 
-  &__user {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: $radius-base;
-    transition: background 0.2s;
+  &__search {
+    width: 180px;
 
-    &:hover {
-      background: $bg-color-body;
+    :deep(.el-input__wrapper) {
+      background: rgba(255, 255, 255, 0.12);
+      border: none;
+      border-radius: $radius-pill;
+      box-shadow: none;
+      height: 28px;
+      padding: 0 12px;
+    }
+
+    :deep(.el-input__inner) {
+      color: $body-on-dark;
+      font-family: $font-text;
+      font-size: $nav-link-size;
+      &::placeholder { color: rgba(255, 255, 255, 0.4); }
+    }
+
+    :deep(.el-input__prefix) {
+      color: rgba(255, 255, 255, 0.4);
     }
   }
 
-  &__username {
-    font-size: $font-size-sm;
-    color: $text-color-primary;
+  &__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    color: rgba(255, 255, 255, 0.65);
+    background: transparent;
+    border: none;
+    border-radius: $radius-pill;
+    cursor: pointer;
+    transition: color 0.15s;
+    &:hover { color: $body-on-dark; }
+  }
+
+  &__user-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: $radius-pill;
+    cursor: pointer;
+  }
+
+  &__avatar {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: $body-on-dark !important;
+    font-size: 11px !important;
+    font-weight: 600;
   }
 }
 </style>

@@ -119,65 +119,63 @@ defineProps<{
   &__title {
     display: flex;
     align-items: center;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-semibold;
-    color: #6d28d9;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: #5b21b6;
   }
 
   &__date {
-    font-size: $font-size-xs;
-    color: $text-color-secondary;
+    font-size: $caption-size;
+    color: $ink-muted-48;
   }
 
-  &__body {
-    padding: 0;
-  }
+  &__body { padding: 0; }
 
   &__section {
-    padding: $spacing-3;
+    padding: $spacing-sm;
 
-    & + & {
-      border-top: 1px solid $border-color-light;
-    }
+    & + & { border-top: 1px solid $hairline; }
   }
 
   &__section-title {
     display: flex;
     align-items: center;
-    gap: $spacing-1;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-medium;
-    color: $text-color-primary;
-    margin: 0 0 $spacing-2 0;
+    gap: $spacing-xxs;
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
+    color: $ink;
+    margin: 0 0 $spacing-xs 0;
   }
 
   &__todo-meta {
     display: flex;
-    gap: $spacing-1;
-    margin-top: $spacing-1;
+    gap: $spacing-xxs;
+    margin-top: $spacing-xxs;
   }
 
   &__risk-item {
     display: flex;
     flex-direction: column;
-    gap: $spacing-1;
+    gap: $spacing-xxs;
   }
 
-  &__risk-desc {
-    color: #b91c1c;
-  }
+  &__risk-desc { color: $status-blocked; }
 
   &__risk-mitigation {
     display: inline-flex;
     align-items: center;
-    color: #16a34a;
-    font-size: $font-size-xs;
+    color: #10b981;
+    font-size: $caption-size;
   }
 
   &__issue-item {
     display: flex;
     flex-direction: column;
-    gap: $spacing-1;
+    gap: $spacing-xxs;
   }
 }
 </style>

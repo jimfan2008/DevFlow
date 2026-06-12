@@ -44,7 +44,13 @@ class HermesConfig:
     @classmethod
     def from_raw(cls, data: Dict[str, Any], env_data: Dict[str, str] = None) -> "HermesConfig":
         model_cfg = data.get("model", {})
-        api_server_cfg = data.get("api_server", {})
+        # Hermes 配置中 api_server 可能在根级别或 platforms.api_server 下
+        api_server_cfg = data.get("api_server", {}) or data.get("platforms", {}).get("api_server", {})
+        # 也检查 extra 嵌套（新版本 Hermes 配置结构）
+        if not api_server_cfg.get("enabled") and not api_server_cfg.get("port"):
+            extra = api_server_cfg.get("extra", {})
+            if extra.get("port"):
+                api_server_cfg = {**api_server_cfg, **extra}
         env_data = env_data or {}
 
         enabled = False

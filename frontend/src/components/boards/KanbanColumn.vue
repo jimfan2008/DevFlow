@@ -113,32 +113,34 @@ function handleColumnCommand(command: string) {
   min-width: $kanban-column-min-width;
   max-width: $kanban-column-max-width;
   width: $kanban-column-min-width;
-  background: $bg-color-body;
+  background: $canvas-parchment;
   border-radius: $radius-lg;
   display: flex;
   flex-direction: column;
   max-height: 100%;
 
   &--drag-over {
-    background: $primary-color-light-9;
-    outline: 2px dashed $primary-color-light-5;
+    background: rgba($primary, 0.06);
+    outline: 2px dashed $primary;
   }
 
   &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: $spacing-3 $spacing-3 $spacing-2;
+    padding: $spacing-sm $spacing-sm $spacing-xs;
     flex-shrink: 0;
   }
 
   &__title {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: $font-size-sm;
-    font-weight: $font-weight-semibold;
-    color: $text-color-primary;
+    gap: $spacing-xxs;
+    font-family: $font-text;
+    font-size: $caption-strong-size;
+    font-weight: $caption-strong-weight;
+    letter-spacing: $caption-strong-tracking;
+    color: $ink;
   }
 
   &__dot {
@@ -151,12 +153,12 @@ function handleColumnCommand(command: string) {
   &__body {
     flex: 1;
     overflow-y: auto;
-    padding: 0 $spacing-2 $spacing-2;
+    padding: 0 $spacing-xs $spacing-xs;
     min-height: 60px;
   }
 
   &__footer {
-    padding: $spacing-1 $spacing-3 $spacing-3;
+    padding: $spacing-xxs $spacing-sm $spacing-sm;
     flex-shrink: 0;
   }
 }

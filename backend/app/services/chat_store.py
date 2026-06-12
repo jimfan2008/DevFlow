@@ -101,8 +101,9 @@ class ChatStore:
 
     # ====== 群组 CRUD ======
 
-    def create_group(self, name: str, description: str = "", members: List[str] = None) -> Dict[str, Any]:
-        group_id = str(uuid.uuid4())
+    def create_group(self, name: str, description: str = "", members: Optional[List[str]] = None, group_id: Optional[str] = None) -> Dict[str, Any]:
+        if group_id is None:
+            group_id = str(uuid.uuid4())
         created_at = datetime.now().isoformat()
 
         conn = self._get_connection()

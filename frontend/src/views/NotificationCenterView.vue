@@ -74,20 +74,24 @@ function formatTime(t: string) {
   }
   &__title {
     margin: 0;
-    font-size: $font-size-2xl;
-    font-weight: $font-weight-bold;
+    font-family: $font-display;
+    font-size: $display-lg-size;
+    font-weight: $display-lg-weight;
+    line-height: $display-lg-leading;
+    letter-spacing: $display-lg-tracking;
+    color: $ink;
   }
   &__actions {
     display: flex;
     align-items: center;
-    gap: $spacing-2;
+    gap: $spacing-xs;
   }
   &__unread-dot {
     display: inline-block;
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: $primary-color;
+    background: $primary;
   }
 }
 </style>
