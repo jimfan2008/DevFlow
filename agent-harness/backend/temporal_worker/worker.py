@@ -1,12 +1,15 @@
 import asyncio
+import logging
 from temporalio.client import Client
 from temporalio.worker import Worker
 from backend.temporal_worker.workflows import DeployAgentWorkflow
 from backend.temporal_worker.activities import register_agent_activity, check_agent_health_activity
 from backend.shared.config import config
 
+logger = logging.getLogger(__name__)
 
-async def run_worker():
+
+async def run_worker() -> None:
     client = await Client.connect(config.temporal_host)
     worker = Worker(
         client,
@@ -14,7 +17,7 @@ async def run_worker():
         workflows=[DeployAgentWorkflow],
         activities=[register_agent_activity, check_agent_health_activity],
     )
-    print("Temporal worker started, listening on queue: agent-harness-tasks")
+    logger.info("Temporal worker started, listening on queue: agent-harness-tasks")
     await worker.run()
 
 
