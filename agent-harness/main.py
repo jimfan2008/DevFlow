@@ -18,14 +18,14 @@ async def lifespan(app: FastAPI):
     await svc.close()
 
 
-def create_app(db_url: str = config.database_url):
+def create_app(db_url: str = config.database_url) -> FastAPI:
     app = FastAPI(title="Agent Harness", lifespan=lifespan)
     app.state.db_url = db_url
     app.state.config = config
     app.include_router(agent_router)
 
     @app.get("/health")
-    async def health():
+    async def health() -> JSONResponse:
         return JSONResponse({"status": "ok", "service": "agent-harness"})
 
     return app
