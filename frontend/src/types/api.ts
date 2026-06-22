@@ -133,6 +133,7 @@ export interface BoardListItem {
 
 export interface BoardDetail {
   id: string
+  project_id?: string
   name: string
   description: string
   columns: BoardColumn[]

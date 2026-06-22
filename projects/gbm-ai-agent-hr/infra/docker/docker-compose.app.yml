@@ -1,0 +1,205 @@
+# GBM AI Agent HR - Application Services
+# Run: docker compose -f infra/docker/docker-compose.infra.yml -f infra/docker/docker-compose.app.yml up -d
+
+version: '3.8'
+
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: gbm-hr-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - user-domain
+      - recruit-domain
+      - payroll-domain
+      - auto-domain
+      - web-frontend
+
+  # User Domain Service (:8081)
+  user-domain:
+    build:
+      context: ./backend/user-domain
+      dockerfile: Dockerfile
+    container_name: gbm-hr-user-domain
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${APP_ENV:-development}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_PASSWORD: ${DB_PASSWORD:-gbm_hr_admin_2026}
+      DB_SCHEMA: hr_user
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-gbm_redis_2026}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:9092}
+      KEYCLOAK_SERVER_URL: ${KEYCLOAK_SERVER_URL:-http://keycloak:8080}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+
+  # Recruit Domain Service (:8082)
+  recruit-domain:
+    build:
+      context: ./backend/recruit-domain
+      dockerfile: Dockerfile
+    container_name: gbm-hr-recruit-domain
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${APP_ENV:-development}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_PASSWORD: ${DB_PASSWORD:-gbm_hr_admin_2026}
+      DB_SCHEMA: hr_recruit
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-gbm_redis_2026}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:9092}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      RPA_SERVICE_URL: ${RPA_SERVICE_URL:-http://rpa-service:8090}
+      OCR_SERVICE_URL: ${OCR_SERVICE_URL:-http://ocr-service:8091}
+      FACE_SERVICE_URL: ${FACE_SERVICE_URL:-http://face-service:8092}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      MILVUS_HOST: ${MILVUS_HOST:-milvus}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+
+  # Payroll Domain Service (:8083)
+  payroll-domain:
+    build:
+      context: ./backend/payroll-domain
+      dockerfile: Dockerfile
+    container_name: gbm-hr-payroll-domain
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${APP_ENV:-development}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_PASSWORD: ${DB_PASSWORD:-gbm_hr_admin_2026}
+      DB_SCHEMA: hr_payroll
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-gbm_redis_2026}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:9092}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+
+  # Auto Domain Service (:8084)
+  auto-domain:
+    build:
+      context: ./backend/auto-domain
+      dockerfile: Dockerfile
+    container_name: gbm-hr-auto-domain
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${APP_ENV:-development}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_PASSWORD: ${DB_PASSWORD:-gbm_hr_admin_2026}
+      DB_SCHEMA: hr_auto
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-gbm_redis_2026}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka1:9092}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      RPA_SERVICE_URL: ${RPA_SERVICE_URL:-http://rpa-service:8090}
+      OCR_SERVICE_URL: ${OCR_SERVICE_URL:-http://ocr-service:8091}
+      FACE_SERVICE_URL: ${FACE_SERVICE_URL:-http://face-service:8092}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka1:
+        condition: service_healthy
+
+  # RPA Python Service (:8090)
+  rpa-service:
+    build:
+      context: ./python-services/rpa-service
+      dockerfile: Dockerfile
+    container_name: gbm-hr-rpa-service
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      RPA_HEADLESS: ${RPA_HEADLESS:-true}
+      RPA_TIMEOUT: ${RPA_TIMEOUT:-60000}
+      RPA_RETRIES: ${RPA_RETRIES:-3}
+    depends_on:
+      kafka1:
+        condition: service_healthy
+
+  # OCR Python Service (:8091)
+  ocr-service:
+    build:
+      context: ./python-services/ocr-service
+      dockerfile: Dockerfile
+    container_name: gbm-hr-ocr-service
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      OCR_LANG: ${OCR_LANG:-ch}
+      OCR_USE_GPU: ${OCR_USE_GPU:-false}
+    depends_on:
+      kafka1:
+        condition: service_healthy
+
+  # Face Python Service (:8092)
+  face-service:
+    build:
+      context: ./python-services/face-service
+      dockerfile: Dockerfile
+    container_name: gbm-hr-face-service
+    restart: unless-stopped
+    ports:
+      - "8092:8092"
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    depends_on:
+      kafka1:
+        condition: service_healthy
+
+  # Web Frontend (Vue.js)
+  web-frontend:
+    build:
+      context: ./frontend/web
+      dockerfile: Dockerfile
+    container_name: gbm-hr-web-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: /api/v1
+      VITE_KEYCLOAK_URL: /auth

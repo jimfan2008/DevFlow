@@ -15,7 +15,7 @@ import logging
 
 logger = logging.getLogger("devflow.gateway_client")
 
-MAX_CONCURRENT = 5
+MAX_CONCURRENT = 20
 REQUEST_TIMEOUT = 360
 _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
@@ -50,11 +50,48 @@ class GatewayClient:
         config = read_profile_config(self.profile_name)
         if config:
             port = get_gateway_port_from_config(config)
+            api_key = get_gateway_api_key(config) or ""
+
             if port:
-                api_key = get_gateway_api_key(config) or ""
-                self.port = port
-                self._api_key = api_key
-                return port, api_key
+                # 检查 api_server 是否已连接
+                import json, os
+                gw_state_path = os.path.join(
+                    get_hermes_home_path(), "profiles", self.profile_name, "gateway_state.json"
+                )
+                api_server_connected = False
+                try:
+                    with open(gw_state_path) as f:
+                        state = json.load(f)
+                    api_server_connected = (state.get("platforms", {})
+                                            .get("api_server", {})
+                                            .get("state") == "connected")
+                except Exception:
+                    pass
+
+                if api_server_connected:
+                    self.port = port
+                    self._api_key = api_key
+                    return port, api_key
+
+                # api_server 未标记 connected，尝试直接连接端口
+                import httpx as _httpx
+                try:
+                    test_url = f"http://localhost:{port}/v1/chat/completions"
+                    with _httpx.Client(timeout=5) as _client:
+                        _resp = _client.post(
+                            test_url,
+                            json={"model": "test", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                            headers={"Content-Type": "application/json"}
+                            | ({"Authorization": f"Bearer {api_key}"} if api_key else {}),
+                        )
+                        if _resp.status_code in (200, 201, 401, 422):
+                            self.port = port
+                            self._api_key = api_key
+                            logger.info(f"Port {port} reachable for profile '{self.profile_name}', using gateway HTTP")
+                            return port, api_key
+                except Exception:
+                    pass
+                logger.warning(f"Port {port} unreachable for profile '{self.profile_name}', will try other methods")
 
         # Fallback: extract port from HERMES_API_BASE env var
         import os
@@ -106,17 +143,21 @@ class GatewayClient:
         if not HERMES_CLI_PATH:
             raise ConnectionError("Hermes CLI not found. Install hermes or enable Gateway API server.")
 
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                HERMES_CLI_PATH, "chat", "-q", message, "--profile", self.profile_name, "-Q",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+        def _run_cli():
+            return subprocess.run(
+                [HERMES_CLI_PATH, "chat", "-q", message, "--profile", self.profile_name, "-Q"],
+                capture_output=True, text=True, timeout=self.timeout,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.timeout)
-            if proc.returncode == 0:
-                return stdout.decode("utf-8", errors="replace").strip()
+
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(_run_cli),
+                timeout=self.timeout
+            )
+            if result.returncode == 0:
+                return result.stdout.strip()
             else:
-                raise Exception(f"hermes CLI error: {stderr.decode('utf-8', errors='replace')}")
+                raise Exception(f"hermes CLI error: {result.stderr}")
         except asyncio.TimeoutError:
             raise TimeoutError(f"hermes CLI timed out after {self.timeout}s")
 
@@ -222,7 +263,7 @@ class GatewayClient:
             return check_gateway_running(self.profile_name)
         import os
         host = os.environ.get("HERMES_GATEWAY_HOST", "localhost")
-        url = f"http://{host}:{port}/health"
+        url = f"http://{host}:{port}/v1/chat/completions"
         headers = self._get_headers(api_key)
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -307,8 +348,22 @@ class GatewayClient:
         host = os.environ.get("HERMES_GATEWAY_HOST", "localhost")
         url = f"http://{host}:{port}/v1/chat/completions"
         headers = self._get_headers(api_key)
+
+        # Try to get model from profile config, fallback to gpt-4o
+        model = "gpt-4o"
+        try:
+            config = read_profile_config(self.profile_name)
+            if config:
+                default_model = config.get("model", {})
+                if isinstance(default_model, dict):
+                    model = default_model.get("default", "gpt-4o")
+                elif isinstance(default_model, str):
+                    model = default_model
+        except Exception:
+            pass
+
         payload = {
-            "model": "hermes-agent",
+            "model": model,
             "messages": isolated_messages,
             "stream": stream,
             "temperature": 0.7,

@@ -1,0 +1,130 @@
+stages:
+  - lint
+  - build
+  - test
+  - package
+  - deploy
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  REGISTRY: registry.example.com
+  IMAGE_TAG: ${CI_COMMIT_SHA}
+
+# ===================== 后端 Lint =====================
+backend-lint:
+  stage: lint
+  image: eclipse-temurin:17-jdk
+  script:
+    - cd backend
+    - mvn checkstyle:check -pl user-domain,recruit-domain,payroll-domain,auto-domain
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ===================== 前端 Lint =====================
+frontend-lint:
+  stage: lint
+  image: node:18-alpine
+  script:
+    - cd frontend/web && npm ci && npm run lint
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ===================== 后端构建 =====================
+backend-build:
+  stage: build
+  image: eclipse-temurin:17-jdk
+  script:
+    - cd backend
+    - mvn clean compile -DskipTests -pl user-domain,recruit-domain,payroll-domain,auto-domain -am
+  cache:
+    key: backend-maven
+    paths:
+      - ~/.m2/repository/
+  artifacts:
+    paths:
+      - backend/*/target/
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ===================== 后端测试 =====================
+backend-test:
+  stage: test
+  image: eclipse-temurin:17-jdk
+  script:
+    - cd backend && mvn test -pl user-domain,recruit-domain,payroll-domain,auto-domain
+  allow_failure: true
+  artifacts:
+    reports:
+      junit: backend/*/target/surefire-reports/*.xml
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ===================== 前端构建 =====================
+frontend-build:
+  stage: build
+  image: node:18-alpine
+  script:
+    - cd frontend/web && npm ci && npm run build
+    - cd ../mobile && npm ci && npm run build
+  artifacts:
+    paths:
+      - frontend/web/dist/
+      - frontend/mobile/dist/
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# ===================== Docker 镜像 =====================
+docker-build:
+  stage: package
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t ${REGISTRY}/gbm-hr/user-domain:${IMAGE_TAG} backend/user-domain/
+    - docker build -t ${REGISTRY}/gbm-hr/recruit-domain:${IMAGE_TAG} backend/recruit-domain/
+    - docker build -t ${REGISTRY}/gbm-hr/payroll-domain:${IMAGE_TAG} backend/payroll-domain/
+    - docker build -t ${REGISTRY}/gbm-hr/auto-domain:${IMAGE_TAG} backend/auto-domain/
+    - docker build -t ${REGISTRY}/gbm-hr/rpa-service:${IMAGE_TAG} python-services/rpa-service/
+    - docker build -t ${REGISTRY}/gbm-hr/ocr-service:${IMAGE_TAG} python-services/ocr-service/
+    - docker build -t ${REGISTRY}/gbm-hr/face-service:${IMAGE_TAG} python-services/face-service/
+    - docker build -t ${REGISTRY}/gbm-hr/web-frontend:${IMAGE_TAG} frontend/web/
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${REGISTRY}
+    - for img in user-domain recruit-domain payroll-domain auto-domain rpa-service ocr-service face-service web-frontend; do
+        docker push ${REGISTRY}/gbm-hr/${img}:${IMAGE_TAG}
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+
+# ===================== 部署 Staging =====================
+deploy-staging:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - |
+      for svc in user-domain recruit-domain payroll-domain auto-domain rpa-service ocr-service face-service; do
+        kubectl set image deployment/${svc} ${svc}=${REGISTRY}/gbm-hr/${svc}:${IMAGE_TAG} -n gbm-hr
+      done
+  environment:
+    name: staging
+    url: https://staging.gbm-hr.example.com
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
+
+# ===================== 部署 Production =====================
+deploy-production:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  script:
+    - |
+      for svc in user-domain recruit-domain payroll-domain auto-domain rpa-service ocr-service face-service; do
+        kubectl set image deployment/${svc} ${svc}=${REGISTRY}/gbm-hr/${svc}:${IMAGE_TAG} -n gbm-hr-prod
+      done
+  environment:
+    name: production
+    url: https://hr.gbm.com
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual

@@ -53,16 +53,12 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { Search, Bell } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { useInboxStore } from '@/stores/useInboxStore'
-
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
-const inboxStore = useInboxStore()
-
 const searchQuery = ref('')
 const displayName = authStore.displayName || authStore.username || 'User'
-const unreadCount = inboxStore.unreadCount
+const unreadCount = 0
 
 const navItems = [
   { path: '/projects', label: '项目' },
@@ -80,10 +76,6 @@ function handleSearch() {
   if (searchQuery.value.trim()) {
     router.push({ name: 'BoardList', query: { search: searchQuery.value.trim() } })
   }
-}
-
-function goToInbox() {
-  router.push({ name: 'Inbox' })
 }
 
 function handleCommand(command: string) {

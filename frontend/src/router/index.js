@@ -115,12 +115,6 @@ const routes = [
   },
 
   {
-    path: '/inbox',
-    name: 'Inbox',
-    component: () => import('@/views/InboxView.vue'),
-    meta: { requiresAuth: true, title: '收件箱' }
-  },
-  {
     path: '/requirements',
     name: 'Requirements',
     component: () => import('@/views/RequirementsView.vue'),
@@ -146,6 +140,13 @@ const routes = [
     component: () => import('@/views/Step4View.vue'),
     props: true,
     meta: { requiresAuth: true, title: '第四步：架构设计' }
+  },
+  {
+    path: '/step/:projectId/:stepNumber',
+    name: 'WorkflowStep',
+    component: () => import('@/views/WorkflowStepView.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '工作流步骤' }
   },
 
   {

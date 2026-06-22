@@ -21,9 +21,6 @@ NAMESPACE_COMMENTS = "comments"
 NAMESPACE_ATTACHMENTS = "attachments"
 NAMESPACE_DEPS = "dependencies"
 NAMESPACE_WORKLOAD = "workload"
-NAMESPACE_INBOX = "inbox"
-
-
 # ── 命名空间 -> 全局通配符 映射 ──────────────────────────
 NAMESPACE_PATTERNS = {
     NAMESPACE_TASKS: "tasks:*",
@@ -34,7 +31,6 @@ NAMESPACE_PATTERNS = {
     NAMESPACE_ATTACHMENTS: "attachments:*",
     NAMESPACE_DEPS: "dependencies:*",
     NAMESPACE_WORKLOAD: "workload:*",
-    NAMESPACE_INBOX: "inbox:*",
 }
 
 
@@ -163,7 +159,6 @@ class CacheInvalidator:
         # 用户详情
         count += self.cm.delete(f"{NAMESPACE_USER}:{user_id}")
         # 用户收件箱
-        count += self.cm.clear(f"inbox:user:{user_id}:*")
         return count
 
     def invalidate_comments(self, task_id: str) -> int:

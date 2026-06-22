@@ -180,6 +180,13 @@ def get_gateway_port_from_config(config: Dict[str, Any]) -> Optional[int]:
     except (ValueError, TypeError):
         pass
 
+    try:
+        port = config.get("gateway_port")
+        if port:
+            return int(port)
+    except (ValueError, TypeError):
+        pass
+
     return None
 
 
@@ -244,6 +251,13 @@ def get_gateway_api_key(config: Dict[str, Any]) -> Optional[str]:
 
     try:
         key = config.get("gateway", {}).get("api_key")
+        if key:
+            return key
+    except Exception:
+        pass
+
+    try:
+        key = config.get("api_key")
         if key:
             return key
     except Exception:

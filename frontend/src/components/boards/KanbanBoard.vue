@@ -31,17 +31,26 @@
     </div>
 
     <div class="kanban-board__columns" v-loading="loading">
-      <KanbanColumn
-        v-for="column in sortedColumns"
-        :key="column.id"
-        :column="column"
-        :tasks="getColumnTasks(column.id)"
-        :board-id="boardId"
-        @drop="handleDrop"
-        @add-task="handleAddTask"
-        @edit-column="handleEditColumn"
-        @delete-column="handleDeleteColumn"
-      />
+      <template v-if="sortedColumns.length > 0">
+        <KanbanColumn
+          v-for="column in sortedColumns"
+          :key="column.id"
+          :column="column"
+          :tasks="getColumnTasks(column.id)"
+          :board-id="boardId"
+          @drop="handleDrop"
+          @add-task="handleAddTask"
+          @edit-column="handleEditColumn"
+          @delete-column="handleDeleteColumn"
+        />
+      </template>
+      <div v-else-if="!loading" class="kanban-board__empty">
+        <el-empty description="该看板暂无任务数据，海梅正在采集工作流信息">
+          <el-button size="small" type="primary" @click="handleAddColumn">
+            添加列
+          </el-button>
+        </el-empty>
+      </div>
     </div>
 
     <CreateBoardDialog
@@ -218,6 +227,14 @@ function handleTaskCreated() {
     flex: 1;
     padding-bottom: $spacing-4;
     align-items: flex-start;
+  }
+
+  &__empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    min-height: 200px;
   }
 }
 </style>

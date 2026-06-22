@@ -1,0 +1,14 @@
+{
+  "$schema": "https://github.com/KoinaAI/MiMo-CLI/raw/main/schema/mimo-code.schema.json",
+  "mcpServers": [],
+  "skills": [],
+  "hooks": [],
+  "workflow": {
+    "defaultMode": "agent",
+    "recommendedChecks": [
+      "npm run lint",
+      "npm run typecheck",
+      "npm test"
+    ]
+  }
+}

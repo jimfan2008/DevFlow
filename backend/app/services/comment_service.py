@@ -13,11 +13,10 @@ class CommentService:
     def _import_models(self):
         from app.models.comment import Comment
         from app.models.task import Task
-        from app.models.notification import InboxItem
-        return Comment, Task, InboxItem
+        return Comment, Task
 
     def create_comment(self, task_id: str, content: str) -> dict:
-        Comment, Task, InboxItem = self._import_models()
+        Comment, Task = self._import_models()
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError("任务不存在")
@@ -29,22 +28,6 @@ class CommentService:
             created_at=datetime.now(timezone.utc),
         )
         self.db.add(comment)
-        # Notify task assignee
-        if task.assignee_agent_id and task.assignee_agent_id != self.current_user_id:
-            try:
-                inbox = InboxItem(
-                    id=str(uuid.uuid4()),
-                    user_id=task.assignee_agent_id,
-                    task_id=task_id,
-                    type="commented",
-                    title=f"新评论: {task.name}",
-                    content=content[:200],
-                    is_read=False,
-                    created_at=datetime.now(timezone.utc),
-                )
-                self.db.add(inbox)
-            except Exception:
-                pass
         self.db.commit()
         self.db.refresh(comment)
         return comment.to_dict()

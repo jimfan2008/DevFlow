@@ -470,7 +470,7 @@ async function handleComplete() {
     if (res) {
       await store.executeStep3()
       ElMessage.success('第二步完成！即将进入需求分析阶段')
-      router.push({ name: 'Step3', params: { projectId: store.projectId } })
+      router.push({ name: 'Step3', params: { projectId: store.projectId }, query: { name: store.projectName } })
     }
   } finally {
     store.loading = false

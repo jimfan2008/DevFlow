@@ -83,6 +83,42 @@ class AgentRoleService:
     def get_project_manager_role(self):
         return self.get_role_by_name("haimei")
 
+    def get_supervisor_role(self):
+        """返回海梅（Haimei）- 项目经理/全程监督者"""
+        return self.get_role_by_name("haimei")
+
+    def get_all_supervised_steps(self) -> list:
+        """返回海梅需要监督的所有步骤列表"""
+        from app.services.workflow_engine import get_default_steps
+        return [s for s in get_default_steps() if s.supervisor_role == "haimei"]
+
+    def get_all_executor_roles_except_haimei(self) -> list:
+        """返回除海梅外的所有执行Agent角色"""
+        return [dict(r) for r in NAMED_ROLES if r["role_name"] != "haimei"]
+
+    def get_roles_managed_by_haimei(self) -> list:
+        """返回海梅需要管理的所有执行Agent角色"""
+        return self.get_all_executor_roles_except_haimei()
+
+    def get_haimei_capabilities(self) -> dict:
+        """返回海梅的能力描述，用于项目管理"""
+        return {
+            "role_name": "haimei",
+            "chinese_name": "海梅",
+            "role_type": "project_manager",
+            "capabilities": [
+                "调动所有执行Agent",
+                "检查Agent健康状态",
+                "恢复异常Agent",
+                "步骤前置监督审查",
+                "项目整体进度跟踪",
+                "QA检验审核",
+                "迭代流程管理",
+                "异常检测与自动恢复",
+            ],
+            "supervised_roles": [r["role_name"] for r in NAMED_ROLES if r["role_name"] != "haimei"],
+        }
+
     def get_all_roles(self):
         return [dict(r) for r in NAMED_ROLES]
 

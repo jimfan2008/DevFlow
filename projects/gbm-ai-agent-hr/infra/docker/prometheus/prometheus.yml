@@ -1,0 +1,36 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'gbm-hr-user-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['user-domain:8081']
+
+  - job_name: 'gbm-hr-recruit-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['recruit-domain:8082']
+
+  - job_name: 'gbm-hr-payroll-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['payroll-domain:8083']
+
+  - job_name: 'gbm-hr-auto-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auto-domain:8084']
+
+  - job_name: 'gbm-hr-rpa-service'
+    static_configs:
+      - targets: ['rpa-service:8090']
+
+  - job_name: 'gbm-hr-ocr-service'
+    static_configs:
+      - targets: ['ocr-service:8091']
+
+  - job_name: 'gbm-hr-face-service'
+    static_configs:
+      - targets: ['face-service:8092']

@@ -1,0 +1,498 @@
+# GBM AI Agent HR - Docker Compose Development Environment
+# Based on ARCHITECTURE_V24, BACKEND_V35, DATABASE_V19
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+
+  # MySQL 8.x - Main Database
+  mysql:
+    image: mysql:8.0
+    container_name: gbm-hr-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
+      MYSQL_USER: ${DB_USER:-hr_admin}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-hr_password}
+      MYSQL_DATABASE: ${USER_DB_NAME:-hr_user}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max-connections=200
+      --innodb-buffer-pool-size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # Redis 7.x - Cache
+  redis:
+    image: redis:7-alpine
+    container_name: gbm-hr-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-redis_password} --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_password}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # ============================================
+  # Kafka 3-Node Cluster
+  # ============================================
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: gbm-hr-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gbm-hr-network
+
+  kafka1:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: gbm-hr-kafka1
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka1:9092,PLAINTEXT_HOST://0.0.0.0:19092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "19092:19092"
+    volumes:
+      - kafka1_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - gbm-hr-network
+
+  kafka2:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: gbm-hr-kafka2
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka2:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "29092:29092"
+    volumes:
+      - kafka2_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - gbm-hr-network
+
+  kafka3:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: gbm-hr-kafka3
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://kafka3:9092,PLAINTEXT_HOST://0.0.0.0:39092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092,PLAINTEXT_HOST://localhost:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "39092:39092"
+    volumes:
+      - kafka3_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - gbm-hr-network
+
+  # Kafka Topics Initialization
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: gbm-hr-kafka-init
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      until kafka-broker-api-versions --bootstrap-server kafka1:9092 > /dev/null 2>&1; do
+        echo 'Waiting for Kafka...'
+        sleep 5
+      done;
+      
+      # Create topics for inter-service communication
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic hr.user.events;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic hr.recruit.events;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic hr.payroll.events;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic hr.auto.events;
+      
+      # Create topics for AI sub-services
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic ocr.result;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic face.result;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 3 --topic rpa.result;
+      
+      # Dead letter queues
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 1 --topic hr.user.dlq;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 1 --topic hr.recruit.dlq;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 1 --topic hr.payroll.dlq;
+      kafka-topics --create --if-not-exists --bootstrap-server kafka1:9092 --replication-factor 3 --partitions 1 --topic hr.auto.dlq;
+      
+      echo 'Kafka topics created successfully!';
+      "
+    networks:
+      - gbm-hr-network
+
+  # ============================================
+  # Authentication & Workflow
+  # ============================================
+
+  # Keycloak SSO
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    container_name: gbm-hr-keycloak
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: mysql
+      KC_DB_URL: jdbc:mysql://mysql:3306/keycloak
+      KC_DB_USERNAME: ${DB_USER:-hr_admin}
+      KC_DB_PASSWORD: ${DB_PASSWORD:-hr_password}
+      KC_HTTP_PORT: 8080
+    command: start-dev
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/realms/master || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: gbm-hr-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "alias", "set", "local", "http://localhost:9000", "${MINIO_ACCESS_KEY:-minioadmin}", "${MINIO_SECRET_KEY:-minioadmin}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # MinIO Bucket Initialization
+  minio-init:
+    image: minio/mc:latest
+    container_name: gbm-hr-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      until mc alias set local http://minio:9000 ${MINIO_ACCESS_KEY:-minioadmin} ${MINIO_SECRET_KEY:-minioadmin} 2>/dev/null; do
+        echo 'Waiting for MinIO...'
+        sleep 5
+      done;
+      
+      mc mb --ignore-existing local/hr-documents;
+      mc mb --ignore-existing local/hr-resumes;
+      mc mb --ignore-existing local/hr-certificates;
+      mc mb --ignore-existing local/hr-training;
+      mc mb --ignore-existing local/hr-rpa-receipts;
+      mc mb --ignore-existing local/hr-audit-logs;
+      
+      echo 'MinIO buckets created successfully!';
+      "
+    networks:
+      - gbm-hr-network
+
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: gbm-hr-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: ${ES_PASSWORD:-elastic_password}
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -u elastic:${ES_PASSWORD:-elastic_password} http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # ============================================
+  # Monitoring
+  # ============================================
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gbm-hr-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gbm-hr-grafana
+    ports:
+      - "3100:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # ============================================
+  # Python Sub-services
+  # ============================================
+
+  # OCR Service (PaddleOCR)
+  ocr-service:
+    build:
+      context: ./python/ocr-service
+      dockerfile: Dockerfile
+    container_name: gbm-hr-ocr-service
+    environment:
+      - OCR_ENGINE=paddleocr
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - KAFKA_TOPIC=ocr.result
+      - KAFKA_DLQ=ocr.dlq
+    ports:
+      - "9001:8000"
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # Face Recognition Service (InsightFace)
+  face-service:
+    build:
+      context: ./python/face-service
+      dockerfile: Dockerfile
+    container_name: gbm-hr-face-service
+    environment:
+      - FACE_MODEL=insightface
+      - FACE_THRESHOLD=0.85
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - KAFKA_TOPIC=face.result
+      - KAFKA_DLQ=face.dlq
+    ports:
+      - "9002:8000"
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # RPA Service (Playwright)
+  rpa-service:
+    build:
+      context: ./python/rpa-service
+      dockerfile: Dockerfile
+    container_name: gbm-hr-rpa-service
+    environment:
+      - RPA_BROWSER=chromium
+      - KAFKA_BROKERS=kafka1:9092,kafka2:9092,kafka3:9092
+      - KAFKA_TOPIC=rpa.result
+      - KAFKA_DLQ=rpa.dlq
+      - SOCIAL_SECURITY_URL=${SOCIAL_SECURITY_URL}
+      - SOCIAL_SECURITY_USERNAME=${SOCIAL_SECURITY_USERNAME}
+      - SOCIAL_SECURITY_PASSWORD=${SOCIAL_SECURITY_PASSWORD}
+      - HOUSING_FUND_URL=${HOUSING_FUND_URL}
+      - HOUSING_FUND_USERNAME=${HOUSING_FUND_USERNAME}
+      - HOUSING_FUND_PASSWORD=${HOUSING_FUND_PASSWORD}
+    ports:
+      - "9003:8000"
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
+      kafka3:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+  # ============================================
+  # Nginx Reverse Proxy
+  # ============================================
+
+  nginx:
+    image: nginx:latest
+    container_name: gbm-hr-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/web/dist:/usr/share/nginx/html:ro
+    depends_on:
+      - user-domain
+      - recruit-domain
+      - payroll-domain
+      - auto-domain
+      - keycloak
+    restart: unless-stopped
+    networks:
+      - gbm-hr-network
+
+volumes:
+  mysql_data:
+  redis_data:
+  zookeeper_data:
+  zookeeper_logs:
+  kafka1_data:
+  kafka2_data:
+  kafka3_data:
+  minio_data:
+  es_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  gbm-hr-network:
+    driver: bridge
+    name: gbm-hr-network

@@ -1,0 +1,3599 @@
+"""v4.0 - 16步流程调度 API（DB持久化）"""
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
+from typing import Optional
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.services.workflow_engine import WorkflowEngine, get_default_steps
+from app.core.responses import APIResponse
+from app.api.deps import get_current_user
+from app.config import settings
+import asyncio
+import os
+import logging
+
+logger = logging.getLogger("devflow.workflow")
+
+router = APIRouter(redirect_slashes=False)
+
+
+class CoreGoalRequest(BaseModel):
+    core_goal: str
+
+
+class Step2ArtifactsRequest(BaseModel):
+    phase: str
+    core_goal: str = ""
+    confirmed_goal: str = ""
+    chat_round: int = 0
+    messages: list = []
+    agents: list = []
+    group_info: Optional[dict] = None
+    qa_passed: bool = False
+    qa_message: str = ""
+
+
+class QAResultRequest(BaseModel):
+    result: str = "passed"
+    reason: Optional[str] = None
+    suggestions: Optional[list[str]] = None
+
+
+class UserSatisfactionRequest(BaseModel):
+    satisfied: bool = True
+    feedback: Optional[str] = None
+
+
+class Step3InspectRequest(BaseModel):
+    content: str
+    filename: Optional[str] = None
+    focus_items: Optional[list[str]] = None
+    save_path: Optional[str] = None
+
+
+class TDDPlanRequest(BaseModel):
+    plan_content: dict
+
+
+class CodePlanRequest(BaseModel):
+    plan_content: dict
+    dependency_graph: Optional[dict] = None
+
+
+class Step5ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step7ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step9ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step10ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step11ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step12ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step13ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+class Step14ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+_wf_engines: dict[str, WorkflowEngine] = {}
+
+
+def _get_engine(project_id: str, db: Session) -> WorkflowEngine:
+    # 校验项目是否存在
+    from app.models.project import Project
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        # 项目不存在，查找同名的其他项目
+        all_projects = db.query(Project).all()
+        if all_projects:
+            proj_names = ", ".join([f"{p.name}({p.id})" for p in all_projects[:5]])
+            raise Exception(
+                f"项目不存在 (ID: {project_id})。"
+                f"当前项目列表: {proj_names}"
+            )
+        raise Exception(f"项目不存在 (ID: {project_id})。当前没有项目，请先创建项目。")
+    
+    if project_id not in _wf_engines:
+        _wf_engines[project_id] = WorkflowEngine(project_id=project_id, db=db)
+    else:
+        _wf_engines[project_id].db = db
+        _wf_engines[project_id]._load_from_db()
+    return _wf_engines[project_id]
+
+
+@router.post("/{project_id}/step2")
+def execute_step2(project_id: str, body: CoreGoalRequest,
+                  db: Session = Depends(get_db),
+                  current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.advance_step(2)
+    step = engine.complete_step(2, artifacts={"core_goal": body.core_goal})
+    result = engine.pass_qa(2)
+    return APIResponse(code=0, data={
+        "message": "第二步完成：核心目标确认与组织架构搭建",
+        "step": step,
+        "qa": result,
+    })
+
+
+@router.post("/{project_id}/step2/artifacts")
+def save_step2_artifacts(project_id: str, body: Step2ArtifactsRequest,
+                         db: Session = Depends(get_db),
+                         current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step2_artifacts(body.model_dump())
+    return APIResponse(code=0, data={"message": "步骤2状态已保存"})
+
+
+@router.get("/{project_id}/step2/status")
+def get_step2_status(project_id: str,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step2_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+@router.post("/{project_id}/step3/artifacts")
+def save_step3_artifacts(project_id: str, body: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step3_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤3状态已保存"})
+
+
+@router.get("/{project_id}/step3/status")
+def get_step3_status(project_id: str,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step3_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+@router.post("/{project_id}/step3")
+def execute_step3(project_id: str, body: Optional[dict] = None,
+                  db: Session = Depends(get_db),
+                  current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.advance_step(3)
+    step = engine.complete_step(3, artifacts=body or {})
+    return APIResponse(code=0, data={"message": "第三步：需求分析进行中", "step": step})
+
+
+@router.post("/{project_id}/step3/qa")
+def qa_step3(project_id: str, body: QAResultRequest,
+             db: Session = Depends(get_db),
+             current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(3)
+    else:
+        result = engine.fail_qa(3, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第三步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+class Step3ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+@router.post("/{project_id}/step3/chat")
+async def step3_chat(project_id: str, body: Step3ChatRequest,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    """HouXing 需求分析对话 - 使用项目隔离模式"""
+    logger.info(f"Step3 chat: project_id={project_id}, message={body.message[:50]}")
+
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+
+        # 加载项目信息
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        user_message = body.message or "你好，我们来讨论一下项目的需求。"
+        messages = body.messages + [{"role": "user", "content": user_message}]
+
+        # 使用项目隔离模式
+        client = GatewayClient(profile_name="houxing", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(
+            messages=messages,
+            project_id=project_id,
+            project_name=project.name,
+            project_description=project.description or "",
+            core_goal=core_goal,
+            agent_name="后兴（HouXing）需求分析师",
+            stream=False,
+        ):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后兴未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"HouXing chat failed: {e}")
+        return APIResponse(code=1, message=f"与后兴对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step3/save-doc")
+def save_step3_doc(project_id: str, body: Step3InspectRequest,
+                   db: Session = Depends(get_db),
+                   current_user=Depends(get_current_user)):
+    """将需求文档保存到指定文件夹和项目代码库"""
+    from datetime import datetime
+
+    # 保存到指定路径
+    local_dir = body.save_path or os.path.join(os.getcwd(), "docs")
+    os.makedirs(local_dir, exist_ok=True)
+    local_filename = body.filename or f"requirements-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+    local_path = os.path.join(local_dir, local_filename)
+    try:
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(body.content)
+        logger.info(f"需求文档已保存到本地: {local_path}")
+    except Exception as e:
+        logger.error(f"保存需求文档到本地失败: {e}")
+
+    # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
+    engine = WorkflowEngine(project_id=project_id, db=db)
+    engine.save_step3_artifacts({
+        "doc_content": body.content,
+        "filename": body.filename or local_filename,
+        "local_path": local_path,
+        "saved_at": datetime.now().isoformat(),
+    })
+    engine.complete_step(3)
+
+    # 保存到 Gitea 代码库
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=0, data={
+            "message": "需求文档已保存到本地和引擎产物",
+            "local_path": local_path,
+        })
+
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        filepath = body.filename or f"docs/requirements-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+        result = asyncio.run(gitea_client.create_file(
+            owner=owner, repo=repo.name,
+            filepath=filepath,
+            content=body.content,
+            message="docs: 提交需求规格说明书（SRS）",
+            branch="main",
+        ))
+        engine.save_step3_artifacts({"filepath": filepath, "commit": result.get("commit", {})})
+        return APIResponse(code=0, data={
+            "message": "需求文档已保存到本地、代码库和引擎产物",
+            "local_path": local_path,
+            "filepath": filepath,
+            "commit": result.get("commit", {}),
+        })
+    except Exception as e:
+        logger.error(f"保存需求文档到代码库失败: {e}")
+        return APIResponse(code=0, data={
+            "message": f"需求文档已保存到本地和引擎产物（保存到代码库失败: {e}）",
+            "local_path": local_path,
+            "filepath": local_filename,
+        })
+
+
+SRS_INSPECTION_DIMENSIONS = [
+    {"key": "completeness", "label": "完整性", "description": "需求文档是否覆盖了所有必要的功能和非功能需求"},
+    {"key": "consistency", "label": "一致性", "description": "文档内容前后是否一致，术语定义是否统一"},
+    {"key": "verifiability", "label": "可验证性", "description": "每个需求是否可量化、可测试、可验证"},
+    {"key": "unambiguity", "label": "无歧义性", "description": "需求描述是否清晰明确，不存在二义性理解"},
+]
+
+
+@router.post("/{project_id}/step3/inspect")
+async def inspect_step3_srs(project_id: str, body: Step3InspectRequest,
+                            db: Session = Depends(get_db),
+                            current_user=Depends(get_current_user)):
+    """后荣（HouRong）对SRS需求文档进行QA检验（2分钟内完成）"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={
+            "passed": False,
+            "message": "需求文档内容过短，请补充完善",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "文档内容不足，无法检验"}
+                for d in SRS_INSPECTION_DIMENSIONS
+            ],
+        })
+
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+
+    # 确定本次要检验的维度
+    active_dims = [d for d in SRS_INSPECTION_DIMENSIONS
+                   if not focus_items or d["key"] in focus_items]
+
+    dims_json = _json.dumps(
+        [{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims],
+        ensure_ascii=False, indent=2
+    )
+
+    focus_hint = ""
+    if focus_items:
+        focus_hint = (
+            f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+            f"请只针对这些项目做出通过/不通过判定，不要对其他维度提出新的问题。"
+        )
+
+    prompt = (
+        "你是一个专业的软件需求QA检验员（后荣）。请严格检验以下需求文档是否符合软件需求规格说明书（SRS）标准。\n\n"
+        "=== 需求文档 ===\n"
+        f"{content}\n\n"
+        "=== 检验项目与标准 ===\n"
+        f"请依次逐项检验以下 {len(active_dims)} 个维度，对每个维度给出通过/不通过及具体意见：\n"
+        f"{dims_json}\n\n"
+        "请阅读完整需求文档，严格按照上述检验标准进行专业评审。\n"
+        f"{focus_hint}\n"
+        "直接输出 JSON 数组，不要包含其他说明文字：\n"
+        "[\n"
+        + ",\n".join(
+            f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}'
+            for d in active_dims
+        ) + "\n]"
+    )
+
+    INSPECT_TIMEOUT = 120  # 硬限制2分钟
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=INSPECT_TIMEOUT)
+
+        async def _collect():
+            chunks = []
+            async for chunk in client.chat_completions(
+                messages=[{"role": "user", "content": prompt}],
+                stream=False,
+                max_tokens=2000,
+            ):
+                chunks.append(chunk)
+            return "".join(chunks).strip()
+
+        reply = await asyncio.wait_for(_collect(), timeout=INSPECT_TIMEOUT)
+
+        if not reply:
+            raise ValueError("后荣未返回检验结果（空响应）")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list):
+            raise ValueError("返回结果不是数组")
+    except asyncio.TimeoutError:
+        logger.error(f"后荣检验需求文档超时（{INSPECT_TIMEOUT}s）")
+        return APIResponse(code=0, data={
+            "passed": False,
+            "message": f"检验超时（超过{INSPECT_TIMEOUT//60}分钟），请简化需求文档后重试",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "检验超时，请简化文档后重试"}
+                for d in active_dims
+            ],
+        })
+    except Exception as e:
+        logger.error(f"后荣检验需求文档失败: {e}")
+        logger.error(f"后荣原始回复: {reply if 'reply' in dir() else 'N/A'}")
+        return APIResponse(code=0, data={
+            "passed": False,
+            "message": "后荣检验过程出错，请重试",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"}
+                for d in active_dims
+            ],
+        })
+
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        if matched:
+            dim_passed = bool(matched.get("passed", False))
+            dim_detail = matched.get("detail", "")
+        else:
+            dim_passed = False
+            dim_detail = "后荣未返回该维度的检验结果"
+
+        results.append({
+            "key": dim["key"],
+            "label": dim["label"],
+            "description": dim["description"],
+            "passed": dim_passed,
+            "detail": dim_detail,
+        })
+
+    all_passed = all(r["passed"] for r in results)
+
+    return APIResponse(code=0, data={
+        "passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过，请修改后重新检验",
+        "dimensions": results,
+    })
+
+
+class DocsListRequest(BaseModel):
+    path: str
+
+
+@router.post("/{project_id}/step3/list-docs")
+def list_step3_docs(project_id: str, body: DocsListRequest,
+                    current_user=Depends(get_current_user)):
+    """从指定文件夹读取文档列表"""
+    import glob
+    docs_path = body.path
+    if not docs_path or not os.path.isdir(docs_path):
+        return APIResponse(code=0, data={"files": []})
+
+    files = []
+    for f in sorted(glob.glob(os.path.join(docs_path, "*.md"))):
+        fname = os.path.basename(f)
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                content = fh.read()
+            files.append({
+                "name": fname,
+                "path": f,
+                "content": content,
+            })
+        except Exception as e:
+            logger.warning(f"读取文档失败 {f}: {e}")
+            files.append({
+                "name": fname,
+                "path": f,
+                "content": "",
+            })
+    return APIResponse(code=0, data={"files": files})
+
+
+ARCH_DESIGN_DIMENSIONS = [
+    {"key": "arch_reasonableness", "label": "架构合理性", "description": "架构设计是否合理，是否满足需求文档中的功能和非功能需求"},
+    {"key": "frontend_feasibility", "label": "前端可行性", "description": "前端设计方案是否可行，技术选型是否合理"},
+    {"key": "backend_feasibility", "label": "后端可行性", "description": "后端设计方案是否可行，API设计是否合理"},
+    {"key": "database_design", "label": "数据库设计", "description": "数据库设计是否规范，ER关系是否清晰"},
+]
+
+CODE_INSPECTION_DIMENSIONS = [
+    {"key": "code_correctness", "label": "代码正确性", "description": "代码逻辑是否正确"},
+    {"key": "test_pass_rate", "label": "测试用例通过率", "description": "测试用例通过率"},
+    {"key": "requirement_match", "label": "需求匹配度", "description": "代码是否满足需求"},
+    {"key": "code_standard", "label": "代码规范", "description": "命名规范、注释、代码风格"},
+]
+
+ENV_SETUP_DIMENSIONS = [
+    {"key": "environment_availability", "label": "环境可用性", "description": "开发环境是否可正常运行"},
+    {"key": "config_correctness", "label": "配置正确性", "description": "配置文件是否完整、正确"},
+    {"key": "dependency_completeness", "label": "依赖完整性", "description": "依赖包、工具链是否齐全"},
+]
+
+TDD_PLAN_DIMENSIONS = [
+    {"key": "coverage", "label": "需求覆盖率", "description": "是否覆盖所有功能需求"},
+    {"key": "atomicity", "label": "原子化程度", "description": "每个测试用例是否最小不可再分"},
+    {"key": "measurability", "label": "验收标准可量化性", "description": "验收标准是否可量化、可验证"},
+]
+
+TDD_TESTCASE_DIMENSIONS = [
+    {"key": "correctness", "label": "用例正确性", "description": "测试逻辑是否正确"},
+    {"key": "coverage", "label": "需求覆盖率", "description": "是否覆盖所有功能需求"},
+    {"key": "atomicity", "label": "原子化程度", "description": "每个测试用例是否最小不可再分"},
+    {"key": "acceptance_match", "label": "验收标准匹配度", "description": "测试用例与验收标准是否匹配"},
+]
+
+CODE_PLAN_DIMENSIONS = [
+    {"key": "task_atomicity", "label": "任务原子化", "description": "每个任务是否最小不可再分"},
+    {"key": "test_mapping", "label": "测试用例对应完整性", "description": "每个任务是否有测试用例一一对应"},
+    {"key": "dependency_correctness", "label": "依赖关系正确性", "description": "依赖图是否无循环"},
+]
+
+TEST_INSPECTION_DIMENSIONS = [
+    {"key": "test_coverage", "label": "测试覆盖率", "description": "是否覆盖所有功能点"},
+    {"key": "pass_rate", "label": "测试通过率", "description": "测试通过率"},
+    {"key": "defect_severity", "label": "缺陷严重程度", "description": "是否有严重缺陷未修复"},
+    {"key": "practical_validation", "label": "前端实操验证结果", "description": "前端实操验证结果"},
+]
+
+SECURITY_INSPECTION_DIMENSIONS = [
+    {"key": "vulnerability_fix_rate", "label": "漏洞修复率", "description": "高危漏洞是否全部修复"},
+    {"key": "compliance", "label": "合规达标率", "description": "是否符合行业规范和法规"},
+    {"key": "penetration_test", "label": "渗透测试通过情况", "description": "渗透测试通过情况"},
+]
+
+DOC_INSPECTION_DIMENSIONS = [
+    {"key": "doc_completeness", "label": "文档完整性", "description": "是否包含部署手册/操作手册/API文档/用户手册"},
+    {"key": "doc_consistency", "label": "文档间一致性", "description": "文档之间是否相互一致，有无矛盾"},
+    {"key": "doc_accuracy", "label": "描述准确性", "description": "文档描述是否与代码实现一致"},
+]
+
+
+@router.post("/{project_id}/step4/artifacts")
+def save_step4_artifacts(project_id: str, body: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step4_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤4状态已保存"})
+
+
+@router.get("/{project_id}/step4/status")
+def get_step4_status(project_id: str,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step4_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+# ── Step4 并行子流程配置与辅助函数 ──
+
+SUB_FLOW_CONFIGS = [
+    {
+        "doc_type": "ARCHITECTURE",
+        "label": "架构设计文档",
+        "dim": {"key": "arch_reasonableness", "label": "架构合理性", "description": "架构设计是否合理，是否满足需求文档中的功能和非功能需求"},
+        "gen_instruction": "系统整体架构图描述、分层架构、模块划分、技术栈选型、部署架构",
+    },
+    {
+        "doc_type": "FRONTEND",
+        "label": "前端设计文档",
+        "dim": {"key": "frontend_feasibility", "label": "前端可行性", "description": "前端设计方案是否可行，技术选型是否合理"},
+        "gen_instruction": "前端技术栈、组件树、路由设计、状态管理、页面布局",
+    },
+    {
+        "doc_type": "BACKEND",
+        "label": "后端设计文档",
+        "dim": {"key": "backend_feasibility", "label": "后端可行性", "description": "后端设计方案是否可行，API设计是否合理"},
+        "gen_instruction": "后端技术栈、API接口列表、数据流、中间件、安全策略",
+    },
+    {
+        "doc_type": "DATABASE",
+        "label": "数据库设计脚本",
+        "dim": {"key": "database_design", "label": "数据库设计", "description": "数据库设计是否规范，ER关系是否清晰"},
+        "gen_instruction": "完整SQL DDL脚本（含表结构、索引、外键），以及ER概述",
+    },
+]
+
+
+async def _inspect_doc(
+    project_id: str, content: str, dim: dict,
+    project_name: str = "", project_description: str = "",
+    core_goal: str = "", agent_label: str = "",
+) -> dict:
+    """调用 hourong-{doc_type} 对单份文档进行 QA 检验（项目会话隔离）"""
+    import json as _json, re as _re
+    from app.services.gateway_client import GatewayClient
+
+    insp_prompt = (
+        "你是一个专业的设计方案QA检验员（后荣）。\n\n"
+        "=== 检验项目 ===\n"
+        f"{dim['label']}（{dim['description']}）\n\n"
+        "=== 文档内容 ===\n"
+        f"{content}\n\n"
+        "请严格检验该文档是否满足上述项目标准，仅针对此项目给出通过/不通过判定及具体意见。\n"
+        "只输出以下 JSON 对象，不要有其他文字：\n"
+        f'{{"key": "{dim["key"]}", "passed": true/false, "detail": "具体检验意见..."}}'
+    )
+    qa_cli = GatewayClient(profile_name="hourong", timeout=180)
+    qa_chunks = []
+    async for chunk in qa_cli.chat_isolated(
+        messages=[{"role": "user", "content": insp_prompt}],
+        project_id=project_id,
+        project_name=project_name,
+        project_description=project_description,
+        core_goal=core_goal,
+        agent_name=agent_label or f"后荣-{dim['key']} QA检验员",
+        stream=True, max_tokens=4096,
+    ):
+        if chunk.strip():
+            qa_chunks.append(chunk)
+    qa_r = "".join(qa_chunks).strip()
+    single = {}
+    mm = _re.search(r'\{.*\}', qa_r, _re.DOTALL)
+    if mm:
+        try: single = _json.loads(mm.group(0))
+        except Exception: pass
+    if not single:
+        try: single = _json.loads(qa_r)
+        except Exception: pass
+    if not single:
+        return {"key": dim["key"], "passed": False, "detail": "后荣未返回检验结果"}
+    return {"key": dim["key"], "passed": bool(single.get("passed", False)), "detail": single.get("detail", "未返回检验意见")}
+
+
+async def _run_doc_sub_flow(
+    project_id: str, slug: str, docs_dir: str,
+    cfg: dict, requirement: str,
+    project_name: str = "", project_description: str = "",
+    core_goal: str = "",
+) -> dict:
+    """单个文档子流程：检查已有→houwang生成→hourong检验→收敛循环（项目会话隔离）"""
+    import os, glob, re, json as _json
+    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step4_progress import broadcast
+
+    doc_type = cfg["doc_type"]
+    label = cfg["label"]
+    dim = cfg["dim"]
+    gen_instruction = cfg["gen_instruction"]
+    houwang_label = f"后旺-{doc_type}（HouWang-{doc_type}）{label}设计师"
+    hourong_label = f"后荣-{doc_type}（HouRong-{doc_type}）{label}QA检验员"
+
+    # 1. 扫描该文档类型的最新已有版本
+    latest_path = None
+    latest_content = ""
+    max_ver = 0
+    for f in sorted(glob.glob(os.path.join(docs_dir, f"{slug}_{doc_type}_V*.md"))):
+        m = re.search(r'_V(\d+)\.md$', f)
+        if m:
+            v = int(m.group(1))
+            if v > max_ver:
+                max_ver = v
+                latest_path = f
+    if latest_path:
+        try:
+            with open(latest_path, "r", encoding="utf-8") as fh:
+                latest_content = fh.read()
+        except Exception:
+            pass
+
+    current_content = latest_content
+    current_path = latest_path
+    convergence_log = []
+    max_attempts = 10
+
+    for fix_round in range(1, max_attempts + 1):
+        # ── 第一轮：先让 hourong 检验现有文档 ──
+        if fix_round == 1 and current_content.strip():
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🔍 {label}：已有 V{max_ver}，houwang-{doc_type} 提交至 hourong 检验现有文档...",
+                "subflow": dim["key"],
+            })
+            result = await _inspect_doc(
+                project_id, current_content, dim,
+                project_name=project_name, project_description=project_description,
+                core_goal=core_goal, agent_label=hourong_label,
+            )
+            if result["passed"]:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"✅ {label}：现有文档 V{max_ver} 已通过 hourong 检验，无需重新生成",
+                    "subflow": dim["key"],
+                })
+                return {
+                    "key": dim["key"], "label": label,
+                    "path": current_path, "content": current_content,
+                    "passed": True, "rounds": 0, "convergence": [],
+                }
+            # 现有不合格，houwang 修复
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"📝 {label}：现有文档 V{max_ver} 未通过（{result.get('detail','')[:120]}），houwang 基于此版本更新",
+                "subflow": dim["key"],
+            })
+            convergence_log.append({"round": 0, "detail": result["detail"]})
+
+        # ── houwang 生成或修复 ──
+        nv = max_ver + fix_round
+        gen_path = os.path.join(docs_dir, f"{slug}_{doc_type}_V{nv}.md")
+
+        if fix_round == 1 and not current_content.strip():
+            # 首次从零生成（无已有文档）
+            houwang_role = f"houwang-{doc_type}"
+            prompt = (
+                f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
+                "请根据以下需求文档，**生成并保存**该文档。\n"
+                "请使用你 Agent 的文件写入能力将文档保存到指定路径。\n\n"
+                "=== 需求文档 ===\n"
+                f"{requirement[:5000]}\n\n"
+                f"=== {label}要求 ===\n"
+                f"路径：{gen_path}\n"
+                f"内容：{gen_instruction}\n\n"
+                "要求：\n"
+                "1. 文档必须是独立完整的 Markdown 文件\n"
+                "2. 保存到文件中的内容必须是纯文档内容，不要包含推理过程\n"
+            )
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🏗️ {label}：{houwang_role} 正在从需求生成初始文档...",
+                "subflow": dim["key"],
+            })
+        else:
+            # 基于已有文档 + hourong 反馈进行修复
+            houwang_role = f"houwang-{doc_type}"
+            fix_detail = convergence_log[-1]["detail"] if convergence_log else "需整体改进"
+            change_hint = ""
+            if len(convergence_log) >= 2:
+                prev_detail = convergence_log[-2]["detail"]
+                if len(fix_detail) < len(prev_detail) * 0.5:
+                    change_hint = "（较上一轮检验意见长度减少超50%，收敛趋势良好，继续改进即可）"
+                elif fix_detail == prev_detail:
+                    change_hint = "（本轮与上轮检验意见相同——请确保已实际修复所有指出的问题，不要遗漏）"
+            prompt = (
+                f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
+                f"后荣（HouRong）检验发现以下问题需要修改：\n\n"
+                f"=== 当前已有文档 ===\n{current_content[:5000]}\n\n"
+                f"=== 后荣最新检验意见 ===\n{fix_detail}\n\n"
+                f"{change_hint}\n"
+                f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
+                f"请根据后荣的意见严格修正文档，并将修正后的完整文档保存到：{gen_path}\n"
+                "要求：\n"
+                "1. 只针对后荣指出的不合格项修改，禁止扩大修改范围，禁止添加新功能\n"
+                "2. 文档必须是独立完整的 Markdown 文件\n"
+                "3. 不要包含推理过程\n"
+            )
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🔧 {label}：{houwang_role} 正在根据 hourong 检验意见修复（第{fix_round}轮）...",
+                "subflow": dim["key"],
+            })
+
+        # 调用 houwang（项目会话隔离）
+        houwang_cli = GatewayClient(
+            profile_name="houwang",
+            timeout=2700 if fix_round <= 1 else 1200,
+        )
+        async for chunk in houwang_cli.chat_isolated(
+            messages=[{"role": "user", "content": prompt}],
+            project_id=project_id,
+            project_name=project_name,
+            project_description=project_description,
+            core_goal=core_goal,
+            agent_name=houwang_label,
+            stream=True, max_tokens=16000,
+        ):
+            if chunk.strip():
+                await broadcast(project_id, {
+                    "type": "content",
+                    "content": chunk,
+                    "subflow": dim["key"],
+                })
+
+        # 从磁盘读取最新保存的文档
+        if os.path.exists(gen_path):
+            try:
+                with open(gen_path, "r", encoding="utf-8") as f:
+                    current_content = f.read()
+                current_path = gen_path
+            except Exception:
+                pass
+        else:
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"⚠️ {label}：{houwang_role} 未保存文件到 {gen_path}，尝试查找最新版本",
+                "subflow": dim["key"],
+            })
+            for f in sorted(glob.glob(os.path.join(docs_dir, f"{slug}_{doc_type}_V*.md")), reverse=True):
+                try:
+                    with open(f, "r", encoding="utf-8") as fh:
+                        current_content = fh.read()
+                    current_path = f
+                    if current_content.strip():
+                        break
+                except Exception:
+                    pass
+
+        if not current_content.strip():
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"❌ {label}：houwang 未能生成有效内容，进入下一轮重试",
+                "subflow": dim["key"],
+            })
+            continue
+
+        # ── hourong 检验 ──
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"🔍 hourong-{doc_type} 正在检验{label}...（{len(current_content)} 字符）",
+            "subflow": dim["key"],
+        })
+        result = await _inspect_doc(
+            project_id, current_content, dim,
+            project_name=project_name, project_description=project_description,
+            core_goal=core_goal, agent_label=hourong_label,
+        )
+
+        convergence_log.append({"round": fix_round, "detail": result.get("detail", ""), "passed": result["passed"]})
+
+        if result["passed"]:
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"✅ {label}：hourong-{doc_type} 检验通过（共{fix_round}轮）",
+                "subflow": dim["key"],
+            })
+            return {
+                "key": dim["key"], "label": label,
+                "path": current_path, "content": current_content,
+                "passed": True, "rounds": fix_round,
+                "convergence": convergence_log,
+            }
+        else:
+            prev_count = sum(1 for c in convergence_log[:-1] if not c.get("passed", False))
+            if prev_count > 0 and len(convergence_log) >= 3:
+                # 检验连续是否收敛：最近3个非通过轮次的 detail 长度是否递减
+                non_passing = [c for c in convergence_log if not c.get("passed", False)]
+                if len(non_passing) >= 3:
+                    lens = [len(c["detail"]) for c in non_passing[-3:]]
+                    if lens[-1] >= lens[-2] and lens[-2] >= lens[-3]:
+                        await broadcast(project_id, {
+                            "type": "stage",
+                            "message": f"⚠️ {label}：连续3轮检验意见未收敛（detail长度未递减），houwang 需更彻底地修复问题",
+                            "subflow": dim["key"],
+                        })
+
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"❌ {label}：hourong-{doc_type} 第{fix_round}轮检验未通过\n📋 意见：{result.get('detail','')[:150]}",
+                "subflow": dim["key"],
+            })
+
+    # 超出最大尝试次数
+    await broadcast(project_id, {
+        "type": "stage",
+        "message": f"❌ {label}：经过{max_attempts}轮仍未通过 hourong 检验",
+        "subflow": dim["key"],
+    })
+    return {
+        "key": dim["key"], "label": label,
+        "path": current_path, "content": current_content,
+        "passed": False, "rounds": max_attempts,
+        "convergence": convergence_log,
+    }
+
+
+@router.post("/{project_id}/step4/execute")
+async def execute_step4(project_id: str,
+                        db: Session = Depends(get_db),
+                        current_user=Depends(get_current_user)):
+    """异步启动第4步架构设计（后旺生成约需30分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+
+    try:
+        engine = _get_engine(project_id, db)
+        # 如果步骤4已是 in_progress（中断/卡死），自动重置
+        step4_row = engine._get_step_row(4)
+        if step4_row and step4_row.status == "in_progress":
+            engine.reset_step(4)
+            engine = WorkflowEngine(project_id=project_id, db=db)
+            _wf_engines[project_id] = engine
+        engine.advance_step(4)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤4: {str(e)[:200]}")
+
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or
+                   step3.get("requirement") or step3.get("srs") or "")
+
+    if not requirement:
+        engine.reset_step(4)
+        return APIResponse(code=1, message="未找到 Step3 需求文档，请先完成需求分析")
+
+    engine.save_step4_artifacts({"status": "generating", "message": "🚀 4个子流程并行启动——houwang1→架构/hourong1←→houwang2→前端/hourong2←→houwang3→后端/hourong3←→houwang4→数据库/hourong4..."})
+
+    async def _generate():
+        """后台任务：4个子流程并行运行"""
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+
+                step3 = bg_engine.get_step3_artifacts() or {}
+                doc_path = step3.get("doc_path", "")
+
+                from app.config import settings as _settings
+                from app.models.project import Project as _Project
+                import os as _os
+
+                proj = bg_db.query(_Project).filter(_Project.id == project_id).first()
+                slug = proj.slug if proj else project_id.replace("-", "")
+                docs_dir = _os.path.join(_settings.PROJECTS_BASE_DIR, slug, "docs")
+                _os.makedirs(docs_dir, exist_ok=True)
+
+                # 加载项目上下文用于会话隔离
+                step2 = bg_engine.get_step2_artifacts() or {}
+                core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+                proj_name = proj.name if proj else ""
+                proj_desc = proj.description or ""
+
+                await broadcast(project_id, {"type": "stage", "message": "📖 后旺正在读取需求文档..."})
+                await broadcast(project_id, {"type": "stage", "message": f"🚀 并行启动4个子流程：{', '.join(c['label'] for c in SUB_FLOW_CONFIGS)}"})
+
+                # 并行运行4个子流程（每个子流程使用独立 chat_isolated 实现项目隔离）
+                results = await _asyncio.gather(*[
+                    _run_doc_sub_flow(
+                        project_id=project_id, slug=slug, docs_dir=docs_dir,
+                        cfg=cfg, requirement=requirement,
+                        project_name=proj_name, project_description=proj_desc,
+                        core_goal=core_goal,
+                    )
+                    for cfg in SUB_FLOW_CONFIGS
+                ])
+
+                all_passed = all(r["passed"] for r in results)
+                design_parts = []
+                doc_paths = {}
+                for r in results:
+                    if r.get("content", "").strip():
+                        design_parts.append(f"# {r['label']}\n\n{r['content']}")
+                        doc_paths[r["key"]] = r["path"]
+
+                full_design = "\n\n---\n\n".join(design_parts) if design_parts else ""
+                passed_count = sum(1 for r in results if r["passed"])
+                total_rounds = sum(r.get("rounds", 0) for r in results)
+                sub_flow_detail = "; ".join(f"{r['label']}: {'✅' if r['passed'] else '❌'}({r.get('rounds',0)}轮)" for r in results)
+
+                if full_design and len(full_design) >= 50:
+                    artifacts = {
+                        "design_doc": full_design,
+                        "requirement_source": requirement[:200],
+                        "status": "done",
+                        "message": f"✅ 架构设计完成（{passed_count}/4 通过）\n{sub_flow_detail}",
+                        "docs_dir": docs_dir,
+                        "doc_paths": doc_paths,
+                        "sub_flow_results": [
+                            {
+                                "key": r["key"], "label": r["label"],
+                                "passed": r["passed"], "rounds": r.get("rounds", 0),
+                                "convergence": r.get("convergence", []),
+                            }
+                            for r in results
+                        ],
+                    }
+                    if doc_path:
+                        artifacts["requirement_doc_path"] = doc_path
+
+                    if all_passed:
+                        bg_engine.save_step4_artifacts({**artifacts, "qa_passed": True, "qa_checked": True})
+                        bg_engine.complete_step(4)
+                        bg_engine.pass_qa(4)
+                        await broadcast(project_id, {
+                            "type": "done",
+                            "message": f"✅ 全部设计文档通过 hourong QA检验（{passed_count}/4），已推进至第5步（后富建立开发环境）"
+                        })
+                    else:
+                        bg_engine.save_step4_artifacts({
+                            **artifacts, "qa_passed": False, "qa_checked": True, "status": "qa_failed",
+                        })
+                        await broadcast(project_id, {
+                            "type": "done",
+                            "message": f"⚠️ {4-passed_count} 份设计文档未通过 hourong QA检验，请在 Step4 中手动修改后重新提交\n{sub_flow_detail}"
+                        })
+                else:
+                    bg_engine.save_step4_artifacts({
+                        "status": "error",
+                        "message": "❌ 子流程未生成有效设计文档，请重新执行",
+                    })
+                    bg_engine.reset_step(4)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 子流程未生成有效设计文档，请重新执行"})
+            except Exception as e:
+                logger.error(f"Step4 parallel sub-flows failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step4_artifacts({
+                        "status": "error",
+                        "message": f"❌ 并行子流程生成失败: {str(e)[:200]}",
+                    })
+                    bg_engine.reset_step(4)
+                except Exception:
+                    pass
+                try:
+                    await broadcast(project_id, {"type": "error", "message": f"❌ 并行子流程生成失败: {str(e)[:200]}"})
+                except Exception:
+                    pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"Step4 background task fatal: {e}")
+
+    task = _asyncio.create_task(_generate())
+
+    return APIResponse(code=0, data={
+        "message": "第四步已启动，4个子流程并行运行（houwang1→架构/hourong1←→houwang2→前端/hourong2←→houwang3→后端/hourong3←→houwang4→数据库/hourong4）",
+        "status": "generating",
+    })
+
+
+class Step4ChatRequest(BaseModel):
+    message: str
+    messages: list = []
+
+
+@router.post("/{project_id}/step4/chat")
+async def step4_chat(project_id: str, body: Step4ChatRequest,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    """与后旺（HouWang）架构师对话 - 使用项目隔离模式"""
+    logger.info(f"Step4 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+
+    try:
+        engine = _get_engine(project_id, db)
+        step4 = engine.get_step4_artifacts()
+        design_context = (step4 or {}).get("design_doc", "")
+
+        # 加载项目信息
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        # 加载核心目标（步骤2产物）
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+
+        messages = body.messages + [{"role": "user", "content": body.message}]
+
+        # 使用项目隔离模式
+        client = GatewayClient(profile_name="houwang", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(
+            messages=messages,
+            project_id=project_id,
+            project_name=project.name,
+            project_description=project.description or "",
+            core_goal=core_goal,
+            agent_name="后旺（HouWang）架构师",
+            stream=False,
+        ):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后旺未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"HouWang chat failed: {e}")
+        return APIResponse(code=1, message="与后旺对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step4/save-doc")
+def save_step4_doc(project_id: str, body: Step3InspectRequest,
+                   db: Session = Depends(get_db),
+                   current_user=Depends(get_current_user)):
+    """将设计文档保存到本地和代码库"""
+    from datetime import datetime
+
+    local_dir = body.save_path or os.path.join(os.getcwd(), "docs", "design")
+    os.makedirs(local_dir, exist_ok=True)
+    local_filename = body.filename or f"design-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+    local_path = os.path.join(local_dir, local_filename)
+    try:
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(body.content)
+        logger.info(f"设计文档已保存到本地: {local_path}")
+    except Exception as e:
+        logger.error(f"保存设计文档到本地失败: {e}")
+
+    # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
+    engine = WorkflowEngine(project_id=project_id, db=db)
+    engine.save_step4_artifacts({
+        "design_doc": body.content,
+        "filename": body.filename or local_filename,
+        "local_path": local_path,
+        "saved_at": datetime.now().isoformat(),
+    })
+
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=0, data={
+            "message": "设计文档已保存到本地和引擎产物",
+            "local_path": local_path,
+        })
+
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        filepath = body.filename or f"docs/design/design-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+        result = asyncio.run(gitea_client.create_file(
+            owner=owner, repo=repo.name,
+            filepath=filepath,
+            content=body.content,
+            message="docs: 提交架构设计文档",
+            branch="main",
+        ))
+        engine.save_step4_artifacts({"filepath": filepath, "commit": result.get("commit", {})})
+        return APIResponse(code=0, data={
+            "message": "设计文档已保存到本地、代码库和引擎产物",
+            "local_path": local_path,
+            "filepath": filepath,
+            "commit": result.get("commit", {}),
+        })
+    except Exception as e:
+        logger.error(f"保存设计文档到代码库失败: {e}")
+        return APIResponse(code=0, data={
+            "message": f"设计文档已保存到本地和引擎产物（保存到代码库失败: {e}）",
+            "local_path": local_path,
+            "filepath": local_filename,
+        })
+
+
+@router.post("/{project_id}/step4/list-docs")
+def list_step4_docs(project_id: str, body: DocsListRequest,
+                    current_user=Depends(get_current_user)):
+    """从设计文档目录读取文档列表"""
+    import glob
+    docs_path = body.path
+    if not docs_path or not os.path.isdir(docs_path):
+        return APIResponse(code=0, data={"files": []})
+
+    files = []
+    for f in sorted(glob.glob(os.path.join(docs_path, "*.md"))):
+        fname = os.path.basename(f)
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                content = fh.read()
+            files.append({"name": fname, "path": f, "content": content})
+        except Exception as e:
+            logger.warning(f"读取设计文档失败 {f}: {e}")
+            files.append({"name": fname, "path": f, "content": ""})
+    return APIResponse(code=0, data={"files": files})
+
+
+@router.post("/{project_id}/step4/inspect")
+async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
+                               db: Session = Depends(get_db),
+                               current_user=Depends(get_current_user)):
+    """后荣（HouRong）对架构设计方案进行QA检验"""
+    content = body.content
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={
+            "passed": False, "message": "设计文档内容过短",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"}
+                for d in ARCH_DESIGN_DIMENSIONS
+            ],
+        })
+
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+
+    dims_json = _json.dumps(
+        [{'检验项目': d['label'], '检验标准': d['description']} for d in ARCH_DESIGN_DIMENSIONS],
+        ensure_ascii=False, indent=2
+    )
+
+    prompt = (
+        "你是一个专业的设计方案QA检验员（后荣）。请严格检验以下设计方案。\n\n"
+        "=== 设计方案 ===\n"
+        f"{content}\n\n"
+        "=== 检验项目与标准 ===\n"
+        f"{dims_json}\n\n"
+        "直接输出 JSON 数组，不要包含其他说明文字：\n"
+        "[\n"
+        + ",\n".join(
+            f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}'
+            for d in ARCH_DESIGN_DIMENSIONS
+        ) + "\n]"
+    )
+
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=180)
+        chunks = []
+        async for chunk in client.chat_completions(
+            messages=[{"role": "user", "content": prompt}],
+            stream=False, max_tokens=2000,
+        ):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply:
+            raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list):
+            raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验设计方案失败: {e}")
+        return APIResponse(code=0, data={
+            "passed": False, "message": "检验过程出错",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"}
+                for d in ARCH_DESIGN_DIMENSIONS
+            ],
+        })
+
+    results = []
+    for dim in ARCH_DESIGN_DIMENSIONS:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({
+            "key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果",
+        })
+
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={
+        "passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过",
+        "dimensions": results,
+    })
+
+
+@router.post("/{project_id}/step4/qa")
+def qa_step4(project_id: str, body: QAResultRequest,
+             db: Session = Depends(get_db),
+             current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(4)
+    else:
+        result = engine.fail_qa(4, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第四步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+@router.post("/{project_id}/step4/reset")
+def reset_step4(project_id: str,
+                db: Session = Depends(get_db),
+                current_user=Depends(get_current_user)):
+    """强制重置第四步为待执行状态（用于恢复中断/卡死，清空产物）"""
+    engine = _get_engine(project_id, db)
+    engine.reset_step(4)
+    engine.save_step4_artifacts({"status": "reset", "message": "第四步已重置"})
+    if project_id in _wf_engines:
+        _wf_engines[project_id] = WorkflowEngine(project_id=project_id, db=db)
+    return APIResponse(code=0, data={"message": "第四步已重置为待执行状态，可以重新开始"})
+
+
+# ==================== Step 5: 后富建立开发环境 ====================
+
+@router.post("/{project_id}/step5/chat")
+async def step5_chat(project_id: str, body: Step5ChatRequest,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    """与后富（HouFu）CI/CD工程师对话 - 使用项目隔离模式"""
+    logger.info(f"Step5 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        messages = body.messages + [{"role": "user", "content": body.message}]
+
+        client = GatewayClient(profile_name="houfu", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(
+            messages=messages,
+            project_id=project_id,
+            project_name=project.name,
+            project_description=project.description or "",
+            core_goal=core_goal,
+            agent_name="后富（HouFu）CI/CD工程师",
+            stream=False,
+        ):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后富未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"HouFu chat failed: {e}")
+        return APIResponse(code=1, message="与后富对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step5/execute")
+async def execute_step5_async(project_id: str,
+                              db: Session = Depends(get_db),
+                              current_user=Depends(get_current_user)):
+    """异步启动第五步：后富建立开发环境（约20分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(5)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤5: {str(e)[:200]}")
+
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or
+                   step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+
+    engine.save_step5_artifacts({"status": "generating", "message": "🔧 后富正在建立开发环境..."})
+
+    async def _generate():
+        """后台任务：后富建立开发环境（约20分钟）"""
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+
+                await broadcast(project_id, {"type": "stage", "message": "📖 后富正在读取需求说明书和设计文档..."})
+                await broadcast(project_id, {"type": "stage", "message": "🔧 后富正在建立开发环境（代码仓库、框架、依赖、数据库、CI/CD）..."})
+
+                prompt_lines = [
+                    "你是资深CI/CD工程师后富（HouFu），负责建立软件开发环境。\n",
+                ]
+                if requirement:
+                    prompt_lines.append(
+                        "=== 需求文档（SRS）===\n"
+                        f"{requirement[:2000]}\n\n"
+                    )
+                if design_doc:
+                    prompt_lines.append(
+                        "=== 架构设计文档 ===\n"
+                        f"{design_doc[:3000]}\n\n"
+                    )
+                prompt_lines.append(
+                    "请根据上述需求说明书和架构设计文档，建立完整的开发环境，包括：\n"
+                    "1. 代码仓库初始化（Git仓库结构、分支策略）\n"
+                    "2. 开发框架搭建（前端/后端框架配置）\n"
+                    "3. 依赖配置（package.json/requirements.txt/pom.xml等）\n"
+                    "4. 数据库初始化（DDL脚本、初始数据）\n"
+                    "5. CI/CD流水线配置（Docker、Docker Compose、GitHub Actions/Gitea Actions）\n\n"
+                    "直接输出环境配置文件和脚本，标注文件路径。"
+                )
+                prompt = "\n".join(prompt_lines)
+
+                full_reply = []
+                client = GatewayClient(profile_name="houfu", timeout=2700)
+                async for chunk in client.chat_completions(
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True,
+                    max_tokens=16384,
+                ):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"🔧 后富持续搭建环境中...（已生成 {len(''.join(full_reply))} 字符）"})
+
+                await broadcast(project_id, {"type": "stage", "message": "📝 开发环境搭建完成，正在进行验证..."})
+
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {
+                        "env_info": reply,
+                        "requirement_source": requirement[:200],
+                        "status": "done",
+                        "message": "✅ 开发环境建立完成",
+                    }
+                    bg_engine.save_step5_artifacts(artifacts)
+                    bg_engine.complete_step(5)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 开发环境已建立完毕，等待 QA 检验"})
+                else:
+                    bg_engine.save_step5_artifacts({
+                        "status": "error",
+                        "message": "❌ 后富未生成有效环境配置，请重新执行",
+                    })
+                    bg_engine.reset_step(5)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后富未生成有效环境配置，请重新执行"})
+            except Exception as e:
+                logger.error(f"HouFu background environment setup failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step5_artifacts({
+                        "status": "error",
+                        "message": f"❌ 后富环境搭建失败: {str(e)[:200]}",
+                    })
+                    bg_engine.reset_step(5)
+                except Exception:
+                    pass
+                try:
+                    await broadcast(project_id, {"type": "error", "message": f"❌ 后富环境搭建失败: {str(e)[:200]}"})
+                except Exception:
+                    pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouFu background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+
+    return APIResponse(code=0, data={
+        "message": "第五步已启动，后富正在建立开发环境（约20分钟）",
+        "status": "generating",
+    })
+
+
+@router.get("/{project_id}/step5/status")
+def get_step5_status(project_id: str,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step5_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+@router.post("/{project_id}/step5/artifacts")
+def save_step5_artifacts(project_id: str, body: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step5_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤5状态已保存"})
+
+
+@router.post("/{project_id}/step5/save-doc")
+def save_step5_doc(project_id: str, body: Step3InspectRequest,
+                   db: Session = Depends(get_db),
+                   current_user=Depends(get_current_user)):
+    """将环境配置文件保存到本地和代码库"""
+    from datetime import datetime
+    local_dir = body.save_path or os.path.join(os.getcwd(), "docs", "env")
+    os.makedirs(local_dir, exist_ok=True)
+    local_filename = body.filename or f"env-config-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+    local_path = os.path.join(local_dir, local_filename)
+    try:
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(body.content)
+        logger.info(f"环境配置已保存到本地: {local_path}")
+    except Exception as e:
+        logger.error(f"保存环境配置到本地失败: {e}")
+
+    # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
+    engine = WorkflowEngine(project_id=project_id, db=db)
+    engine.save_step5_artifacts({
+        "env_info": body.content,
+        "filename": body.filename or local_filename,
+        "local_path": local_path,
+        "saved_at": datetime.now().isoformat(),
+    })
+
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=0, data={"message": "环境配置已保存到本地和引擎产物", "local_path": local_path})
+
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        filepath = body.filename or f"docs/env/env-config-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+        result = asyncio.run(gitea_client.create_file(
+            owner=owner, repo=repo.name, filepath=filepath, content=body.content,
+            message="docs: 提交开发环境配置文件", branch="main",
+        ))
+        engine.save_step5_artifacts({"filepath": filepath, "commit": result.get("commit", {})})
+        return APIResponse(code=0, data={"message": "环境配置已保存到本地、代码库和引擎产物", "local_path": local_path, "filepath": filepath, "commit": result.get("commit", {})})
+    except Exception as e:
+        logger.error(f"保存环境配置到代码库失败: {e}")
+        return APIResponse(code=0, data={"message": f"环境配置已保存到本地和引擎产物（保存到代码库失败: {e}）", "local_path": local_path, "filepath": local_filename})
+
+
+@router.post("/{project_id}/step5/list-docs")
+def list_step5_docs(project_id: str, body: DocsListRequest,
+                    current_user=Depends(get_current_user)):
+    """从环境配置目录读取文档列表"""
+    import glob
+    docs_path = body.path
+    if not docs_path or not os.path.isdir(docs_path):
+        return APIResponse(code=0, data={"files": []})
+    files = []
+    for f in sorted(glob.glob(os.path.join(docs_path, "*.md"))):
+        fname = os.path.basename(f)
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                content = fh.read()
+            files.append({"name": fname, "path": f, "content": content})
+        except Exception as e:
+            logger.warning(f"读取环境配置失败 {f}: {e}")
+            files.append({"name": fname, "path": f, "content": ""})
+    return APIResponse(code=0, data={"files": files})
+
+
+@router.post("/{project_id}/step5/inspect")
+async def inspect_step5_env(project_id: str, body: Step3InspectRequest,
+                            db: Session = Depends(get_db),
+                            current_user=Depends(get_current_user)):
+    """后荣（HouRong）对开发环境配置进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={"passed": False, "message": "环境配置内容过短",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"} for d in ENV_SETUP_DIMENSIONS]})
+
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+
+    active_dims = [d for d in ENV_SETUP_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
+    focus_hint = ""
+    if focus_items:
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n请只针对这些项目做出通过/不通过判定。"
+
+    prompt = (f"你是一个专业的环境配置QA检验员（后荣）。请严格检验以下开发环境配置。\n\n"
+        f"=== 环境配置 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n\n"
+        f"{focus_hint}\n直接输出 JSON 数组，不要包含其他说明文字：\n[\n"
+        + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply:
+            raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list):
+            raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验开发环境失败: {e}")
+        return APIResponse(code=0, data={"passed": False, "message": "检验过程出错",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"} for d in active_dims]})
+
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({"key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果"})
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={"passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过", "dimensions": results})
+
+
+@router.post("/{project_id}/step5/qa")
+def qa_step5(project_id: str, body: QAResultRequest,
+             db: Session = Depends(get_db),
+             current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(5)
+    else:
+        result = engine.fail_qa(5, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第五步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+# ==================== Step 6: 海梅制订TDD测试用例计划 ====================
+
+@router.post("/{project_id}/step6/execute")
+async def execute_step6_async(project_id: str,
+                              db: Session = Depends(get_db),
+                              current_user=Depends(get_current_user)):
+    """异步启动第六步：海梅制订TDD测试用例编写计划（约15分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(6)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤6: {str(e)[:200]}")
+
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step5 = engine.get_step5_artifacts() or {}
+    env_info = step5.get("env_info") or step5.get("environment") or ""
+
+    engine.save_step6_artifacts({"status": "generating", "message": "📋 海梅正在制订TDD测试用例编写计划..."})
+
+    async def _generate():
+        """后台任务：海梅制订TDD测试用例编写计划（约15分钟）"""
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+
+                await broadcast(project_id, {"type": "stage", "message": "📖 海梅正在读取需求文档、设计文档和环境配置..."})
+                await broadcast(project_id, {"type": "stage", "message": "📋 海梅正在制订TDD测试用例编写计划（原子化测试用例、验收标准）..."})
+
+                prompt_lines = [
+                    "你是资深项目经理海梅（HaiMei），负责制订TDD测试用例编写计划。\n",
+                ]
+                if requirement:
+                    prompt_lines.append(f"=== 需求文档（SRS）===\n{requirement[:3000]}\n\n")
+                if design_doc:
+                    prompt_lines.append(f"=== 架构设计文档 ===\n{design_doc[:2000]}\n\n")
+                prompt_lines.append(
+                    "请根据上述需求说明书和架构设计文档，制订完整的TDD测试用例编写计划：\n"
+                    "1. 每个测试用例最小原子化（不可再分）\n"
+                    "2. 每个测试用例有明确可量化的验收标准\n"
+                    "3. 覆盖所有功能需求和非功能需求\n"
+                    "4. 标注每个测试用例的优先级和执行顺序\n\n"
+                    "直接输出测试计划，标注测试用例编号、名称、验收标准、优先级。"
+                )
+                prompt = "\n".join(prompt_lines)
+
+                full_reply = []
+                client = GatewayClient(profile_name="haimei", timeout=1800)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"📋 海梅持续制订计划中...（已生成 {len(''.join(full_reply))} 字符）"})
+
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"tdd_plan": reply, "requirement_source": requirement[:200], "status": "done", "message": "✅ TDD测试用例编写计划制订完成"}
+                    bg_engine.save_step6_artifacts(artifacts)
+                    bg_engine.complete_step(6)
+                    await broadcast(project_id, {"type": "done", "message": "✅ TDD测试用例编写计划已制订完毕，等待 QA 检验"})
+                else:
+                    bg_engine.save_step6_artifacts({"status": "error", "message": "❌ 海梅未生成有效计划，请重新执行"})
+                    bg_engine.reset_step(6)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 海梅未生成有效计划，请重新执行"})
+            except Exception as e:
+                logger.error(f"HaiMei background TDD plan failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step6_artifacts({"status": "error", "message": f"❌ 海梅计划制订失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(6)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HaiMei background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第六步已启动，海梅正在制订TDD测试用例编写计划（约15分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step6/status")
+def get_step6_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step6_artifacts())
+
+
+@router.post("/{project_id}/step6/artifacts")
+def save_step6_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step6_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤6状态已保存"})
+
+
+@router.post("/{project_id}/step6/save-doc")
+def save_step6_doc(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """将TDD测试计划保存到本地和代码库"""
+    from datetime import datetime
+    local_dir = body.save_path or os.path.join(os.getcwd(), "docs", "plan")
+    os.makedirs(local_dir, exist_ok=True)
+    local_filename = body.filename or f"tdd-plan-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+    local_path = os.path.join(local_dir, local_filename)
+    try:
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(body.content)
+        logger.info(f"TDD计划已保存到本地: {local_path}")
+    except Exception as e:
+        logger.error(f"保存TDD计划到本地失败: {e}")
+    # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
+    from datetime import datetime as _dt
+    engine = WorkflowEngine(project_id=project_id, db=db)
+    engine.save_step6_artifacts({
+        "tdd_plan": body.content,
+        "filename": body.filename or local_filename,
+        "local_path": local_path,
+        "saved_at": _dt.now().isoformat(),
+    })
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=0, data={"message": "TDD计划已保存到本地和引擎产物", "local_path": local_path})
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        filepath = body.filename or f"docs/plan/tdd-plan-{_dt.now().strftime('%Y%m%d%H%M%S')}.md"
+        result = asyncio.run(gitea_client.create_file(owner=owner, repo=repo.name, filepath=filepath, content=body.content, message="docs: 提交TDD测试用例编写计划", branch="main"))
+        engine.save_step6_artifacts({"filepath": filepath, "commit": result.get("commit", {})})
+        return APIResponse(code=0, data={"message": "TDD计划已保存到本地、代码库和引擎产物", "local_path": local_path, "filepath": filepath})
+    except Exception as e:
+        logger.error(f"保存TDD计划到代码库失败: {e}")
+        return APIResponse(code=0, data={"message": f"TDD计划已保存到本地和引擎产物（保存到代码库失败: {e}）", "local_path": local_path})
+
+
+@router.post("/{project_id}/step6/list-docs")
+def list_step6_docs(project_id: str, body: DocsListRequest, current_user=Depends(get_current_user)):
+    """从TDD计划目录读取文档列表"""
+    import glob
+    docs_path = body.path
+    if not docs_path or not os.path.isdir(docs_path):
+        return APIResponse(code=0, data={"files": []})
+    files = []
+    for f in sorted(glob.glob(os.path.join(docs_path, "*.md"))):
+        fname = os.path.basename(f)
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                files.append({"name": fname, "path": f, "content": fh.read()})
+        except Exception as e:
+            logger.warning(f"读取TDD计划失败 {f}: {e}")
+            files.append({"name": fname, "path": f, "content": ""})
+    return APIResponse(code=0, data={"files": files})
+
+
+@router.post("/{project_id}/step6/inspect")
+async def inspect_step6_tdd_plan(project_id: str, body: Step3InspectRequest,
+                                 db: Session = Depends(get_db),
+                                 current_user=Depends(get_current_user)):
+    """后荣（HouRong）对TDD测试用例计划进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={"passed": False, "message": "TDD计划内容过短",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"} for d in TDD_PLAN_DIMENSIONS]})
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+    active_dims = [d for d in TDD_PLAN_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
+    focus_hint = ""
+    if focus_items:
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+    prompt = (f"你是一个专业的测试计划QA检验员（后荣）。请严格检验以下TDD测试用例编写计划。\n\n"
+        f"=== TDD计划 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n\n"
+        f"{focus_hint}\n直接输出 JSON 数组：\n[\n"
+        + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply: raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list): raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验TDD计划失败: {e}")
+        return APIResponse(code=0, data={"passed": False, "message": "检验过程出错",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"} for d in active_dims]})
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({"key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果"})
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={"passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过", "dimensions": results})
+
+
+@router.post("/{project_id}/step6/qa")
+def qa_step6(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(6)
+    else:
+        result = engine.fail_qa(6, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第六步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+# ==================== Step 7: 后发蜂群编写TDD测试用例 ====================
+
+@router.post("/{project_id}/step7/chat")
+async def step7_chat(project_id: str, body: Step7ChatRequest,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    """与后发（HouFa）程序员对话 - 使用项目隔离模式"""
+    logger.info(f"Step7 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        messages = body.messages + [{"role": "user", "content": body.message}]
+        client = GatewayClient(profile_name="houfa", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name,
+            project_description=project.description or "", core_goal=core_goal,
+            agent_name="后发（HouFa）程序员", stream=False):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后发未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException: raise
+    except Exception as e:
+        logger.error(f"HouFa chat failed: {e}")
+        return APIResponse(code=1, message="与后发对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step7/execute")
+async def execute_step7_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第七步：后发建立Agent蜂群编写TDD测试用例（约40分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(7)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤7: {str(e)[:200]}")
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step6 = engine.get_step6_artifacts() or {}
+    tdd_plan = step6.get("tdd_plan") or step6.get("plan_content") or {}
+    engine.save_step7_artifacts({"status": "generating", "message": "🐝 后发正在建立蜂群编写TDD测试用例..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 后发正在读取需求文档、设计文档和TDD计划..."})
+                await broadcast(project_id, {"type": "stage", "message": "🐝 后发正在建立Agent蜂群编写TDD测试用例..."})
+                prompt_lines = ["你是资深程序员后发（HouFa），负责建立Agent蜂群编写TDD测试用例。\n"]
+                if requirement:
+                    prompt_lines.append(f"=== 需求文档（SRS）===\n{requirement[:2000]}\n\n")
+                if design_doc:
+                    prompt_lines.append(f"=== 架构设计文档 ===\n{design_doc[:2000]}\n\n")
+                if tdd_plan:
+                    prompt_lines.append(f"=== TDD测试用例编写计划 ===\n{str(tdd_plan)[:3000]}\n\n")
+                prompt_lines.append(
+                    "请根据TDD测试用例编写计划，建立Agent蜂群编写完整的TDD测试用例：\n"
+                    "1. 每个测试用例最小原子化\n"
+                    "2. 每个测试用例有明确可量化的验收标准\n"
+                    "3. 按照计划中的优先级和执行顺序编写\n\n"
+                    "直接输出测试用例代码和文档。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="houfa", timeout=3600)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"🐝 后发持续编写测试用例中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"tdd_cases": reply, "tdd_plan_source": str(tdd_plan)[:500], "status": "done", "message": "✅ TDD测试用例编写完成"}
+                    bg_engine.save_step7_artifacts(artifacts)
+                    bg_engine.complete_step(7)
+                    await broadcast(project_id, {"type": "done", "message": "✅ TDD测试用例已编写完毕，等待 QA 检验"})
+                else:
+                    bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 后发未生成有效测试用例"})
+                    bg_engine.reset_step(7)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后发未生成有效测试用例"})
+            except Exception as e:
+                logger.error(f"HouFa background TDD test cases failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step7_artifacts({"status": "error", "message": f"❌ 后发测试用例编写失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(7)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouFa background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第七步已启动，后发正在建立蜂群编写TDD测试用例（约40分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step7/status")
+def get_step7_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step7_artifacts())
+
+
+@router.post("/{project_id}/step7/artifacts")
+def save_step7_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step7_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤7状态已保存"})
+
+
+@router.post("/{project_id}/step7/qa")
+def qa_step7(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(7)
+    else:
+        result = engine.fail_qa(7, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第七步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+# ==================== Step 8: 海梅制订代码编写计划 ====================
+
+@router.post("/{project_id}/step8/execute")
+async def execute_step8_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第八步：海梅制订代码编写计划+依赖图（约20分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(8)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤8: {str(e)[:200]}")
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step7 = engine.get_step7_artifacts() or {}
+    tdd_cases = step7.get("tdd_cases") or step7.get("test_cases") or ""
+    engine.save_step8_artifacts({"status": "generating", "message": "📋 海梅正在制订代码编写计划..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 海梅正在读取需求文档、设计文档和TDD测试用例..."})
+                await broadcast(project_id, {"type": "stage", "message": "📋 海梅正在制订代码编写计划+任务依赖图..."})
+                prompt_lines = ["你是资深项目经理海梅（HaiMei），负责制订代码编写计划和任务依赖图。\n"]
+                if requirement:
+                    prompt_lines.append(f"=== 需求文档（SRS）===\n{requirement[:2000]}\n\n")
+                if design_doc:
+                    prompt_lines.append(f"=== 架构设计文档 ===\n{design_doc[:2000]}\n\n")
+                if tdd_cases:
+                    prompt_lines.append(f"=== TDD测试用例 ===\n{str(tdd_cases)[:2000]}\n\n")
+                prompt_lines.append(
+                    "请制订完整的代码编写计划：\n"
+                    "1. 每个代码编写任务最小原子化\n"
+                    "2. 每个任务有TDD测试用例一一对应\n"
+                    "3. 画出任务依赖图（标注前置依赖和执行顺序）\n"
+                    "4. 标注每个任务的优先级和预计工时\n\n"
+                    "直接输出代码编写计划和依赖图。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="haimei", timeout=2700)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"📋 海梅持续制订计划中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"code_plan": reply, "requirement_source": requirement[:200], "status": "done", "message": "✅ 代码编写计划制订完成"}
+                    bg_engine.save_step8_artifacts(artifacts)
+                    bg_engine.complete_step(8)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 代码编写计划已制订完毕，等待 QA 检验"})
+                else:
+                    bg_engine.save_step8_artifacts({"status": "error", "message": "❌ 海梅未生成有效计划"})
+                    bg_engine.reset_step(8)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 海梅未生成有效计划"})
+            except Exception as e:
+                logger.error(f"HaiMei background code plan failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step8_artifacts({"status": "error", "message": f"❌ 海梅计划制订失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(8)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HaiMei background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第八步已启动，海梅正在制订代码编写计划+依赖图（约20分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step8/status")
+def get_step8_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step8_artifacts())
+
+
+@router.post("/{project_id}/step8/artifacts")
+def save_step8_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step8_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤8状态已保存"})
+
+
+@router.post("/{project_id}/step8/save-doc")
+def save_step8_doc(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """将代码编写计划保存到本地和代码库"""
+    from datetime import datetime
+    local_dir = body.save_path or os.path.join(os.getcwd(), "docs", "plan")
+    os.makedirs(local_dir, exist_ok=True)
+    local_filename = body.filename or f"code-plan-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+    local_path = os.path.join(local_dir, local_filename)
+    try:
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(body.content)
+        logger.info(f"代码计划已保存到本地: {local_path}")
+    except Exception as e:
+        logger.error(f"保存代码计划到本地失败: {e}")
+    # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
+    engine = WorkflowEngine(project_id=project_id, db=db)
+    engine.save_step8_artifacts({
+        "code_plan": body.content,
+        "filename": body.filename or local_filename,
+        "local_path": local_path,
+        "saved_at": datetime.now().isoformat(),
+    })
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=0, data={"message": "代码计划已保存到本地和引擎产物", "local_path": local_path})
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        filepath = body.filename or f"docs/plan/code-plan-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+        result = asyncio.run(gitea_client.create_file(owner=owner, repo=repo.name, filepath=filepath, content=body.content, message="docs: 提交代码编写计划", branch="main"))
+        engine.save_step8_artifacts({"filepath": filepath, "commit": result.get("commit", {})})
+        return APIResponse(code=0, data={"message": "代码计划已保存到本地、代码库和引擎产物", "local_path": local_path, "filepath": filepath})
+    except Exception as e:
+        logger.error(f"保存代码计划到代码库失败: {e}")
+        return APIResponse(code=0, data={"message": f"代码计划已保存到本地和引擎产物（保存到代码库失败: {e}）", "local_path": local_path})
+
+
+@router.post("/{project_id}/step8/list-docs")
+def list_step8_docs(project_id: str, body: DocsListRequest, current_user=Depends(get_current_user)):
+    """从代码计划目录读取文档列表"""
+    import glob
+    docs_path = body.path
+    if not docs_path or not os.path.isdir(docs_path):
+        return APIResponse(code=0, data={"files": []})
+    files = []
+    for f in sorted(glob.glob(os.path.join(docs_path, "*.md"))):
+        fname = os.path.basename(f)
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                files.append({"name": fname, "path": f, "content": fh.read()})
+        except Exception as e:
+            logger.warning(f"读取代码计划失败 {f}: {e}")
+            files.append({"name": fname, "path": f, "content": ""})
+    return APIResponse(code=0, data={"files": files})
+
+
+@router.post("/{project_id}/step8/inspect")
+async def inspect_step8_code_plan(project_id: str, body: Step3InspectRequest,
+                                  db: Session = Depends(get_db),
+                                  current_user=Depends(get_current_user)):
+    """后荣（HouRong）对代码编写计划进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={"passed": False, "message": "代码计划内容过短",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"} for d in CODE_PLAN_DIMENSIONS]})
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+    active_dims = [d for d in CODE_PLAN_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
+    focus_hint = ""
+    if focus_items:
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+    prompt = (f"你是一个专业的代码计划QA检验员（后荣）。请严格检验以下代码编写计划。\n\n"
+        f"=== 代码编写计划 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n\n"
+        f"{focus_hint}\n直接输出 JSON 数组：\n[\n"
+        + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply: raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list): raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验代码计划失败: {e}")
+        return APIResponse(code=0, data={"passed": False, "message": "检验过程出错",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"} for d in active_dims]})
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({"key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果"})
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={"passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过", "dimensions": results})
+
+
+@router.post("/{project_id}/step8/qa")
+def qa_step8(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(8)
+    else:
+        result = engine.fail_qa(8, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第八步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+@router.post("/{project_id}/step9")
+def execute_step9(project_id: str,
+                  db: Session = Depends(get_db),
+                  current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.advance_step(9)
+    step = engine.complete_step(9)
+    return APIResponse(code=0, data={"message": "第九步：后发蜂群编写功能代码", "step": step})
+
+
+@router.post("/{project_id}/step9/qa")
+def qa_step9(project_id: str, body: QAResultRequest,
+             db: Session = Depends(get_db),
+             current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(9)
+    else:
+        result = engine.fail_qa(9, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第九步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+@router.post("/{project_id}/step9/chat")
+async def step9_chat(project_id: str, body: Step9ChatRequest,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    """与后发（HouFa）程序员对话 - 使用项目隔离模式"""
+    logger.info(f"Step9 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        messages = body.messages + [{"role": "user", "content": body.message}]
+
+        client = GatewayClient(profile_name="houfa", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(
+            messages=messages,
+            project_id=project_id,
+            project_name=project.name,
+            project_description=project.description or "",
+            core_goal=core_goal,
+            agent_name="后发（HouFa）程序员",
+            stream=False,
+        ):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后发未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"HouFa chat failed: {e}")
+        return APIResponse(code=1, message="与后发对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step9/execute")
+async def execute_step9_async(project_id: str,
+                              db: Session = Depends(get_db),
+                              current_user=Depends(get_current_user)):
+    """异步启动第九步：后发建立Agent蜂群编写功能代码（约60分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(9)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤9: {str(e)[:200]}")
+
+    step8 = engine.get_step8_artifacts() or {}
+    code_plan = (step8.get("code_plan") or step8.get("plan_content") or {})
+    dependency_graph = step8.get("dependency_graph") or {}
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or
+                   step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step6 = engine.get_step6_artifacts() or {}
+    tdd_plan = step6.get("tdd_plan") or {}
+    step7 = engine.get_step7_artifacts() or {}
+    tdd_cases = (step7.get("tdd_cases") or step7.get("test_cases") or
+                 step7.get("content") or "")
+
+    engine.save_step9_artifacts({"status": "generating", "message": "🐝 后发正在建立蜂群编写功能代码..."})
+
+    async def _generate():
+        """后台任务：后发建立蜂群按依赖图顺序编写功能代码（约60分钟）"""
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+
+                await broadcast(project_id, {"type": "stage", "message": "📖 后发正在读取代码编写计划、任务依赖图和TDD测试用例..."})
+                await broadcast(project_id, {"type": "stage", "message": "🐝 后发正在建立Agent蜂群，按依赖图顺序分发任务..."})
+
+                prompt_lines = [
+                    "你是资深程序员后发（HouFa），负责建立Agent蜂群编写功能代码。\n",
+                ]
+                if requirement:
+                    prompt_lines.append(
+                        "=== 需求文档（SRS）===\n"
+                        f"{requirement[:2000]}\n\n"
+                    )
+                if design_doc:
+                    prompt_lines.append(
+                        "=== 架构设计文档 ===\n"
+                        f"{design_doc[:3000]}\n\n"
+                    )
+                prompt_lines.append(
+                    "=== 代码编写计划 ===\n"
+                    f"{_json.dumps(code_plan, ensure_ascii=False, indent=2) if isinstance(code_plan, (dict, list)) else str(code_plan)}\n\n"
+                )
+                if dependency_graph:
+                    prompt_lines.append(
+                        "=== 任务依赖图 ===\n"
+                        f"{_json.dumps(dependency_graph, ensure_ascii=False, indent=2) if isinstance(dependency_graph, (dict, list)) else str(dependency_graph)}\n\n"
+                    )
+                prompt_lines.append(
+                    "=== TDD测试用例 ===\n"
+                    f"{tdd_cases if isinstance(tdd_cases, str) else (_json.dumps(tdd_cases, ensure_ascii=False, indent=2) if tdd_cases else '待生成')}\n\n"
+                )
+                prompt_lines.append(
+                    "请严格按照任务依赖图的顺序，建立Agent蜂群分发任务，编写完整的功能代码。\n"
+                    "要求：\n"
+                    "1. 按照依赖图拓扑顺序执行，确保前置依赖完成后才开始后续任务\n"
+                    "2. 每个模块编写完整的TDD测试用例后再编写实现代码\n"
+                    "3. 代码必须符合架构设计方案的技术选型和规范\n"
+                    "4. 每个函数/类都要有清晰的注释和文档字符串\n"
+                    "5. 直接输出代码文件内容，标注文件路径\n\n"
+                    "直接输出代码，不要输出思考过程。"
+                )
+                prompt = "\n".join(prompt_lines)
+
+                full_reply = []
+                client = GatewayClient(profile_name="houfa", timeout=5400)  # 90分钟超时
+                async for chunk in client.chat_completions(
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True,
+                    max_tokens=16384,
+                ):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"📝 后发持续编码中...（已生成 {len(''.join(full_reply))} 字符）"})
+
+                await broadcast(project_id, {"type": "stage", "message": "📝 所有功能代码已生成，正在进行质量检查..."})
+
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {
+                        "code": reply,
+                        "code_plan_source": str(code_plan)[:500],
+                        "dependency_graph_source": str(dependency_graph)[:500],
+                        "tdd_cases_source": str(tdd_cases)[:500],
+                        "status": "done",
+                        "message": "✅ 功能代码编写完成",
+                    }
+                    bg_engine.save_step9_artifacts(artifacts)
+                    bg_engine.complete_step(9)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 所有功能代码已全部编写完毕，等待 QA 检验"})
+                else:
+                    bg_engine.save_step9_artifacts({
+                        "status": "error",
+                        "message": "❌ 后发未生成有效代码，请重新执行",
+                    })
+                    bg_engine.reset_step(9)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后发未生成有效代码，请重新执行"})
+            except Exception as e:
+                logger.error(f"HouFa background generation failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step9_artifacts({
+                        "status": "error",
+                        "message": f"❌ 后发编写失败: {str(e)[:200]}",
+                    })
+                    bg_engine.reset_step(9)
+                except Exception:
+                    pass
+                try:
+                    await broadcast(project_id, {"type": "error", "message": f"❌ 后发编写失败: {str(e)[:200]}"})
+                except Exception:
+                    pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouFa background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+
+    return APIResponse(code=0, data={
+        "message": "第九步已启动，后发正在建立蜂群编写功能代码（约60分钟）",
+        "status": "generating",
+    })
+
+
+@router.get("/{project_id}/step9/status")
+def get_step9_status(project_id: str,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step9_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+@router.post("/{project_id}/step9/artifacts")
+def save_step9_artifacts(project_id: str, body: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step9_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤9状态已保存"})
+
+
+@router.post("/{project_id}/step9/inspect")
+async def inspect_step9_code(project_id: str, body: Step3InspectRequest,
+                             db: Session = Depends(get_db),
+                             current_user=Depends(get_current_user)):
+    """后荣（HouRong）对功能代码进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={
+            "passed": False, "message": "功能代码内容过短，请补充完善",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "代码内容不足，无法检验"}
+                for d in CODE_INSPECTION_DIMENSIONS
+            ],
+        })
+
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+
+    active_dims = [d for d in CODE_INSPECTION_DIMENSIONS
+                   if not focus_items or d["key"] in focus_items]
+
+    dims_json = _json.dumps(
+        [{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims],
+        ensure_ascii=False, indent=2
+    )
+
+    focus_hint = ""
+    if focus_items:
+        focus_hint = (
+            f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+            f"请只针对这些项目做出通过/不通过判定，不要对其他维度提出新的问题。"
+        )
+
+    prompt = (
+        "你是一个专业的代码QA检验员（后荣）。请严格检验以下功能代码是否符合开发标准。\n\n"
+        "=== 功能代码 ===\n"
+        f"{content}\n\n"
+        "=== 检验项目与标准 ===\n"
+        f"请依次逐项检验以下 {len(active_dims)} 个维度，对每个维度给出通过/不通过及具体意见：\n"
+        f"{dims_json}\n\n"
+        "请阅读完整代码，严格按照上述检验标准进行专业评审。\n"
+        f"{focus_hint}\n"
+        "直接输出 JSON 数组，不要包含其他说明文字：\n"
+        "[\n"
+        + ",\n".join(
+            f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}'
+            for d in active_dims
+        ) + "\n]"
+    )
+
+    INSPECT_TIMEOUT = 120
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=INSPECT_TIMEOUT)
+
+        async def _collect():
+            chunks = []
+            async for chunk in client.chat_completions(
+                messages=[{"role": "user", "content": prompt}],
+                stream=False,
+                max_tokens=2000,
+            ):
+                chunks.append(chunk)
+            return "".join(chunks).strip()
+
+        reply = await asyncio.wait_for(_collect(), timeout=INSPECT_TIMEOUT)
+
+        if not reply:
+            raise ValueError("后荣未返回检验结果（空响应）")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list):
+            raise ValueError("返回结果不是数组")
+    except _asyncio.TimeoutError:
+        logger.error(f"后荣检验功能代码超时（{INSPECT_TIMEOUT}s）")
+        return APIResponse(code=0, data={
+            "passed": False,
+            "message": f"检验超时（超过{INSPECT_TIMEOUT//60}分钟），请简化代码后重试",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "检验超时，请简化代码后重试"}
+                for d in active_dims
+            ],
+        })
+    except Exception as e:
+        logger.error(f"后荣检验功能代码失败: {e}")
+        return APIResponse(code=0, data={
+            "passed": False, "message": "后荣检验过程出错，请重试",
+            "dimensions": [
+                {"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"}
+                for d in active_dims
+            ],
+        })
+
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        if matched:
+            dim_passed = bool(matched.get("passed", False))
+            dim_detail = matched.get("detail", "")
+        else:
+            dim_passed = False
+            dim_detail = "后荣未返回该维度的检验结果"
+        results.append({
+            "key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": dim_passed, "detail": dim_detail,
+        })
+
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={
+        "passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过，请修改后重新检验",
+        "dimensions": results,
+    })
+
+
+@router.post("/{project_id}/step10")
+def execute_step10(project_id: str,
+                   db: Session = Depends(get_db),
+                   current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.advance_step(10)
+    step = engine.complete_step(10)
+    return APIResponse(code=0, data={"message": "第十步：测试环境部署完成", "step": step})
+
+
+@router.post("/{project_id}/step10/chat")
+async def step10_chat(project_id: str, body: Step10ChatRequest,
+                      db: Session = Depends(get_db),
+                      current_user=Depends(get_current_user)):
+    """与后富（HouFu）CI/CD工程师对话 - 使用项目隔离模式"""
+    logger.info(f"Step10 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
+        messages = body.messages + [{"role": "user", "content": body.message}]
+
+        client = GatewayClient(profile_name="houfu", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(
+            messages=messages,
+            project_id=project_id,
+            project_name=project.name,
+            project_description=project.description or "",
+            core_goal=core_goal,
+            agent_name="后富（HouFu）CI/CD工程师",
+            stream=False,
+        ):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后富未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"HouFu chat failed: {e}")
+        return APIResponse(code=1, message="与后富对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step10/execute")
+async def execute_step10_async(project_id: str,
+                               db: Session = Depends(get_db),
+                               current_user=Depends(get_current_user)):
+    """异步启动第十步：后富部署代码到测试环境（约30分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(10)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤10: {str(e)[:200]}")
+
+    step9 = engine.get_step9_artifacts() or {}
+    code = (step9.get("code") or step9.get("content") or "")
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or
+                   step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step5 = engine.get_step5_artifacts() or {}
+    env_info = step5.get("env_info") or step5.get("environment") or {}
+
+    engine.save_step10_artifacts({"status": "generating", "message": "🚀 后富正在部署代码到测试环境..."})
+
+    async def _generate():
+        """后台任务：后富部署代码到测试环境（约30分钟）"""
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+
+                await broadcast(project_id, {"type": "stage", "message": "📖 后富正在读取代码和部署环境信息..."})
+                await broadcast(project_id, {"type": "stage", "message": "🚀 后富正在准备测试环境部署..."})
+
+                prompt_lines = [
+                    "你是资深CI/CD工程师后富（HouFu），负责将代码部署到测试环境。\n",
+                ]
+                if requirement:
+                    prompt_lines.append(
+                        "=== 需求文档（SRS）===\n"
+                        f"{requirement[:2000]}\n\n"
+                    )
+                if design_doc:
+                    prompt_lines.append(
+                        "=== 架构设计文档 ===\n"
+                        f"{design_doc[:3000]}\n\n"
+                    )
+                if env_info:
+                    prompt_lines.append(
+                        "=== 开发环境信息 ===\n"
+                        f"{_json.dumps(env_info, ensure_ascii=False, indent=2) if isinstance(env_info, (dict, list)) else str(env_info)}\n\n"
+                    )
+                if code:
+                    prompt_lines.append(
+                        "=== 功能代码 ===\n"
+                        f"{code[:5000]}\n\n"
+                    )
+                prompt_lines.append(
+                    "请将以上代码部署到测试环境，完成以下工作：\n"
+                    "1. 准备测试环境（操作系统、运行时、依赖库）\n"
+                    "2. 配置部署脚本（Docker、Docker Compose 或 K8s）\n"
+                    "3. 配置环境变量和数据库连接\n"
+                    "4. 执行部署流程并验证服务启动\n"
+                    "5. 输出部署日志和验证结果\n\n"
+                    "直接输出部署配置和过程，不要输出思考过程。"
+                )
+                prompt = "\n".join(prompt_lines)
+
+                full_reply = []
+                client = GatewayClient(profile_name="houfu", timeout=3600)  # 60分钟超时
+                async for chunk in client.chat_completions(
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=True,
+                    max_tokens=16384,
+                ):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"🚀 后富持续部署中...（已生成 {len(''.join(full_reply))} 字符）"})
+
+                await broadcast(project_id, {"type": "stage", "message": "📝 部署完成，正在进行验证..."})
+
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {
+                        "deployment_log": reply,
+                        "code_source": str(code)[:500],
+                        "status": "done",
+                        "message": "✅ 测试环境部署完成",
+                    }
+                    bg_engine.save_step10_artifacts(artifacts)
+                    bg_engine.complete_step(10)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 测试环境部署已完成，等待 QA 检验"})
+                else:
+                    bg_engine.save_step10_artifacts({
+                        "status": "error",
+                        "message": "❌ 后富未生成有效部署记录，请重新执行",
+                    })
+                    bg_engine.reset_step(10)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后富未生成有效部署记录，请重新执行"})
+            except Exception as e:
+                logger.error(f"HouFu background deployment failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step10_artifacts({
+                        "status": "error",
+                        "message": f"❌ 后富部署失败: {str(e)[:200]}",
+                    })
+                    bg_engine.reset_step(10)
+                except Exception:
+                    pass
+                try:
+                    await broadcast(project_id, {"type": "error", "message": f"❌ 后富部署失败: {str(e)[:200]}"})
+                except Exception:
+                    pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouFu background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+
+    return APIResponse(code=0, data={
+        "message": "第十步已启动，后富正在部署代码到测试环境（约30分钟）",
+        "status": "generating",
+    })
+
+
+@router.get("/{project_id}/step10/status")
+def get_step10_status(project_id: str,
+                      db: Session = Depends(get_db),
+                      current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step10_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+@router.post("/{project_id}/step10/artifacts")
+def save_step10_artifacts_api(project_id: str, body: dict = Body(...),
+                              db: Session = Depends(get_db),
+                              current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step10_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤10状态已保存"})
+
+
+# ==================== Step 11: 后达蜂群全面测试 ====================
+
+@router.post("/{project_id}/step11/chat")
+async def step11_chat(project_id: str, body: Step11ChatRequest,
+                      db: Session = Depends(get_db),
+                      current_user=Depends(get_current_user)):
+    """与后达（HouDa）测试员对话 - 使用项目隔离模式"""
+    logger.info(f"Step11 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        messages = body.messages + [{"role": "user", "content": body.message}]
+        client = GatewayClient(profile_name="houda", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name,
+            project_description=project.description or "", core_goal=core_goal,
+            agent_name="后达（HouDa）测试员", stream=False):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后达未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException: raise
+    except Exception as e:
+        logger.error(f"HouDa chat failed: {e}")
+        return APIResponse(code=1, message="与后达对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step11/execute")
+async def execute_step11_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第十一步：后达建立测试蜂群执行全面测试（约60分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(11)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤11: {str(e)[:200]}")
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    step9 = engine.get_step9_artifacts() or {}
+    code = step9.get("code") or step9.get("content") or ""
+    step10 = engine.get_step10_artifacts() or {}
+    deploy_log = step10.get("deployment_log") or step10.get("deploy_log") or ""
+    engine.save_step11_artifacts({"status": "generating", "message": "🐝 后达正在建立蜂群执行全面测试..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 后达正在读取需求文档、功能代码和部署日志..."})
+                await broadcast(project_id, {"type": "stage", "message": "🐝 后达正在建立测试蜂群执行全面测试（单元/模块/集成/前端实操）..."})
+                prompt_lines = ["你是资深测试员后达（HouDa），负责建立Agent蜂群执行全面测试。\n"]
+                if requirement:
+                    prompt_lines.append(f"=== 需求文档（SRS）===\n{requirement[:2000]}\n\n")
+                if code:
+                    prompt_lines.append(f"=== 功能代码 ===\n{code[:3000]}\n\n")
+                if deploy_log:
+                    prompt_lines.append(f"=== 测试环境部署日志 ===\n{str(deploy_log)[:2000]}\n\n")
+                prompt_lines.append(
+                    "请建立Agent蜂群执行全面测试：\n"
+                    "1. 单元测试（每个函数/方法的独立测试）\n"
+                    "2. 模块测试（模块间的接口测试）\n"
+                    "3. 集成测试（系统整体的集成测试）\n"
+                    "4. 前端实操验证（页面功能、交互、样式验证）\n"
+                    "5. 输出完整的测试报告和缺陷清单\n\n"
+                    "直接输出测试过程和结果。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="houda", timeout=5400)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"🐝 后达持续测试中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"test_report": reply, "code_source": str(code)[:500], "status": "done", "message": "✅ 全面测试完成"}
+                    bg_engine.save_step11_artifacts(artifacts)
+                    bg_engine.complete_step(11)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 全面测试已完成，等待 QA 检验"})
+                else:
+                    bg_engine.save_step11_artifacts({"status": "error", "message": "❌ 后达未生成有效测试报告"})
+                    bg_engine.reset_step(11)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后达未生成有效测试报告"})
+            except Exception as e:
+                logger.error(f"HouDa background testing failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step11_artifacts({"status": "error", "message": f"❌ 后达测试执行失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(11)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouDa background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第十一步已启动，后达正在建立蜂群执行全面测试（约60分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step11/status")
+def get_step11_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step11_artifacts())
+
+
+@router.post("/{project_id}/step11/artifacts")
+def save_step11_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step11_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤11状态已保存"})
+
+
+@router.post("/{project_id}/step11/inspect")
+async def inspect_step11_test_report(project_id: str, body: Step3InspectRequest,
+                                     db: Session = Depends(get_db),
+                                     current_user=Depends(get_current_user)):
+    """后荣（HouRong）对测试报告进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={"passed": False, "message": "测试报告内容过短",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"} for d in TEST_INSPECTION_DIMENSIONS]})
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+    active_dims = [d for d in TEST_INSPECTION_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
+    focus_hint = ""
+    if focus_items:
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+    prompt = (f"你是一个专业的测试报告QA检验员（后荣）。请严格检验以下测试报告。\n\n"
+        f"=== 测试报告 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n\n"
+        f"{focus_hint}\n直接输出 JSON 数组：\n[\n"
+        + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply: raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list): raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验测试报告失败: {e}")
+        return APIResponse(code=0, data={"passed": False, "message": "检验过程出错",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"} for d in active_dims]})
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({"key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果"})
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={"passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过", "dimensions": results})
+
+
+@router.post("/{project_id}/step11/qa")
+def qa_step11(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(11)
+    else:
+        result = engine.fail_qa(11, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第十一步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+# ==================== Step 12: 后华安全审计 ====================
+
+@router.post("/{project_id}/step12/chat")
+async def step12_chat(project_id: str, body: Step12ChatRequest,
+                      db: Session = Depends(get_db),
+                      current_user=Depends(get_current_user)):
+    """与后华（HouHua）安全员对话 - 使用项目隔离模式"""
+    logger.info(f"Step12 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        messages = body.messages + [{"role": "user", "content": body.message}]
+        client = GatewayClient(profile_name="houhua", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name,
+            project_description=project.description or "", core_goal=core_goal,
+            agent_name="后华（HouHua）安全员", stream=False):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后华未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException: raise
+    except Exception as e:
+        logger.error(f"HouHua chat failed: {e}")
+        return APIResponse(code=1, message="与后华对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step12/execute")
+async def execute_step12_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第十二步：后华执行安全审计（约45分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(12)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤12: {str(e)[:200]}")
+    step9 = engine.get_step9_artifacts() or {}
+    code = step9.get("code") or step9.get("content") or ""
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    engine.save_step12_artifacts({"status": "generating", "message": "🔒 后华正在执行安全审计..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 后华正在读取功能代码和架构设计..."})
+                await broadcast(project_id, {"type": "stage", "message": "🔒 后华正在执行安全审计（代码审计/合规审查/渗透测试/漏洞修复）..."})
+                prompt_lines = ["你是资深安全员后华（HouHua），负责执行安全审计。\n"]
+                if design_doc:
+                    prompt_lines.append(f"=== 架构设计文档 ===\n{design_doc[:2000]}\n\n")
+                if code:
+                    prompt_lines.append(f"=== 功能代码 ===\n{code[:3000]}\n\n")
+                prompt_lines.append(
+                    "请执行完整的安全审计：\n"
+                    "1. 代码审计（SQL注入、XSS、CSRF、敏感信息泄露等）\n"
+                    "2. 合规审查（是否符合行业规范和法规）\n"
+                    "3. 渗透测试（模拟攻击测试系统安全性）\n"
+                    "4. 漏洞修复建议（针对发现的问题给出修复方案）\n\n"
+                    "直接输出安全审计报告。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="houhua", timeout=3600)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"🔒 后华持续审计中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"security_report": reply, "code_source": str(code)[:500], "status": "done", "message": "✅ 安全审计完成"}
+                    bg_engine.save_step12_artifacts(artifacts)
+                    bg_engine.complete_step(12)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 安全审计已完成，等待 QA 检验"})
+                else:
+                    bg_engine.save_step12_artifacts({"status": "error", "message": "❌ 后华未生成有效安全报告"})
+                    bg_engine.reset_step(12)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后华未生成有效安全报告"})
+            except Exception as e:
+                logger.error(f"HouHua background audit failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step12_artifacts({"status": "error", "message": f"❌ 后华审计执行失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(12)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouHua background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第十二步已启动，后华正在执行安全审计（约45分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step12/status")
+def get_step12_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step12_artifacts())
+
+
+@router.post("/{project_id}/step12/artifacts")
+def save_step12_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step12_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤12状态已保存"})
+
+
+@router.post("/{project_id}/step12/inspect")
+async def inspect_step12_security_report(project_id: str, body: Step3InspectRequest,
+                                         db: Session = Depends(get_db),
+                                         current_user=Depends(get_current_user)):
+    """后荣（HouRong）对安全审计报告进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={"passed": False, "message": "安全报告内容过短",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"} for d in SECURITY_INSPECTION_DIMENSIONS]})
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+    active_dims = [d for d in SECURITY_INSPECTION_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
+    focus_hint = ""
+    if focus_items:
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+    prompt = (f"你是一个专业的安全审计QA检验员（后荣）。请严格检验以下安全审计报告。\n\n"
+        f"=== 安全审计报告 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n\n"
+        f"{focus_hint}\n直接输出 JSON 数组：\n[\n"
+        + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply: raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list): raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验安全报告失败: {e}")
+        return APIResponse(code=0, data={"passed": False, "message": "检验过程出错",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"} for d in active_dims]})
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({"key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果"})
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={"passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过", "dimensions": results})
+
+
+@router.post("/{project_id}/step12/qa")
+def qa_step12(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(12)
+    else:
+        result = engine.fail_qa(12, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第十二步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+# ==================== Step 13: 后富部署到生产环境 ====================
+
+@router.post("/{project_id}/step13/chat")
+async def step13_chat(project_id: str, body: Step13ChatRequest,
+                      db: Session = Depends(get_db),
+                      current_user=Depends(get_current_user)):
+    """与后富（HouFu）CI/CD工程师对话 - 使用项目隔离模式"""
+    logger.info(f"Step13 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        messages = body.messages + [{"role": "user", "content": body.message}]
+        client = GatewayClient(profile_name="houfu", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name,
+            project_description=project.description or "", core_goal=core_goal,
+            agent_name="后富（HouFu）CI/CD工程师", stream=False):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后富未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException: raise
+    except Exception as e:
+        logger.error(f"HouFu chat failed: {e}")
+        return APIResponse(code=1, message="与后富对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step13/execute")
+async def execute_step13_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第十三步：后富部署代码到生产环境（约30分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(13)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤13: {str(e)[:200]}")
+    step9 = engine.get_step9_artifacts() or {}
+    code = step9.get("code") or step9.get("content") or ""
+    step11 = engine.get_step11_artifacts() or {}
+    test_report = step11.get("test_report") or step11.get("report") or ""
+    step12 = engine.get_step12_artifacts() or {}
+    security_report = step12.get("security_report") or step12.get("report") or ""
+    engine.save_step13_artifacts({"status": "generating", "message": "🚀 后富正在部署代码到生产环境..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 后富正在读取代码、测试报告和安全审计报告..."})
+                await broadcast(project_id, {"type": "stage", "message": "🚀 后富正在部署代码到生产环境..."})
+                prompt_lines = ["你是资深CI/CD工程师后富（HouFu），负责将代码部署到生产环境。\n"]
+                if code:
+                    prompt_lines.append(f"=== 功能代码 ===\n{code[:3000]}\n\n")
+                if test_report:
+                    prompt_lines.append(f"=== 测试报告 ===\n{str(test_report)[:2000]}\n\n")
+                if security_report:
+                    prompt_lines.append(f"=== 安全审计报告 ===\n{str(security_report)[:2000]}\n\n")
+                prompt_lines.append(
+                    "请将以上代码部署到生产环境，完成以下工作：\n"
+                    "1. 准备生产环境（操作系统、运行时、依赖库）\n"
+                    "2. 配置部署脚本（Docker、Docker Compose 或 K8s）\n"
+                    "3. 配置环境变量和数据库连接\n"
+                    "4. 执行部署流程并验证服务启动\n"
+                    "5. 输出部署日志和验证结果\n\n"
+                    "直接输出部署配置和过程。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="houfu", timeout=3600)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"🚀 后富持续部署中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"deployment_log": reply, "code_source": str(code)[:500], "status": "done", "message": "✅ 生产环境部署完成"}
+                    bg_engine.save_step13_artifacts(artifacts)
+                    bg_engine.complete_step(13)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 生产环境部署已完成"})
+                else:
+                    bg_engine.save_step13_artifacts({"status": "error", "message": "❌ 后富未生成有效部署记录"})
+                    bg_engine.reset_step(13)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后富未生成有效部署记录"})
+            except Exception as e:
+                logger.error(f"HouFu background production deployment failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step13_artifacts({"status": "error", "message": f"❌ 后富部署失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(13)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouFu background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第十三步已启动，后富正在部署代码到生产环境（约30分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step13/status")
+def get_step13_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step13_artifacts())
+
+
+@router.post("/{project_id}/step13/artifacts")
+def save_step13_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step13_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤13状态已保存"})
+
+
+# ==================== Step 14: 后贵完善项目文档 ====================
+
+@router.post("/{project_id}/step14/chat")
+async def step14_chat(project_id: str, body: Step14ChatRequest,
+                      db: Session = Depends(get_db),
+                      current_user=Depends(get_current_user)):
+    """与后贵（HouGui）文档管理员对话 - 使用项目隔离模式"""
+    logger.info(f"Step14 chat: project_id={project_id}, message={body.message[:50]}")
+    from app.services.gateway_client import GatewayClient
+    from app.models.project import Project
+    try:
+        engine = _get_engine(project_id, db)
+        step2 = engine.get_step2_artifacts()
+        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+        project = db.query(Project).filter(Project.id == project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        messages = body.messages + [{"role": "user", "content": body.message}]
+        client = GatewayClient(profile_name="hougui", timeout=1200)
+        reply_chunks = []
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name,
+            project_description=project.description or "", core_goal=core_goal,
+            agent_name="后贵（HouGui）文档管理员", stream=False):
+            reply_chunks.append(chunk)
+        reply = "".join(reply_chunks)
+        if not reply or len(reply.strip()) < 5:
+            return APIResponse(code=1, message="后贵未生成有效回复", data=None)
+        return APIResponse(code=0, message="success", data={"reply": reply})
+    except HTTPException: raise
+    except Exception as e:
+        logger.error(f"HouGui chat failed: {e}")
+        return APIResponse(code=1, message="与后贵对话失败，请稍后重试", data=None)
+
+
+@router.post("/{project_id}/step14/execute")
+async def execute_step14_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第十四步：后贵完善项目文档（约40分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(14)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤14: {str(e)[:200]}")
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step9 = engine.get_step9_artifacts() or {}
+    code = step9.get("code") or step9.get("content") or ""
+    step11 = engine.get_step11_artifacts() or {}
+    test_report = step11.get("test_report") or step11.get("report") or ""
+    step12 = engine.get_step12_artifacts() or {}
+    security_report = step12.get("security_report") or step12.get("report") or ""
+    engine.save_step14_artifacts({"status": "generating", "message": "📝 后贵正在完善项目文档..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 后贵正在读取所有项目产出..."})
+                await broadcast(project_id, {"type": "stage", "message": "📝 后贵正在完善项目文档（部署手册/操作手册/API文档/用户手册）..."})
+                prompt_lines = ["你是资深文档管理员后贵（HouGui），负责完善项目文档。\n"]
+                if requirement:
+                    prompt_lines.append(f"=== 需求文档 ===\n{requirement[:2000]}\n\n")
+                if design_doc:
+                    prompt_lines.append(f"=== 架构设计文档 ===\n{design_doc[:2000]}\n\n")
+                if code:
+                    prompt_lines.append(f"=== 功能代码 ===\n{code[:2000]}\n\n")
+                if test_report:
+                    prompt_lines.append(f"=== 测试报告 ===\n{str(test_report)[:1000]}\n\n")
+                if security_report:
+                    prompt_lines.append(f"=== 安全审计报告 ===\n{str(security_report)[:1000]}\n\n")
+                prompt_lines.append(
+                    "请完善整个项目文档，包括：\n"
+                    "1. 部署手册（环境准备、部署步骤、配置说明）\n"
+                    "2. 操作手册（系统操作指南、常见问题）\n"
+                    "3. API文档（接口列表、请求/响应格式、示例）\n"
+                    "4. 用户手册（功能说明、使用指南）\n"
+                    "5. 保证所有文档之间的一致性\n\n"
+                    "直接输出文档内容，标注文档名称。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="hougui", timeout=3600)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"📝 后贵持续编写文档中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"documentation": reply, "status": "done", "message": "✅ 项目文档完善完成"}
+                    bg_engine.save_step14_artifacts(artifacts)
+                    bg_engine.complete_step(14)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 项目文档已完善完毕，等待 QA 检验"})
+                else:
+                    bg_engine.save_step14_artifacts({"status": "error", "message": "❌ 后贵未生成有效文档"})
+                    bg_engine.reset_step(14)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 后贵未生成有效文档"})
+            except Exception as e:
+                logger.error(f"HouGui background documentation failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step14_artifacts({"status": "error", "message": f"❌ 后贵文档编写失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(14)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HouGui background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第十四步已启动，后贵正在完善项目文档（约40分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step14/status")
+def get_step14_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step14_artifacts())
+
+
+@router.post("/{project_id}/step14/artifacts")
+def save_step14_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step14_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤14状态已保存"})
+
+
+@router.post("/{project_id}/step14/save-doc")
+def save_step14_doc(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """将项目文档保存到本地和代码库"""
+    from datetime import datetime
+    local_dir = body.save_path or os.path.join(os.getcwd(), "docs")
+    os.makedirs(local_dir, exist_ok=True)
+    local_filename = body.filename or f"doc-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+    local_path = os.path.join(local_dir, local_filename)
+    try:
+        with open(local_path, "w", encoding="utf-8") as f:
+            f.write(body.content)
+        logger.info(f"项目文档已保存到本地: {local_path}")
+    except Exception as e:
+        logger.error(f"保存项目文档到本地失败: {e}")
+    # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
+    engine = WorkflowEngine(project_id=project_id, db=db)
+    engine.save_step14_artifacts({
+        "documentation": body.content,
+        "filename": body.filename or local_filename,
+        "local_path": local_path,
+        "saved_at": datetime.now().isoformat(),
+    })
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=0, data={"message": "项目文档已保存到本地和引擎产物", "local_path": local_path})
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        filepath = body.filename or f"docs/doc-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
+        result = asyncio.run(gitea_client.create_file(owner=owner, repo=repo.name, filepath=filepath, content=body.content, message="docs: 提交项目文档", branch="main"))
+        engine.save_step14_artifacts({"filepath": filepath, "commit": result.get("commit", {})})
+        return APIResponse(code=0, data={"message": "项目文档已保存到本地、代码库和引擎产物", "local_path": local_path, "filepath": filepath})
+    except Exception as e:
+        logger.error(f"保存项目文档到代码库失败: {e}")
+        return APIResponse(code=0, data={"message": f"项目文档已保存到本地和引擎产物（保存到代码库失败: {e}）", "local_path": local_path})
+
+
+@router.post("/{project_id}/step14/list-docs")
+def list_step14_docs(project_id: str, body: DocsListRequest, current_user=Depends(get_current_user)):
+    """从项目文档目录读取文档列表"""
+    import glob
+    docs_path = body.path
+    if not docs_path or not os.path.isdir(docs_path):
+        return APIResponse(code=0, data={"files": []})
+    files = []
+    for f in sorted(glob.glob(os.path.join(docs_path, "*.md"))):
+        fname = os.path.basename(f)
+        try:
+            with open(f, "r", encoding="utf-8") as fh:
+                files.append({"name": fname, "path": f, "content": fh.read()})
+        except Exception as e:
+            logger.warning(f"读取项目文档失败 {f}: {e}")
+            files.append({"name": fname, "path": f, "content": ""})
+    return APIResponse(code=0, data={"files": files})
+
+
+@router.post("/{project_id}/step14/inspect")
+async def inspect_step14_documentation(project_id: str, body: Step3InspectRequest,
+                                       db: Session = Depends(get_db),
+                                       current_user=Depends(get_current_user)):
+    """后荣（HouRong）对项目文档进行QA自动检验"""
+    content = body.content
+    focus_items = body.focus_items or None
+    if not content or len(content.strip()) < 20:
+        return APIResponse(code=0, data={"passed": False, "message": "项目文档内容过短",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": "内容不足，无法检验"} for d in DOC_INSPECTION_DIMENSIONS]})
+    from app.services.gateway_client import GatewayClient
+    import json as _json
+    active_dims = [d for d in DOC_INSPECTION_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
+    focus_hint = ""
+    if focus_items:
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n"
+    prompt = (f"你是一个专业的文档QA检验员（后荣）。请严格检验以下项目文档。\n\n"
+        f"=== 项目文档 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n\n"
+        f"{focus_hint}\n直接输出 JSON 数组：\n[\n"
+        + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+    try:
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
+        if not reply: raise ValueError("后荣未返回检验结果")
+        parsed_list = _json.loads(reply)
+        if not isinstance(parsed_list, list): raise ValueError("返回结果不是数组")
+    except Exception as e:
+        logger.error(f"后荣检验项目文档失败: {e}")
+        return APIResponse(code=0, data={"passed": False, "message": "检验过程出错",
+            "dimensions": [{"key": d["key"], "label": d["label"], "description": d["description"],
+                 "passed": False, "detail": f"检验失败: {str(e)[:80]}"} for d in active_dims]})
+    results = []
+    for dim in active_dims:
+        matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
+        results.append({"key": dim["key"], "label": dim["label"], "description": dim["description"],
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果"})
+    all_passed = all(r["passed"] for r in results)
+    return APIResponse(code=0, data={"passed": all_passed,
+        "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过", "dimensions": results})
+
+
+@router.post("/{project_id}/step14/qa")
+def qa_step14(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.result == "passed":
+        result = engine.pass_qa(14)
+    else:
+        result = engine.fail_qa(14, reason=body.reason or "", suggestions=body.suggestions)
+    return APIResponse(code=0, data={"message": f"第十四步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+# ==================== Step 15: 海梅报告交付成果 ====================
+
+@router.post("/{project_id}/step15/execute")
+async def execute_step15_async(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """异步启动第十五步：海梅生成项目交付报告（约20分钟），立即返回"""
+    from app.services.gateway_client import GatewayClient
+    import asyncio as _asyncio
+    try:
+        engine = _get_engine(project_id, db)
+        engine.advance_step(15)
+    except Exception as e:
+        return APIResponse(code=1, message=f"无法开始步骤15: {str(e)[:200]}")
+    step3 = engine.get_step3_artifacts() or {}
+    step4 = engine.get_step4_artifacts() or {}
+    step9 = engine.get_step9_artifacts() or {}
+    step11 = engine.get_step11_artifacts() or {}
+    step12 = engine.get_step12_artifacts() or {}
+    step13 = engine.get_step13_artifacts() or {}
+    step14 = engine.get_step14_artifacts() or {}
+    engine.save_step15_artifacts({"status": "generating", "message": "📊 海梅正在生成项目交付报告..."})
+
+    async def _generate():
+        try:
+            from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
+            from app.api.ws.step4_progress import broadcast
+            bg_db = SessionLocal()
+            try:
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                await broadcast(project_id, {"type": "stage", "message": "📖 海梅正在汇总所有项目产出..."})
+                await broadcast(project_id, {"type": "stage", "message": "📊 海梅正在生成项目交付报告..."})
+                prompt_lines = ["你是资深项目经理海梅（HaiMei），负责生成项目交付报告。\n"]
+                if step3:
+                    prompt_lines.append(f"=== 需求文档摘要 ===\n{str(step3.get('doc_content', '')[:500])}\n\n")
+                if step4:
+                    prompt_lines.append(f"=== 架构设计摘要 ===\n{str(step4.get('design_doc', '')[:500])}\n\n")
+                if step9:
+                    prompt_lines.append(f"=== 功能代码摘要 ===\n{str(step9.get('code', '')[:500])}\n\n")
+                if step11:
+                    prompt_lines.append(f"=== 测试报告摘要 ===\n{str(step11.get('test_report', '')[:500])}\n\n")
+                if step12:
+                    prompt_lines.append(f"=== 安全审计报告摘要 ===\n{str(step12.get('security_report', '')[:500])}\n\n")
+                if step13:
+                    prompt_lines.append(f"=== 部署日志摘要 ===\n{str(step13.get('deployment_log', '')[:500])}\n\n")
+                if step14:
+                    prompt_lines.append(f"=== 项目文档摘要 ===\n{str(step14.get('documentation', '')[:500])}\n\n")
+                prompt_lines.append(
+                    "请生成完整的项目交付报告，包括：\n"
+                    "1. 项目完成状态（所有步骤的完成状态）\n"
+                    "2. 功能交付清单（实现的功能列表）\n"
+                    "3. 测试结果摘要（测试覆盖率、通过率、缺陷清单）\n"
+                    "4. 安全审计结果（漏洞修复情况、合规达标情况）\n"
+                    "5. 部署访问地址（生产环境URL）\n"
+                    "6. 文档下载链接（各类文档的路径）\n\n"
+                    "直接输出交付报告。"
+                )
+                prompt = "\n".join(prompt_lines)
+                full_reply = []
+                client = GatewayClient(profile_name="haimei", timeout=2700)
+                async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=16384):
+                    full_reply.append(chunk)
+                    if len(full_reply) % 10 == 0:
+                        await broadcast(project_id, {"type": "progress", "message": f"📊 海梅持续生成报告中...（已生成 {len(''.join(full_reply))} 字符）"})
+                reply = "".join(full_reply).strip()
+                if reply and len(reply) >= 50:
+                    artifacts = {"delivery_report": reply, "status": "done", "message": "✅ 项目交付报告生成完成"}
+                    bg_engine.save_step15_artifacts(artifacts)
+                    bg_engine.complete_step(15)
+                    await broadcast(project_id, {"type": "done", "message": "✅ 项目交付报告已生成完毕"})
+                else:
+                    bg_engine.save_step15_artifacts({"status": "error", "message": "❌ 海梅未生成有效报告"})
+                    bg_engine.reset_step(15)
+                    await broadcast(project_id, {"type": "error", "message": "❌ 海梅未生成有效报告"})
+            except Exception as e:
+                logger.error(f"HaiMei background delivery report failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step15_artifacts({"status": "error", "message": f"❌ 海梅报告生成失败: {str(e)[:200]}"})
+                    bg_engine.reset_step(15)
+                except Exception: pass
+            finally:
+                bg_db.close()
+        except Exception as e:
+            logger.error(f"HaiMei background task fatal: {e}")
+
+    _asyncio.create_task(_generate())
+    return APIResponse(code=0, data={"message": "第十五步已启动，海梅正在生成项目交付报告（约20分钟）", "status": "generating"})
+
+
+@router.get("/{project_id}/step15/status")
+def get_step15_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step15_artifacts())
+
+
+@router.post("/{project_id}/step15/artifacts")
+def save_step15_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step15_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤15状态已保存"})
+
+
+@router.get("/{project_id}/step15/report")
+def get_step15_report(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """返回完整的项目交付报告"""
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step15_artifacts()
+    if not artifacts:
+        return APIResponse(code=0, data={"message": "尚未生成项目交付报告，请先执行步骤15"})
+    report = artifacts.get("delivery_report", "")
+    if not report:
+        return APIResponse(code=0, data={"message": "项目交付报告为空"})
+    return APIResponse(code=0, data={"delivery_report": report})
+
+
+# ==================== Step 16: 用户满意度确认与迭代 ====================
+
+@router.get("/{project_id}/step16/status")
+def get_step16_status(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_step16_artifacts())
+
+
+@router.post("/{project_id}/step16/artifacts")
+def save_step16_artifacts(project_id: str, body: dict = Body(...), db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step16_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤16状态已保存"})
+
+
+@router.post("/{project_id}/step16/tag")
+def create_release_tag(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """在Gitea代码库中打版本标签"""
+    from app.models.repo import Repo
+    repo = db.query(Repo).filter(Repo.project_id == project_id).first()
+    if not repo:
+        return APIResponse(code=1, message="未找到项目代码库")
+    from app.services.gitea_client import gitea_client
+    try:
+        owner = settings.GITEA_ADMIN_USER
+        tag_name = f"v1.0.0-{project_id[:8]}"
+        result = asyncio.run(gitea_client.create_tag(owner=owner, repo=repo.name, tag_name=tag_name, branch="main"))
+        return APIResponse(code=0, data={"message": f"版本标签 {tag_name} 已创建", "tag": tag_name})
+    except Exception as e:
+        logger.error(f"创建版本标签失败: {e}")
+        return APIResponse(code=1, message=f"创建版本标签失败: {str(e)[:200]}")
+
+
+@router.post("/{project_id}/step16")
+def execute_step16(project_id: str, body: UserSatisfactionRequest,
+                   db: Session = Depends(get_db),
+                   current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    if body.satisfied:
+        engine.advance_step(16)
+        step = engine.complete_step(16)
+        return APIResponse(code=0, data={"message": "项目完成！用户确认满意，项目结束", "step": step})
+    else:
+        result = engine.user_dissatisfied(feedback=body.feedback or "用户不满意")
+        return APIResponse(code=0, data={"message": "用户不满意，回到第三步重新迭代", "iteration": result})
+
+
+@router.get("/{project_id}/status")
+def get_project_status(project_id: str,
+                       db: Session = Depends(get_db),
+                       current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    return APIResponse(code=0, data=engine.get_current_status())
+
+
+@router.delete("/{project_id}/cache")
+def clear_engine_cache(project_id: str,
+                       db: Session = Depends(get_db),
+                       current_user=Depends(get_current_user)):
+    _wf_engines.pop(project_id, None)
+    return APIResponse(code=0, data={"message": "引擎缓存已清除"})

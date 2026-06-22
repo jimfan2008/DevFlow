@@ -1,0 +1,64 @@
+# Alembic Migration Directory
+
+## Structure
+
+```
+alembic/
+├── env.py          # Environment configuration
+├── script.py.mako  # Migration script template
+└── versions/       # Migration scripts
+```
+
+## Usage
+
+### Initial setup
+```bash
+# Set environment variables or create .env file
+export DB_HOST=localhost
+export DB_PORT=3306
+export DB_USER=hr_admin
+export DB_PASSWORD=your_password
+export DB_NAME=gbm_hr_db
+
+# Run initial database init script
+bash scripts/setup_db.sh
+
+# Initialize alembic (one-time)
+alembic init --version-suffix
+```
+
+### Create a new migration
+```bash
+alembic revision -m "description of changes"
+```
+
+### Apply pending migrations
+```bash
+alembic upgrade head
+```
+
+### Rollback one migration
+```bash
+alembic downgrade -1
+```
+
+### Check migration status
+```bash
+alembic current
+alembic history
+```
+
+### Autogenerate migration from model changes
+```bash
+alembic revision --autogenerate -m "auto update models"
+```
+
+## Multi-schema Support
+
+This project uses 4 MySQL schemas:
+- `hr_user` - Employee and RBAC data
+- `hr_recruit` - Recruitment and exam data
+- `hr_payroll` - Attendance and payroll data
+- `hr_auto` - External affairs, audit, agent logs
+
+Migrations with schema-specific tables should use `schema='hr_xxx'` in Table definitions.

@@ -29,15 +29,14 @@ class TaskService:
         from app.models.comment import Comment
         from app.models.attachment import Attachment
         from app.models.user import User
-        from app.models.notification import InboxItem
         from app.models.dependency import TaskDependency
-        return Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, TaskDependency
+        return Task, Board, BoardColumn, Comment, Attachment, User, TaskDependency
 
     def create_task(self, project_id: str, name: str, type: str = "coding",
                     description=None, status="pending", priority="medium",
                     agent_type_preference=None, assignee_agent_id=None,
                     acceptance_criteria=None, deadline=None) -> dict:
-        Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, *_ = self._import_models()
+        Task, Board, BoardColumn, Comment, Attachment, User, *_ = self._import_models()
         task = Task(
             id=str(uuid.uuid4()),
             project_id=project_id,
@@ -54,29 +53,10 @@ class TaskService:
         self.db.add(task)
         self.db.commit()
         self.db.refresh(task)
-        result = self._task_to_dict(task)
-        result["inbox_created"] = False
-        if assignee_agent_id and status == "assigned":
-            try:
-                inbox = InboxItem(
-                    id=str(uuid.uuid4()),
-                    user_id=assignee_agent_id,
-                    task_id=task.id,
-                    type="assigned",
-                    title=f"任务已分配: {name}",
-                    content=f"您被分配了任务: {name}",
-                    is_read=False,
-                    created_at=datetime.now(timezone.utc),
-                )
-                self.db.add(inbox)
-                self.db.commit()
-                result["inbox_created"] = True
-            except Exception:
-                pass
-        return result
+        return self._task_to_dict(task)
 
     def get_task(self, task_id: str, include_comments=False) -> dict:
-        Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, TaskDependency = self._import_models()
+        Task, Board, BoardColumn, Comment, Attachment, User, TaskDependency = self._import_models()
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError("任务不存在")
@@ -96,7 +76,7 @@ class TaskService:
         return result
 
     def update_task(self, task_id: str, **kwargs) -> dict:
-        Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, *_ = self._import_models()
+        Task, Board, BoardColumn, Comment, Attachment, User, *_ = self._import_models()
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError("任务不存在")
@@ -112,11 +92,10 @@ class TaskService:
             result["board_update"] = {"status_changed": True, "old_status": old_status, "new_status": task.status}
         else:
             result["board_update"] = None
-        result["inbox_created"] = False
         return result
 
     def delete_task(self, task_id: str) -> bool:
-        Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, *_ = self._import_models()
+        Task, Board, BoardColumn, Comment, Attachment, User, *_ = self._import_models()
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError("任务不存在")
@@ -126,7 +105,7 @@ class TaskService:
 
     def list_tasks(self, project_id=None, status=None, assignee_agent_id=None,
                    page=1, per_page=20) -> dict:
-        Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, *_ = self._import_models()
+        Task, Board, BoardColumn, Comment, Attachment, User, *_ = self._import_models()
         query = self.db.query(Task)
         if project_id:
             query = query.filter(Task.project_id == project_id)
@@ -146,7 +125,7 @@ class TaskService:
         }
 
     def move_task(self, task_id: str, status: str, column_id=None, order_in_column=None) -> dict:
-        Task, Board, BoardColumn, Comment, Attachment, User, InboxItem, *_ = self._import_models()
+        Task, Board, BoardColumn, Comment, Attachment, User, *_ = self._import_models()
         task = self.db.query(Task).filter(Task.id == task_id).first()
         if not task:
             raise ValueError("任务不存在")
@@ -160,7 +139,6 @@ class TaskService:
         self.db.refresh(task)
         result = self._task_to_dict(task)
         result["board_update"] = {"status_changed": True, "new_status": status}
-        result["inbox_created"] = False
         return result
 
     def _task_to_dict(self, task) -> dict:

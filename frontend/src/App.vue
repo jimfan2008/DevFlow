@@ -16,7 +16,6 @@
       </div>
     </template>
     <router-view v-else />
-    <notification-container />
   </div>
 </template>
 
@@ -26,8 +25,6 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useWebSocketStore } from '@/stores/useWebSocketStore'
 import AppHeader from '@/components/common/AppHeader.vue'
 import AppSidebar from '@/components/common/AppSidebar.vue'
-import NotificationContainer from '@/components/inbox/NotificationContainer.vue'
-
 const authStore = useAuthStore()
 const wsStore = useWebSocketStore()
 const isLoggedIn = computed(() => authStore.isAuthenticated)

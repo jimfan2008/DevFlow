@@ -7,7 +7,6 @@ from app.services.comment_service import CommentService
 from app.services.attachment_service import AttachmentService
 from app.services.dependency_service import DependencyService
 from app.services.workload_service import WorkloadService
-from app.services.inbox_service import InboxService
 from app.services.hermes_service import HermesService
 from app.services.decomposition_service import DecompositionService
 from app.services.agent_scheduler_service import AgentSchedulerService
@@ -17,7 +16,7 @@ from app.services.delivery_service import DeliveryService
 __all__ = [
     "AuthService", "BoardService", "TaskService",
     "CommentService", "AttachmentService", "DependencyService",
-    "WorkloadService", "InboxService",
+    "WorkloadService",
     "HermesService", "DecompositionService", "AgentSchedulerService",
     "AcceptanceService", "DeliveryService",
 ]

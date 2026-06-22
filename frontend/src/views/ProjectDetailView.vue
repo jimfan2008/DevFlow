@@ -20,13 +20,14 @@
                 'project-detail-view__workflow-step--active': workflowStatus && (workflowStatus.steps?.[String(i + 1)]?.status === 'in_progress' || workflowStatus.steps?.[String(i + 1)]?.status === 'qa_review'),
                 'project-detail-view__workflow-step--completed': workflowStatus?.steps?.[String(i + 1)]?.status === 'completed',
               }"
+              @click="goToStep(i + 1)"
             >
               <div class="project-detail-view__workflow-step-num">{{ i + 1 }}</div>
               <div class="project-detail-view__workflow-step-info">
                 <div class="project-detail-view__workflow-step-name">{{ step.name }}</div>
                 <div class="project-detail-view__workflow-step-executor">{{ step.executor }}</div>
               </div>
-              <div class="project-detail-view__workflow-step-action">
+              <div class="project-detail-view__workflow-step-action" @click.stop>
                 <el-button
                   v-if="workflowStatus?.steps?.[String(i + 1)]?.status === 'completed'"
                   size="small"
@@ -71,10 +72,11 @@
                 <el-button
                   v-else
                   size="small"
+                  type="primary"
                   plain
-                  disabled
+                  @click="goToStep(i + 1)"
                 >
-                  待执行
+                  查看/执行
                 </el-button>
               </div>
             </div>
@@ -174,6 +176,8 @@ function goToStep(stepNum: number) {
     router.push({ name: 'Step3', params: { projectId }, query: { name: projectName } })
   } else if (stepNum === 4) {
     router.push({ name: 'Step4', params: { projectId }, query: { name: projectName } })
+  } else {
+    router.push({ name: 'WorkflowStep', params: { projectId, stepNumber: stepNum }, query: { name: projectName } })
   }
 }
 
@@ -257,6 +261,12 @@ function formatTime(t: string) {
     border: 1px solid $hairline;
     border-radius: $radius-sm;
     transition: all 0.2s;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $primary;
+      background: rgba($primary, 0.03);
+    }
 
     &--active {
       border-color: $primary;

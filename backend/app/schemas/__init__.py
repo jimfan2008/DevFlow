@@ -7,7 +7,6 @@ from app.schemas.comment import *
 from app.schemas.attachment import *
 from app.schemas.dependency import *
 from app.schemas.workload import *
-from app.schemas.inbox import *
 from app.schemas.requirement import *
 from app.schemas.agent import *
 from app.schemas.hermes_skill import *
@@ -33,9 +32,7 @@ __all__ = [
     "DependencyCreate", "DependencyResponse", "DependencyGraphResponse",
     "WorkloadResponse", "WorkloadMemberResponse", "AutoAssignRequest",
     "TeamStatsResponse", "WorkloadTrendResponse",
-    "InboxItemResponse", "InboxListResponse",
-    "NotificationPreferencesCreate", "NotificationPreferencesResponse",
-    "UnreadCountResponse", "ReminderResponse",
+
     "RequirementCreate", "RequirementUpdate", "RequirementResponse", "RequirementConfirm",
     "RequirementSubmit", "RequirementDocument", "ClarificationAnswer", "RequirementParseResult",
     "AgentCreate", "AgentUpdate", "AgentResponse", "AgentListResponse",

@@ -131,6 +131,7 @@ async def _stop_hermes_health_checker():
         await hermes_api_client.close()
 
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")

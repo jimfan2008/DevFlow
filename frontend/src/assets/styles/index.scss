@@ -1,3 +1,4 @@
+@use 'sass:color';
 @use './reset';
 @use './mixins';
 
@@ -29,10 +30,10 @@ h3 { font-family: $font-text; font-size: $display-md-size; font-weight: $display
 /* ── Element Plus Theme Overrides (Apple palette) ──────── */
 :root {
   --el-color-primary: #{$primary};
-  --el-color-primary-light-3: #{mix($primary, #fff, 60%)};
-  --el-color-primary-light-5: #{mix($primary, #fff, 40%)};
-  --el-color-primary-light-7: #{mix($primary, #fff, 20%)};
-  --el-color-primary-light-9: #{mix($primary, #fff, 10%)};
+  --el-color-primary-light-3: #{color.mix($primary, #fff, 60%)};
+  --el-color-primary-light-5: #{color.mix($primary, #fff, 40%)};
+  --el-color-primary-light-7: #{color.mix($primary, #fff, 20%)};
+  --el-color-primary-light-9: #{color.mix($primary, #fff, 10%)};
   --el-border-radius-base: #{$radius-sm};
   --el-border-radius-small: #{$radius-xs};
   --el-border-radius-round: #{$radius-pill};

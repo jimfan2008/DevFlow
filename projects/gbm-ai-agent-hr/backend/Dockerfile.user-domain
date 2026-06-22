@@ -1,0 +1,45 @@
+# Java 域服务通用 Dockerfile
+# 用法: docker build -f Dockerfile.user-domain -t gbm-hr/user-domain .
+
+ARG SERVICE=user-domain
+ARG JAR_FILE=${SERVICE}/target/${SERVICE}-1.0.0-SNAPSHOT.jar
+
+# 构建阶段
+FROM maven:3.9-eclipse-temurin-17 AS build
+
+WORKDIR /app
+COPY backend/pom.xml .
+COPY backend/common/pom.xml common/pom.xml
+COPY backend/user-domain/pom.xml user-domain/pom.xml
+COPY backend/recruit-domain/pom.xml recruit-domain/pom.xml
+COPY backend/payroll-domain/pom.xml payroll-domain/pom.xml
+COPY backend/auto-domain/pom.xml auto-domain/pom.xml
+
+RUN mvn dependency:go-offline -pl ${SERVICE} -am -DskipTests
+
+COPY backend/common/src common/src
+COPY backend/${SERVICE}/src ${SERVICE}/src
+
+RUN mvn package -pl ${SERVICE} -am -DskipTests
+
+# 运行阶段
+FROM eclipse-temurin:17-jre-alpine
+
+RUN addgroup -S gbm && adduser -S gbm -G gbm
+
+WORKDIR /app
+
+COPY --from=build /app/${SERVICE}/target/*.jar app.jar
+
+RUN chown gbm:gbm app.jar
+
+USER gbm
+
+EXPOSE 8081
+
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Djava.security.egd=file:/dev/./urandom"
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]

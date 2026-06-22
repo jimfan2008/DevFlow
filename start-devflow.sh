@@ -7,8 +7,8 @@ set -euo pipefail
 # =============================================================================
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BACKEND_PORT=${BACKEND_PORT:-8000}
-FRONTEND_PORT=${FRONTEND_PORT:-3000}
+export BACKEND_PORT=${BACKEND_PORT:-9000}
+export FRONTEND_PORT=${FRONTEND_PORT:-3000}
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; NC='\033[0m'
@@ -20,13 +20,31 @@ err()   { echo -e "${RED}[ERR]${NC}   $1"; }
 cleanup() {
     echo ""
     info "Shutting down DevFlow..."
-    kill "${BACKEND_PID:-}" 2>/dev/null || true
-    kill "${FRONTEND_PID:-}" 2>/dev/null || true
-    for pid in "${HERMES_PIDS[@]}"; do kill "$pid" 2>/dev/null || true; done
+    # 先 SIGTERM，1秒后 SIGKILL 残留
+    for pid in "${BACKEND_PID:-}" "${FRONTEND_PID:-}" "${HERMES_PIDS[@]}"; do
+        [ -n "$pid" ] && kill "$pid" 2>/dev/null || true
+    done
+    sleep 1
+    for pid in "${BACKEND_PID:-}" "${FRONTEND_PID:-}" "${HERMES_PIDS[@]}"; do
+        [ -n "$pid" ] && kill -9 "$pid" 2>/dev/null || true
+    done
     ok "All services stopped"
     exit 0
 }
 trap cleanup SIGINT SIGTERM EXIT
+
+cleanup_ports() {
+    local ports=("$BACKEND_PORT" "$FRONTEND_PORT")
+    for port in "${ports[@]}"; do
+        local pids
+        pids=$(lsof -ti :"$port" 2>/dev/null) || true
+        if [ -n "$pids" ]; then
+            warn "Port $port 被以下进程占用，正在清理: $(echo "$pids" | tr '\n' ' ')"
+            echo "$pids" | xargs kill -9 2>/dev/null || true
+            sleep 1
+        fi
+    done
+}
 
 HERMES_PIDS=()
 
@@ -192,6 +210,7 @@ main() {
     echo ""
 
     check_deps
+    cleanup_ports
     start_backend
     start_hermes_agents
     sync_agent_status

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gbm-hr-config
+  namespace: gbm-hr
+data:
+  DB_HOST: "mysql-gbm-hr"
+  DB_PORT: "3306"
+  DB_NAME: "gbm_hr_db"
+  REDIS_HOST: "redis-gbm-hr"
+  REDIS_PORT: "6379"
+  RABBITMQ_HOST: "rabbitmq-gbm-hr"
+  RABBITMQ_PORT: "5672"
+  CELERY_BROKER_URL: "amqp://rabbitmq-gbm-hr:5672//"
+  CELERY_RESULT_BACKEND: "redis://redis-gbm-hr:6379/1"
+  MINIO_ENDPOINT: "minio-gbm-hr:9000"
+  ES_HOST: "http://elasticsearch-gbm-hr:9200"

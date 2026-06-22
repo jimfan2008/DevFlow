@@ -19,10 +19,7 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
     beat_schedule={
-        "check-task-due-reminders": {
-            "task": "devflow_tasks.check_due_reminders",
-            "schedule": 3600.0,
-        },
+
         "cleanup-expired-sessions": {
             "task": "devflow_tasks.cleanup_expired_sessions",
             "schedule": 86400.0,
@@ -45,59 +42,8 @@ celery_app.conf.update(
 
 @celery_app.task(bind=True, name="devflow_tasks.check_due_reminders")
 def check_due_reminders(self):
-    """检查待办任务的到期提醒，创建收件箱通知"""
-    try:
-        from app.database import SessionLocal
-        from app.models.task import Task
-        from app.models.notification import InboxItem
-
-        db = SessionLocal()
-        now = datetime.now(timezone.utc)
-        tasks = db.query(Task).filter(
-            Task.status != "done",
-            Task.due_date.isnot(None),
-        ).all()
-
-        reminders_created = 0
-        for task in tasks:
-            if not task.due_date:
-                continue
-            days_remaining = (task.due_date - now).days
-
-            # 根据天数确定提醒级别
-            if days_remaining <= 0:
-                reminder_level = "urgent"
-            elif days_remaining <= 1:
-                reminder_level = "soon"
-            elif days_remaining <= 3:
-                reminder_level = "upcoming"
-            else:
-                continue
-
-            # 检查是否已经为该任务和该级别创建过提醒
-            existing = db.query(InboxItem).filter(
-                InboxItem.task_id == task.id,
-                InboxItem.type == "reminder",
-                InboxItem.metadata_json.like(f'%"reminder_level": "%{reminder_level}%"'),
-            ).first()
-
-            if not existing and task.assignee_id:
-                item = InboxItem(
-                    id=f"reminder-{task.id}-{reminder_level}",
-                    user_id=task.assignee_id,
-                    task_id=task.id,
-                    type="reminder",
-                    title=f"到期提醒: {task.title}",
-                    content=f"任务 '{task.title}' 将在 {days_remaining} 天后到期",
-                    is_read=False,
-                    metadata_json=f'{{"reminder_level": "{reminder_level}", "days_remaining": {days_remaining}}}',
-                    created_at=now,
-                )
-                db.add(item)
-                reminders_created += 1
-
-        db.commit()
-        db.close()
+    """检查待办任务的到期提醒"""
+    pass
         return {"reminders_created": reminders_created}
     except Exception as e:
         return {"error": str(e), "reminders_created": 0}

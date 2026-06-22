@@ -1,0 +1,18 @@
+{"key": "frontend_feasibility", "passed": false, "detail": "技术选型合理，整体设计详尽，但存在以下问题导致不通过：
+
+【严重问题】
+1. Axios 响应未解包：4.3 projectStore 的 fetchProjects/fetchProject、4.4 taskStore 的 fetchTasks、4.5 chatStore 的 fetchGroups/fetchMessages/sendMessage、4.6 notificationStore 的 fetchNotifications 中，均直接赋值 api.get() 的返回值（AxiosResponse 对象）到 state，而非 .data。例如 `this.projects = await api.get('/projects')` 应改为 `this.projects = (await api.get('/projects')).data`。此为贯穿全文的系统性错误，将直接导致运行时数据错误。
+
+2. 项目更新 HTTP 方法存在内部不一致：V17 修订记录称已将 updateProject 从 PATCH 改为 PUT，但 5.1 节模块层 API 示例代码（第 481 行）中 `updateProject` 仍使用 `api.put`，而 4.4 taskStore 的 updateTaskStatus 使用 `api.patch`（第 1267 行）。需确认任务状态更新是否也应统一为 PUT 或保持 PATCH，并在 5.2 端点清单中明确区分。
+
+【重要问题】
+3. WebSocket 消息分发逻辑前后不一致：6.1 节详细设计了三级优先级分发（同步/queueMicrotask/setTimeout），但 6.3 节 useWebSocket 完整代码中的 onmessage 处理器（第 2051-2083 行）未实现任何优先级分发，直接调用 `triggerEvent(data.type, data)` 同步处理。两套方案矛盾，需统一。
+
+4. 聊天事件监听器内存泄漏风险：6.4 节示例代码（第 2213-2239 行）在 onMounted 中注册 ws.on() 事件处理器，onUnmounted 中仅调用 ws.disconnect() 关闭连接，未调用 ws.off() 移除事件监听器。当 useWebSocket 为全局单例时（组件卸载后 wsInstance 仍存在），旧组件的 handler 会永久累积在 eventHandlers Map 中。
+
+5. 聊天布局切换机制缺失：7.1 路由配置中 chat 路由设置 `meta: { layout: 'chat' }`（第 2365 行），但 DefaultLayout.vue 与 ChatLayout.vue 的切换逻辑未在任何地方实现。需补充在路由守卫或根组件中根据 to.meta.layout 动态渲染不同布局。
+
+【建议改进】
+6. CSP nonce 注入方案需要后端配合：12.2 节描述了 nonce 工作流程，但 Vite 的 index.html 模板（第 3174-3182 行）中 `{{NONCE}}` 占位符无法由 Vite 自动替换，需要 Nginx 子过滤器（sub_filter）或后端中间件动态注入。建议补充具体的 Nginx sub_filter 配置方案或说明此方案需要后端框架支持。
+
+7. useWebSocket 单例与路由切换的配合：文档说明切换讨论群时发送 chat.join/chat.leave，但 6.3 节 connect() 方法的参数 groupId 在 onopen 回调中使用（第 2058-2063 行），如果切换群时不重建连接，join 消息应通过单独的 send() 方法发送，而非仅在 connect() 的 onopen 中发送。建议补充切换群的完整流程代码。"}

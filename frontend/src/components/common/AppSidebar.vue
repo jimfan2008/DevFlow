@@ -45,7 +45,6 @@
         <el-menu-item index="/notifications">
           <template #title>
             <span>通知</span>
-            <el-badge v-if="unreadCount > 0" :value="unreadCount" :max="99" class="app-sidebar__badge" />
           </template>
         </el-menu-item>
         <el-menu-item index="/delivery">交付</el-menu-item>
@@ -61,10 +60,7 @@
         <template #title>看板</template>
       </el-menu-item>
 
-      <el-menu-item index="/inbox">
-        <el-icon><Message /></el-icon>
-        <template #title>收件箱</template>
-      </el-menu-item>
+
 
       <el-menu-item index="/profile">
         <el-icon><User /></el-icon>
@@ -82,16 +78,11 @@ import {
   Connection, CircleCheck, Document, DataBoard,
   Message, User
 } from '@element-plus/icons-vue'
-import { useInboxStore } from '@/stores/useInboxStore'
-
 defineProps<{
   isCollapsed?: boolean
 }>()
 
 const route = useRoute()
-const inboxStore = useInboxStore()
-
-const unreadCount = computed(() => inboxStore.unreadCount)
 const activeRoute = computed(() => route.path)
 </script>
 

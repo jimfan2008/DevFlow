@@ -1,961 +1,621 @@
-# GBM AI Agent HR 智能人力管理系统 —— 前端设计文档 (V2)
+# GBM AI Agent HR 智能人力管理系统 — 前端设计文档 (V2)
 
 ## 版本信息
 
 | 版本号 | 日期 | 作者 | 说明 |
 |--------|------|------|------|
-| 2.0 | 2026-06-12 | 后旺 | 基于 SRS V15 纯净版重新设计：修复前端架构完整性、无障碍访问 (WCAG 2.1 AA) 设计、多语言国际化 (i18n) 支持、降级模式前端适配 |
+| 2.0 | 2026-06-13 | 后旺 | 基于 SRS V15 生成前端设计 |
+
+---
+
+## 目录
+
+1. 前端技术栈
+2. 项目结构
+3. 路由设计
+4. 状态管理
+5. 组件架构
+6. 页面布局
+7. 移动端设计
+8. 通用组件库
+9. 国际化
+10. 无障碍
 
 ---
 
 ## 1. 前端技术栈
 
-### 1.1 核心技术选型
+| 类别 | 技术 | 版本 | 用途 |
+|------|------|------|------|
+| 框架 | Vue 3 | 3.4+ | 核心框架 |
+| 语言 | TypeScript | 5.x | 类型安全 |
+| 构建 | Vite | 5.x | 构建工具 |
+| UI 框架 | Element Plus | 2.9+ | 组件库 |
+| 状态管理 | Pinia | 2.2+ | 全局状态 |
+| 路由 | Vue Router | 4.x | 页面路由 |
+| HTTP 客户端 | Axios | 1.x | API 请求 |
+| 图表 | ECharts | 5.x | 数据可视化 |
+| 富文本 | WangEditor | 5.x | 富文本编辑器 |
+| 文件上传 | 自定义 + Element Plus | — | 多文件拖拽上传 |
+| 视频播放 | Video.js | 8.x | 培训视频播放 |
+| 打印 | html2pdf.js | — | 证明/报告 PDF 导出 |
+| 移动端 | UniApp | 3.x | 跨平台移动端 |
+| 扫码 | wechat-jssdk / html5-qrcode | — | 扫码签到 |
+| 签名 | signature_pad | — | 手写签名 |
+| 代码规范 | ESLint + Prettier | — | 代码质量 |
+| CSS 预处理 | Sass | — | 样式预编译 |
+| 动画 | Vue Transition + Animate.css | — | 过渡动画 |
+| 单元测试 | Vitest | 2.x | 单元测试 |
+| E2E 测试 | Playwright | — | 端到端测试 |
 
-| 层级 | 技术 | 版本 | 选型理由 |
-|------|------|------|---------|
-| 框架 | React | 18.x | Hooks 模式、并发特性、生态成熟 |
-| 类型系统 | TypeScript | 5.x | 编译时类型检查，减少运行时错误 |
-| 构建工具 | Vite | 5.x | 快速冷启动、HMR 热更新、原生 ESM |
-| UI 组件库 | Ant Design | 5.x | 企业级组件、Token 主题系统、无障碍支持完善 |
-| 移动端 | Taro | 3.x + React | 一套代码多端 (iOS/Android/微信小程序) |
-| 状态管理 | Zustand | 4.x | 轻量级、Hook API、无 Provider 嵌套 |
-| 路由 | React Router | 6.x | 声明式路由、嵌套路由、数据加载器 |
-| HTTP 客户端 | Axios | 1.x | 拦截器、请求取消、超时控制 |
-| 数据请求 | React Query (TanStack Query) | 5.x | 服务端状态管理、缓存、自动重试 |
-| 表单 | React Hook Form + Zod | 最新版 | 高性能表单、Zod 运行时校验 |
-| 可视化 | ECharts | 5.x | 丰富图表类型、支持无障碍 |
-| 国际化 | i18next + react-i18next | 最新版 | 双语 (简中/英) 支持、命名空间、插值 |
-| 样式 | CSS Modules + Tailwind CSS | — | 模块化样式 + 原子化类名 |
-| 图标 | @ant-design/icons | — | 与 Ant Design 风格一致 |
-| 测试 | Vitest + React Testing Library | — | 单元测试 + 组件测试 |
-| E2E 测试 | Playwright | — | 跨浏览器 E2E 测试 |
-| 无障碍检测 | axe-core + WAVE | — | WCAG 2.1 AA 自动化检测 |
+---
 
-### 1.2 项目结构
+## 2. 项目结构
 
 ```
-gbm-hr-frontend/
-├── public/                        # 静态资源
+gbm-ai-agent-hr-frontend/
+├── public/                          # 静态资源
 │   ├── favicon.ico
-│   ├── manifest.json             # PWA manifest
-│   └── robots.txt
+│   └── logo.png
 ├── src/
-│   ├── assets/                   # 全局静态资源
+│   ├── api/                         # API 接口层
+│   │   ├── index.ts                 # Axios 实例配置
+│   │   ├── recruitment.ts           # 招聘相关 API
+│   │   ├── onboarding.ts            # 入职相关 API
+│   │   ├── training.ts              # 培训相关 API
+│   │   ├── attendance.ts            # 考勤相关 API
+│   │   ├── payroll.ts               # 薪资相关 API
+│   │   ├── performance.ts           # 绩效相关 API
+│   │   ├── external.ts              # 外务相关 API
+│   │   ├── certificate.ts           # 证明相关 API
+│   │   ├── system.ts                # 系统管理 API
+│   │   └── analytics.ts             # 数据分析 API
+│   ├── assets/                      # 静态资源
 │   │   ├── images/
-│   │   ├── fonts/
-│   │   └── styles/
-│   │       ├── global.css        # 全局样式
-│   │       ├── variables.css     # CSS 变量 (主题色等)
-│   │       └── reset.css         # 样式重置
-│   ├── components/               # 通用组件
-│   │   ├── common/               # 基础组件
-│   │   │   ├── AppHeader.tsx
-│   │   │   ├── AppSidebar.tsx
-│   │   │   ├── AppFooter.tsx
-│   │   │   ├── LoadingSpinner.tsx
-│   │   │   ├── ErrorBoundary.tsx
-│   │   │   ├── EmptyState.tsx
-│   │   │   └── ConfirmDialog.tsx
-│   │   ├── form/                 # 表单组件
-│   │   │   ├── FormInput.tsx
-│   │   │   ├── FormSelect.tsx
-│   │   │   ├── FormDatePicker.tsx
-│   │   │   ├── FormUpload.tsx
-│   │   │   ├── FormSignature.tsx  # 手写签名组件
-│   │   │   └── FormCamera.tsx     # 摄像头采集组件
-│   │   ├── data/                 # 数据展示组件
-│   │   │   ├── DataTable.tsx      # 可排序/筛选/分页表格
-│   │   │   ├── DataCard.tsx
-│   │   │   ├── StatisticsPanel.tsx
-│   │   │   └── Timeline.tsx
-│   │   ├── chart/                # 图表组件
-│   │   │   ├── LineChart.tsx
-│   │   │   ├── BarChart.tsx
-│   │   │   ├── PieChart.tsx
-│   │   │   └── RadarChart.tsx
-│   │   ├── notification/         # 通知组件
-│   │   │   ├── Toast.tsx
-│   │   │   ├── NotificationBadge.tsx
-│   │   │   └── MessageCenter.tsx
-│   │   └── layout/               # 布局组件
-│   │       ├── PageLayout.tsx
-│   │       ├── CardLayout.tsx
-│   │       └── DrawerLayout.tsx
-│   ├── pages/                    # 页面组件 (按模块划分)
-│   │   ├── auth/                 # 认证相关
-│   │   │   ├── Login.tsx
-│   │   │   ├── MFAVerify.tsx
-│   │   │   ├── ForgotPassword.tsx
-│   │   │   └── RegisterQr.tsx    # 扫码注册/入职入口
-│   │   ├── dashboard/            # 仪表盘
-│   │   │   ├── HrDashboard.tsx       # 人事专员工作台
-│   │   │   ├── ManagerDashboard.tsx  # 部门主管工作台
-│   │   │   ├── EmployeeDashboard.tsx # 员工自助门户
-│   │   │   └── AdminDashboard.tsx    # 系统管理员仪表盘
-│   │   ├── recruitment/          # 招聘管理
-│   │   │   ├── JobPostManage.tsx
-│   │   │   ├── ResumeList.tsx
-│   │   │   ├── ResumeDetail.tsx
-│   │   │   ├── ResumeScoreView.tsx
-│   │   │   ├── ExamManage.tsx
-│   │   │   ├── ExamPreview.tsx
-│   │   │   ├── ExamTake.tsx          # 考生答题界面
-│   │   │   ├── ScoreReport.tsx
-│   │   │   └── TalentPool.tsx
-│   │   ├── onboarding/           # 入职管理
-│   │   │   ├── OnboardingPortal.tsx    # 新员工入职引导
-│   │   │   ├── DocumentUpload.tsx
-│   │   │   ├── OcrPreview.tsx
-│   │   │   ├── AgreementSign.tsx
-│   │   │   └── FaceCapture.tsx
-│   │   ├── training/             # 培训管理
-│   │   │   ├── TrainingPlan.tsx
-│   │   │   ├── CheckIn.tsx         # 扫码签到
-│   │   │   ├── TrainingExam.tsx
-│   │   │   ├── VideoPlayer.tsx
-│   │   │   ├── CertificateView.tsx
-│   │   │   └── AuditPackage.tsx    # 体系审核资料
-│   │   ├── attendance/           # 考勤管理
-│   │   │   ├── AttendanceCalendar.tsx
-│   │   │   ├── AttendanceSummary.tsx
-│   │   │   ├── AnomalyList.tsx
-│   │   │   └── AnomalyReport.tsx
-│   │   ├── payroll/              # 薪资管理
-│   │   │   ├── PayrollConfig.tsx
-│   │   │   ├── PayrollCalcView.tsx
-│   │   │   ├── PayrollReview.tsx    # 人事专员审核界面
-│   │   │   ├── PayslipView.tsx      # 工资条查看
-│   │   │   └── PayrollExport.tsx
-│   │   ├── performance/          # 绩效管理
-│   │   │   ├── SelfEvaluation.tsx
-│   │   │   ├── ManagerReview.tsx
-│   │   │   ├── PerformanceSummary.tsx
-│   │   │   └── PerformanceTrend.tsx
-│   │   ├── external/             # 外务管理
-│   │   │   ├── InjuryCase.tsx
-│   │   │   ├── HousingFund.tsx
-│   │   │   └── GovDeclaration.tsx
-│   │   ├── resignation/          # 离职管理
-│   │   │   ├── ResignApply.tsx
-│   │   │   ├── HandoverChecklist.tsx
-│   │   │   └── ResignCertView.tsx
-│   │   ├── certificate/          # 证明自助
-│   │   │   ├── CertApply.tsx
-│   │   │   ├── CertPreview.tsx
-│   │   │   └── CertHistory.tsx
-│   │   └── admin/                # 系统管理
-│   │       ├── UserManage.tsx
-│   │       ├── RoleManage.tsx
-│   │       ├── AgentMonitor.tsx     # Agent 运行监控
-│   │       ├── AgentParamConfig.tsx # Agent 参数配置
-│   │       ├── AuditLog.tsx
-│   │       ├── SystemConfig.tsx
-│   │       └── AiCostReport.tsx    # AI 费用报表
-│   ├── stores/                   # Zustand 状态管理
-│   │   ├── authStore.ts          # 认证状态
-│   │   ├── userStore.ts          # 用户信息
-│   │   ├── uiStore.ts            # UI 状态 (sidebar、theme)
-│   │   ├── notificationStore.ts  # 通知状态
-│   │   └── agentStore.ts         # Agent 运行状态
-│   ├── services/                 # API 服务层
-│   │   ├── apiClient.ts          # Axios 实例配置
-│   │   ├── authService.ts
-│   │   ├── recruitmentService.ts
-│   │   ├── onboardingService.ts
-│   │   ├── trainingService.ts
-│   │   ├── attendanceService.ts
-│   │   ├── payrollService.ts
-│   │   ├── performanceService.ts
-│   │   ├── externalService.ts
-│   │   ├── certificateService.ts
-│   │   └── adminService.ts
-│   ├── hooks/                    # 自定义 Hooks
-│   │   ├── useAuth.ts
-│   │   ├── usePermission.ts
-│   │   ├── useMfa.ts
-│   │   ├── useWebSocket.ts       # Agent 实时状态推送
-│   │   ├── useFileUpload.ts
-│   │   ├── useCamera.ts          # 摄像头采集 Hook
-│   │   ├── useQrCode.ts          # QR 码生成/解析
-│   │   └── useSignature.ts       # 手写签名 Hook
-│   ├── utils/                    # 工具函数
-│   │   ├── format.ts             # 日期/金额/数字格式
-│   │   ├── validators.ts         # 表单验证规则
-│   │   ├── constants.ts          # 常量定义
-│   │   └── accessibility.ts      # 无障碍工具函数
-│   ├── i18n/                     # 国际化
-│   │   ├── index.ts              # i18n 配置
-│   │   ├── zh-CN.json            # 简体中文
-│   │   └── en-US.json            # 英语
-│   ├── types/                    # TypeScript 类型定义
-│   │   ├── api.ts                # API 响应类型
-│   │   ├── employee.ts
-│   │   ├── recruitment.ts
-│   │   ├── attendance.ts
-│   │   ├── payroll.ts
-│   │   ├── performance.ts
-│   │   └── agent.ts
-│   ├── routes/                   # 路由配置
-│   │   ├── index.tsx             # 路由入口
-│   │   ├── protectedRoute.tsx    # 权限路由守卫
-│   │   └── routes.ts             # 路由定义表
-│   ├── App.tsx                   # 应用根组件
-│   └── main.tsx                  # 应用入口
-├── tests/                        # 测试文件
-│   ├── unit/                     # 单元测试
-│   ├── integration/              # 集成测试
-│   ├── e2e/                      # E2E 测试
-│   └── a11y/                     # 无障碍测试
-├── vite.config.ts                # Vite 配置
-├── tsconfig.json                 # TypeScript 配置
-├── tailwind.config.js            # Tailwind 配置
+│   │   ├── styles/
+│   │   │   ├── global.scss          # 全局样式
+│   │   │   ├── variables.scss       # 变量定义
+│   │   │   └── mixins.scss          # 样式混入
+│   │   └── icons/
+│   ├── components/                  # 通用组件
+│   │   ├── common/
+│   │   │   ├── GbmTable.vue         # 封装表格组件
+│   │   │   ├── GbmForm.vue          # 封装表单组件
+│   │   │   ├── GbmSearchBar.vue     # 搜索栏组件
+│   │   │   ├── GbmFileUpload.vue    # 文件上传组件
+│   │   │   ├── GbmSignaturePad.vue  # 手写签名组件
+│   │   │   ├── GbmVideoPlayer.vue   # 视频播放器
+│   │   │   ├── GbmQRCode.vue        # 二维码组件
+│   │   │   ├── GbmDataExport.vue    # 数据导出组件
+│   │   │   └── GbmAuditLogViewer.vue # 审计日志查看器
+│   │   └── business/
+│   │       ├── ResumeCard.vue       # 简历卡片
+│   │       ├── ScoreRadar.vue       # 评分雷达图
+│   │       ├── ExamPaper.vue        # 试卷组件
+│   │       ├── PayrollSheet.vue     # 工资条组件
+│   │       └── TimelineViewer.vue   # 时间线组件
+│   ├── composables/                 # 组合式函数
+│   │   ├── useApi.ts                # API 请求封装
+│   │   ├── usePermission.ts         # 权限判断
+│   │   ├── usePagination.ts         # 分页逻辑
+│   │   ├── useExport.ts             # 导出逻辑
+│   │   └── useWebSocket.ts          # WebSocket 连接
+│   ├── directives/                  # 自定义指令
+│   │   ├── permission.ts            # v-permission 权限指令
+│   │   └── debounce.ts              # v-debounce 防抖指令
+│   ├── layouts/                     # 布局组件
+│   │   ├── DefaultLayout.vue        # 默认后台布局
+│   │   ├── BlankLayout.vue          # 空白布局（登录/考试）
+│   │   └── MobileLayout.vue         # 移动端布局
+│   ├── router/                      # 路由配置
+│   │   ├── index.ts                 # 路由入口
+│   │   ├── modules/                 # 路由模块
+│   │   │   ├── recruitment.ts
+│   │   │   ├── onboarding.ts
+│   │   │   ├── training.ts
+│   │   │   ├── attendance.ts
+│   │   │   ├── payroll.ts
+│   │   │   ├── performance.ts
+│   │   │   ├── external.ts
+│   │   │   ├── certificate.ts
+│   │   │   ├── system.ts
+│   │   │   └── analytics.ts
+│   │   └── guards.ts                # 路由守卫
+│   ├── stores/                      # Pinia 状态管理
+│   │   ├── modules/
+│   │   │   ├── user.ts              # 用户状态
+│   │   │   ├── permission.ts        # 权限状态
+│   │   │   ├── app.ts               # 应用状态
+│   │   │   ├── recruitment.ts       # 招聘状态
+│   │   │   ├── training.ts          # 培训状态
+│   │   │   ├── payroll.ts           # 薪资状态
+│   │   │   └── notification.ts      # 通知状态
+│   │   └── index.ts
+│   ├── views/                       # 页面视图
+│   │   ├── login/
+│   │   │   └── Login.vue
+│   │   ├── dashboard/
+│   │   │   └── Dashboard.vue
+│   │   ├── recruitment/
+│   │   │   ├── JobPosting.vue
+│   │   │   ├── ResumeList.vue
+│   │   │   ├── ResumeDetail.vue
+│   │   │   ├── ExamGeneration.vue
+│   │   │   ├── ScoreManagement.vue
+│   │   │   └── TalentPool.vue
+│   │   ├── onboarding/
+│   │   │   ├── OnboardingPortal.vue
+│   │   │   ├── DocumentUpload.vue
+│   │   │   ├── FaceCapture.vue
+│   │   │   ├── ESignature.vue
+│   │   │   └── OnboardingProgress.vue
+│   │   ├── training/
+│   │   │   ├── TrainingPlan.vue
+│   │   │   ├── SignIn.vue
+│   │   │   ├── ExamOnline.vue
+│   │   │   ├── CertificateManage.vue
+│   │   │   ├── VideoLibrary.vue
+│   │   │   └── AuditPackage.vue
+│   │   ├── attendance/
+│   │   │   ├── AttendanceDashboard.vue
+│   │   │   ├── AttendanceRecord.vue
+│   │   │   ├── AnomalyList.vue
+│   │   │   └── ShiftManage.vue
+│   │   ├── payroll/
+│   │   │   ├── PayrollCalculation.vue
+│   │   │   ├── PayrollReview.vue
+│   │   │   ├── Payslip.vue
+│   │   │   └── SalaryRuleConfig.vue
+│   │   ├── performance/
+│   │   │   ├── PerformanceCycle.vue
+│   │   │   ├── SelfAssessment.vue
+│   │   │   ├── ManagerReview.vue
+│   │   │   └── PerformanceReport.vue
+│   │   ├── external/
+│   │   │   ├── InjuryCase.vue
+│   │   │   ├── HousingFund.vue
+│   │   │   └── RpaStatus.vue
+│   │   ├── certificate/
+│   │   │   ├── SelfService.vue
+│   │   │   └── CertificateReview.vue
+│   │   ├── system/
+│   │   │   ├── UserManage.vue
+│   │   │   ├── RoleManage.vue
+│   │   │   ├── DeptManage.vue
+│   │   │   ├── AgentMonitor.vue
+│   │   │   ├── AuditLog.vue
+│   │   │   └── SystemConfig.vue
+│   │   └── analytics/
+│   │       ├── HrDashboard.vue
+│   │       ├── ReportCenter.vue
+│   │       └── ModelEvaluation.vue
+│   ├── utils/                       # 工具函数
+│   │   ├── request.ts               # Axios 封装
+│   │   ├── storage.ts               # 本地存储
+│   │   ├── validate.ts              # 表单校验
+│   │   ├── format.ts                # 数据格式化
+│   │   ├── permission.ts            # 权限工具
+│   │   └── i18n.ts                  # 多语言工具
+│   ├── types/                       # TypeScript 类型定义
+│   │   ├── api.d.ts                 # API 类型
+│   │   ├── module/
+│   │   │   ├── recruitment.d.ts
+│   │   │   ├── employee.d.ts
+│   │   │   ├── attendance.d.ts
+│   │   │   ├── payroll.d.ts
+│   │   │   └── performance.d.ts
+│   │   └── global.d.ts
+│   ├── plugins/                     # 插件配置
+│   │   ├── element-plus.ts
+│   │   ├── echarts.ts
+│   │   └── i18n.ts
+│   ├── App.vue                      # 根组件
+│   └── main.ts                      # 入口文件
+├── tests/                           # 测试
+│   ├── unit/
+│   └── e2e/
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## 2. 路由设计
+## 3. 路由设计
 
-### 2.1 路由表
-
-| 路径 | 页面 | 角色 | 说明 |
-|------|------|------|------|
-| `/login` | Login | 所有 | 登录页 |
-| `/mfa-verify` | MFAVerify | 管理员/外务专员 | 二因子认证页 |
-| `/forgot-password` | ForgotPassword | 所有 | 密码重置 |
-| `/qr/:token` | QrEntry | 所有 | 扫码入口 (考试/签到/入职) |
-| `/dashboard` | Dashboard | 所有 | 仪表盘 (按角色渲染不同内容) |
-| `/dashboard/hr` | HrDashboard | 人事专员 | 人事专员工作台 |
-| `/dashboard/manager` | ManagerDashboard | 部门主管 | 部门主管工作台 |
-| `/dashboard/employee` | EmployeeDashboard | 在职员工 | 员工自助门户 |
-| `/dashboard/admin` | AdminDashboard | 系统管理员 | 系统管理员仪表盘 |
-| `/recruitment/jobs` | JobPostManage | 人事专员 | 招聘信息管理 |
-| `/recruitment/resumes` | ResumeList | 人事专员 | 简历列表 |
-| `/recruitment/resumes/:id` | ResumeDetail | 人事专员 | 简历详情+评分 |
-| `/recruitment/exams` | ExamManage | 人事专员 | 考试管理 |
-| `/recruitment/exams/:id/preview` | ExamPreview | 人事专员 | 试卷预览 |
-| `/recruitment/exams/:id/take` | ExamTake | 候选人 | 在线考试 |
-| `/recruitment/scores` | ScoreReport | 人事专员 | 成绩报告 |
-| `/recruitment/talent-pool` | TalentPool | 人事专员 | 人才简历库 |
-| `/onboarding/:token` | OnboardingPortal | 新员工 | 入职引导门户 |
-| `/onboarding/documents` | DocumentUpload | 新员工 | 证件上传 |
-| `/onboarding/sign` | AgreementSign | 新员工 | 协议签署 |
-| `/onboarding/face` | FaceCapture | 新员工 | 人脸采集 |
-| `/training/plans` | TrainingPlan | 人事专员 | 培训计划 |
-| `/training/checkin/:code` | CheckIn | 受训员工 | 扫码签到 |
-| `/training/exam/:id` | TrainingExam | 受训员工 | 培训考试 |
-| `/training/videos/:id` | VideoPlayer | 在职员工 | 培训视频 |
-| `/training/certificates` | CertificateView | 在职员工 | 证书查看 |
-| `/training/audit-package` | AuditPackage | 人事专员 | 体系审核资料 |
-| `/attendance/calendar` | AttendanceCalendar | 人事专员/主管 | 考勤日历 |
-| `/attendance/summary` | AttendanceSummary | 人事专员 | 考勤汇总 |
-| `/attendance/anomalies` | AnomalyList | 人事专员 | 异常列表 |
-| `/attendance/anomaly-report` | AnomalyReport | 人事专员 | 异常报告 |
-| `/payroll/config` | PayrollConfig | 人事专员 | 薪资配置 |
-| `/payroll/calculation` | PayrollCalcView | 人事专员 | 薪资核算结果 |
-| `/payroll/review` | PayrollReview | 人事专员 | 薪资审核 |
-| `/payroll/payslip` | PayslipView | 在职员工 | 工资条查看 |
-| `/performance/self` | SelfEvaluation | 在职员工 | 绩效自评 |
-| `/performance/review` | ManagerReview | 部门主管 | 上级评审 |
-| `/performance/summary` | PerformanceSummary | 人事专员/主管 | 绩效汇总 |
-| `/external/injury` | InjuryCase | 外务专员 | 工伤管理 |
-| `/external/housing-fund` | HousingFund | 外务专员 | 公积金管理 |
-| `/resignation/apply` | ResignApply | 在职员工 | 离职申请 |
-| `/resignation/handover` | HandoverChecklist | 各部门 | 交接清单 |
-| `/certificate/apply` | CertApply | 在职员工 | 证明申请 |
-| `/certificate/history` | CertHistory | 在职员工 | 证明历史 |
-| `/admin/users` | UserManage | 系统管理员 | 用户管理 |
-| `/admin/roles` | RoleManage | 系统管理员 | 角色管理 |
-| `/admin/agents` | AgentMonitor | 系统管理员 | Agent 监控 |
-| `/admin/agents/config` | AgentParamConfig | 系统管理员 | Agent 参数配置 |
-| `/admin/audit-logs` | AuditLog | 系统管理员 | 审计日志 |
-| `/admin/config` | SystemConfig | 系统管理员 | 系统配置 |
-| `/admin/ai-cost` | AiCostReport | 系统管理员 | AI 费用报表 |
-| `/403` | Forbidden | — | 无权限 |
-| `/404` | NotFound | — | 页面不存在 |
-
-### 2.2 路由守卫
+### 3.1 路由结构
 
 ```
-路由守卫流程:
-1. 检查 JWT Token 是否有效
-2. 检查用户角色是否有目标页面访问权限
-3. 检查是否需要进行 MFA (管理员首次登录、薪资数据、公积金操作等)
-4. 检查临时二维码授权是否过期 (面试官/候选人场景)
-5. 通过则渲染页面，否则重定向到 /403 或 /login
+/
+├── /login                              # 登录
+├── /dashboard                          # 工作台（默认首页）
+├── /recruitment                        # 招聘管理
+│   ├── /jobs                           # 职位发布
+│   ├── /resumes                        # 简历管理
+│   │   └── /:id                        # 简历详情
+│   ├── /exams                          # 组卷管理
+│   ├── /scores                         # 成绩管理
+│   └── /talent-pool                    # 人才库
+├── /onboarding                         # 入职管理
+│   ├── /portal                         # 入职门户（新员工）
+│   ├── /documents                      # 资料管理
+│   ├── /face                           # 人脸采集
+│   ├── /signature                      # 电子签名
+│   └── /progress                       # 入职进度
+├── /training                           # 培训管理
+│   ├── /plan                           # 培训计划
+│   ├── /signin                         # 签到管理
+│   ├── /exam                           # 在线考试
+│   ├── /certificates                   # 证书管理
+│   ├── /videos                         # 视频库
+│   └── /audit-package                  # 审核资料包
+├── /attendance                         # 考勤管理
+│   ├── /dashboard                      # 考勤总览
+│   ├── /records                        # 考勤记录
+│   ├── /anomalies                      # 异常管理
+│   └── /shifts                         # 排班管理
+├── /payroll                            # 薪资管理
+│   ├── /calculation                    # 薪资核算
+│   ├── /review                         # 薪资审核
+│   ├── /payslip                        # 工资条
+│   └── /rules                          # 薪资规则
+├── /performance                        # 绩效管理
+│   ├── /cycle                          # 考核周期
+│   ├── /self                           # 自评
+│   ├── /review                         # 上级审核
+│   └── /report                         # 绩效报告
+├── /external                           # 外务管理
+│   ├── /injury                         # 工伤管理
+│   ├── /fund                           # 公积金管理
+│   └── /rpa-status                     # RPA 状态
+├── /certificate                        # 证明管理
+│   ├── /self-service                   # 自助申请
+│   └── /review                         # 证明审核
+├── /system                             # 系统管理
+│   ├── /users                          # 用户管理
+│   ├── /roles                          # 角色管理
+│   ├── /departments                    # 部门管理
+│   ├── /agent-monitor                  # Agent 监控
+│   ├── /audit-log                      # 审计日志
+│   └── /config                         # 系统配置
+└── /analytics                          # 数据分析
+    ├── /hr-dashboard                   # HR 看板
+    ├── /reports                        # 报表中心
+    └── /model-evaluation               # 模型评估
 ```
 
-### 2.3 扫码入口路由
+### 3.2 路由守卫
 
-扫码入口是独立于主应用的轻量级页面，通过 `/qr/:token` 路由解析：
+| 守卫 | 触发时机 | 逻辑 |
+|------|---------|------|
+| 全局前置守卫 | 每次路由切换前 | 检查 Token 有效性；未登录重定向到 /login |
+| 权限守卫 | 进入受保护路由前 | 检查用户角色和权限码；无权限 403 |
+| MFA 守卫 | 进入薪资/外务模块前 | 检查是否完成二因子认证 |
+| 角色守卫 | 特定角色页面 | 员工只能访问自助页面，管理员才能访问管理页面 |
 
-| Token 类型 | 跳转目标 | 说明 |
-|-----------|---------|------|
-| `exam-{id}` | `/recruitment/exams/{id}/take` | 面试考试 |
-| `training-checkin-{code}` | `/training/checkin/{code}` | 培训签到 |
-| `onboarding-{token}` | `/onboarding/{token}` | 入职引导 |
-
----
-
-## 3. 状态管理设计
-
-### 3.1 Zustand Store 结构
-
-#### 3.1.1 认证状态 (authStore)
+### 3.3 路由元信息
 
 ```typescript
-interface AuthState {
-  token: string | null;
-  refreshToken: string | null;
-  user: UserInfo | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  mfaRequired: boolean;
-  mfaType: 'sms' | 'authenticator' | null;
-  actions: {
-    login: (credentials: LoginRequest) => Promise<void>;
-    logout: () => Promise<void>;
-    verifyMfa: (code: string) => Promise<void>;
-    refreshToken: () => Promise<void>;
-  };
+interface RouteMeta {
+  title: string;           // 页面标题
+  icon: string;            // 菜单图标
+  roles?: string[];        // 可访问角色
+  permissions?: string[];  // 所需权限码
+  requireMfa?: boolean;    // 是否需要 MFA
+  keepAlive?: boolean;     // 是否缓存
+  hidden?: boolean;        // 是否隐藏菜单
+  breadcrumb?: string[];   // 面包屑路径
 }
-```
-
-#### 3.1.2 用户状态 (userStore)
-
-```typescript
-interface UserState {
-  profile: UserProfile | null;
-  permissions: Permission[];
-  department: Department | null;
-  actions: {
-    fetchProfile: () => Promise<void>;
-    updateProfile: (data: UpdateProfileRequest) => Promise<void>;
-  };
-}
-```
-
-#### 3.1.3 UI 状态 (uiStore)
-
-```typescript
-interface UiState {
-  sidebarCollapsed: boolean;
-  theme: 'light' | 'dark';
-  language: 'zh-CN' | 'en-US';
-  notifications: NotificationItem[];
-  loading: boolean;
-  actions: {
-    toggleSidebar: () => void;
-    setTheme: (theme: 'light' | 'dark') => void;
-    setLanguage: (lang: 'zh-CN' | 'en-US') => void;
-    addNotification: (item: NotificationItem) => void;
-    removeNotification: (id: string) => void;
-  };
-}
-```
-
-#### 3.1.4 Agent 运行状态 (agentStore)
-
-```typescript
-interface AgentState {
-  agents: AgentStatus[];
-  runningTasks: AgentTask[];
-  selectedAgent: string | null;
-  wsConnected: boolean;
-  actions: {
-    fetchAgentStatus: () => Promise<void>;
-    connectWebSocket: () => void;
-    disconnectWebSocket: () => void;
-    triggerAgent: (agentName: string, params: any) => Promise<void>;
-  };
-}
-```
-
-### 3.2 React Query 服务端状态
-
-使用 React Query 管理服务端数据缓存：
-
-```typescript
-// 示例：简历列表查询
-const { data, isLoading } = useQuery({
-  queryKey: ['resumes', { page, filter }],
-  queryFn: () => recruitmentService.getResumes({ page, filter }),
-  staleTime: 5 * 60 * 1000,  // 5 分钟缓存
-  refetchOnWindowFocus: false,
-});
-
-// 示例：Agent 实时状态
-const { data } = useQuery({
-  queryKey: ['agent-status'],
-  queryFn: () => adminService.getAgentStatus(),
-  refetchInterval: 30 * 1000,  // 30 秒轮询
-});
-```
-
-### 3.3 WebSocket 实时推送
-
-Agent 运行状态通过 WebSocket 实时推送至前端：
-
-```typescript
-// Agent 状态变更推送
-ws.onmessage = (event) => {
-  const msg = JSON.parse(event.data);
-  switch (msg.type) {
-    case 'AGENT_STARTED':
-      agentStore.addRunningTask(msg.payload);
-      break;
-    case 'AGENT_COMPLETED':
-      agentStore.completeTask(msg.payload);
-      break;
-    case 'AGENT_ERROR':
-      agentStore.onError(msg.payload);
-      notificationStore.addAlert(msg.payload);
-      break;
-  }
-};
 ```
 
 ---
 
-## 4. 页面布局设计
+## 4. 状态管理
 
-### 4.1 全局布局 (PageLayout)
+### 4.1 Pinia Store 架构
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  AppHeader (固定顶部)                                          │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ [Logo]  GBM AI Agent HR          [搜索] [通知] [语言] [用户]│ │
-│  └─────────────────────────────────────────────────────────┘ │
-├──────────────────┬──────────────────────────────────────────┤
-│                  │                                           │
-│  AppSidebar      │  Page Content Area                       │
-│  (可折叠)         │  ┌─────────────────────────────────────┐ │
-│  ┌──────────────┐│  │ Breadcrumb Navigation               │ │
-│  │ 招聘管理      ││  ├─────────────────────────────────────┤ │
-│  │ ├─ 职位管理   ││  │                                     │ │
-│  │ │ ├─ 发布    ││  │  Page Title                         │ │
-│  │ │ └─ 简历    ││  │                                     │ │
-│  │ ├─ 考试管理   ││  │  Main Content                       │ │
-│  │ │ ├─ 组卷    ││  │  ┌───────────────────────────────┐  │ │
-│  │ │ └─ 阅卷    ││  │  │                                │  │ │
-│  │ ├─ 人才库    ││  │  │   Page-Specific Content        │  │ │
-│  │ ├─ 入职管理   ││  │  │                                │  │ │
-│  │ ├─ 培训管理   ││  │  └───────────────────────────────┘  │ │
-│  │ ├─ 考勤管理   ││  │                                     │ │
-│  │ ├─ 薪资管理   ││  │  Actions Bar                        │ │
-│  │ ├─ 绩效管理   ││  │  [导出] [审核] [生成报告]            │ │
-│  │ ├─ 外务管理   ││  └─────────────────────────────────────┘ │
-│  │ ├─ 离职管理   ││                                           │
-│  │ └─ 证明自助   ││                                           │
-│  └──────────────┘│                                           │
-│                  │                                           │
-├──────────────────┴──────────────────────────────────────────┤
-│  AppFooter                                                    │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ © 2026 GBM AI Agent HR | v1.0.0                        │ │
-│  └─────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
+| Store | 职责 | 关键状态 |
+|-------|------|---------|
+| userStore | 用户信息 | userInfo, token, roles, permissions |
+| permissionStore | 权限路由 | routes, menuList, isLoaded |
+| appStore | 应用全局 | sidebarCollapsed, theme, language, isMobile |
+| recruitmentStore | 招聘模块 | resumeList, currentJob, examData, filterParams |
+| trainingStore | 培训模块 | trainingList, examPaper, videoList |
+| payrollStore | 薪资模块 | payrollData, calculationResult, reviewStatus |
+| notificationStore | 通知 | notificationList, unreadCount, wsConnected |
 
-### 4.2 各角色仪表盘布局
+### 4.2 状态持久化
 
-#### 4.2.1 人事专员工作台 (HrDashboard)
+- Token、用户信息、语言偏好通过 pinia-plugin-persistedstate 持久化到 localStorage
+- 敏感数据（薪资详情）不持久化，仅在 Session 中保留
+- 退出登录时清除所有持久化状态
+
+### 4.3 全局状态流
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  待办事项统计                                                  │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│  │ 待审核: 5│ │ 待确认: 3│ │ 异常: 2 │ │ 预警: 1 │          │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘          │
-├─────────────────────────────────────────────────────────────┤
-│  快捷入口                                                    │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐    │
-│  │简历审核│ │薪资审核│ │入职办理│ │培训管理│ │考勤异常│ │证明签发││
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘    │
-├─────────────────────────────────────────────────────────────┤
-│  左侧 (60%)                    │  右侧 (40%)                  │
-│  ┌─────────────────────────┐  │  ┌─────────────────────┐   │
-│  │ Agent 运行状态            │  │  最近操作记录           │   │
-│  │ ┌─────────────────────┐ │  │  ┌───────────────────┐ │   │
-│  │ │ 招聘 Agent: 运行中    │ │  │  │ 10:30 薪资核算完成  │ │   │
-│  │ │ 薪资 Agent: 待执行   │ │  │  │ 10:15 简历筛选完成  │ │   │
-│  │ │ 考勤 Agent: 已完成   │ │  │  │ 09:50 考勤异常发现  │ │   │
-│  │ │ 培训 Agent: 运行中   │ │  │  └───────────────────┘ │   │
-│  │ └─────────────────────┘ │  │                         │   │
-│  └─────────────────────────┘  │  Agent 异常事件           │   │
-│                               │  ┌─────────────────────┐ │   │
-│  HR KPI 趋势                  │  │ RPA 公积金: 成功 98% │ │   │
-│  ┌─────────────────────────┐  │  │ 工伤申报: 待人工确认  │ │   │
-│  │ [折线图: 简历筛选/薪资/  │  │  └─────────────────────┘ │   │
-│  │  培训/考勤 近 30 天趋势] │  │                         │   │
-│  └─────────────────────────┘  │                         │   │
-└─────────────────────────────────┴─────────────────────────┘
-```
-
-#### 4.2.2 部门主管工作台 (ManagerDashboard)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  团队概况                                                    │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│  │ 团队人数  │ │ 出勤率    │ │ 待审批   │ │ 绩效分布  │          │
-│  │ 25 人    │ │ 96.5%   │ │ 3 项    │ │ A:8 B:12 │          │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘          │
-├─────────────────────────────────────────────────────────────┤
-│  左侧 (60%)                    │  右侧 (40%)                  │
-│  ┌─────────────────────────┐  │  ┌─────────────────────┐   │
-│  │ 待审批事项                │  │  团队考勤统计           │   │
-│  │ ┌─────────────────────┐ │  │  ┌───────────────────┐ │   │
-│  │ │ 张三 离职申请 [审批]  │ │  │  │ [柱状图: 部门考勤  │ │   │
-│  │ │ 李四 绩效评审 [评审]  │ │  │  │  近 30 天趋势]    │ │   │
-│  │ │ 王五 请假申请 [审批]  │ │  │  └───────────────────┘ │   │
-│  │ └─────────────────────┘ │  │                         │   │
-│  └─────────────────────────┘  │  团队绩效分布             │   │
-│                               │  ┌─────────────────────┐ │   │
-│  团队分析报告                  │  │  [饼图: A/B/C/D 等级  │ │   │
-│  ┌─────────────────────────┐  │  │  分布比例]           │ │   │
-│  │ [雷达图: 团队综合能力     │  │  └─────────────────────┘ │   │
-│  │  评估维度]               │  │                         │   │
-│  └─────────────────────────┘  │                         │   │
-└─────────────────────────────────┴─────────────────────────┘
-```
-
-#### 4.2.3 员工自助门户 (EmployeeDashboard)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  欢迎, 张三                                                  │
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │  [头像]  张三 | 软件开发工程师 | 技术研发部              │ │
-│  └─────────────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│  快捷功能                                                    │
-│  ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐    │
-│  │工资条 │ │考勤   │ │培训   │ │证明   │ │绩效   │ │离职   │    │
-│  │查看   │ │记录   │ │学习   │ │申请   │ │自评   │ │申请   │    │
-│  └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘    │
-├─────────────────────────────────────────────────────────────┤
-│  左侧 (60%)                    │  右侧 (40%)                  │
-│  ┌─────────────────────────┐  │  ┌─────────────────────┐   │
-│  │ 本月考勤                  │  │  最近工资条             │   │
-│  │ ┌─────────────────────┐ │  │  ┌───────────────────┐ │   │
-│  │ │ 出勤: 20 天           │ │  │  │ 2026-05 实发      │ │   │
-│  │ │ 迟到: 1 次           │ │  │  │ ¥15,234.56       │ │   │
-│  │ │ 加班: 8 小时         │ │  │  │ [查看明细]        │ │   │
-│  │ │ 请假: 0 天           │ │  │  └───────────────────┘ │   │
-│  │ └─────────────────────┘ │  │                         │   │
-│  └─────────────────────────┘  │  证书与上岗证             │   │
-│                               │  ┌─────────────────────┐ │   │
-│  培训进度                      │  │  特种作业证: 有效    │ │   │
-│  ┌─────────────────────────┐  │  │  上岗证: 已颁发     │ │   │
-│  │ [进度条: 安规培训 80%]   │  │  │  上岗证: 即将到期    │ │   │
-│  │ [进度条: 技能提升 50%]   │  │  │  (30 天后)         │ │   │
-│  └─────────────────────────┘  │  └─────────────────────┘ │   │
-└─────────────────────────────────┴─────────────────────────┘
-```
-
-### 4.3 移动端布局
-
-移动端采用底部 Tab 导航 + 抽屉式侧栏：
-
-```
-┌─────────────────────┐
-│ [状态栏]             │
-├─────────────────────┤
-│ [顶部栏] 标题         │
-├─────────────────────┤
-│                     │
-│  页面内容区域         │
-│  (滚动区域)          │
-│                     │
-│                     │
-├─────────────────────┤
-│ [Tab 1] [Tab 2] [Tab 3] [Tab 4] │
-│ 首页    考勤   培训   我的   │
-└─────────────────────┘
+用户登录 → userStore.setToken() → 获取用户信息 → 获取权限 →
+permissionStore.generateRoutes() → 动态添加路由 → 进入 Dashboard
 ```
 
 ---
 
-## 5. 组件设计
+## 5. 组件架构
 
-### 5.1 通用组件规范
+### 5.1 组件分类
 
-#### 5.1.1 数据表格 (DataTable)
+**基础组件（Common）：**
+- GbmTable：封装 el-table，支持分页、排序、多选、列配置、导出
+- GbmForm：封装 el-form，支持动态字段、校验规则、重置
+- GbmSearchBar：组合搜索条件 + 查询/重置按钮
+- GbmFileUpload：多文件拖拽上传，支持预览、进度、断点续传
+- GbmSignaturePad：手写签名画板
+- GbmVideoPlayer：视频播放器（Video.js 封装）
+- GbmQRCode：二维码生成/扫描组件
+- GbmDataExport：数据导出（Excel/CSV）
+- GbmAuditLogViewer：审计日志查看面板
 
-```typescript
-interface DataTableProps<T> {
-  columns: ColumnDef<T>[];
-  data: T[];
-  pagination: {
-    currentPage: number;
-    pageSize: number;
-    total: number;
-  };
-  sorting: {
-    field: string;
-    order: 'asc' | 'desc';
-  };
-  filtering: Record<string, any>;
-  actions: {
-    onRowClick?: (record: T) => void;
-    onSort?: (field: string, order: 'asc' | 'desc') => void;
-    onFilter?: (filters: Record<string, any>) => void;
-    onPageChange?: (page: number) => void;
-  };
-  exportable?: boolean;
-  selectable?: boolean;
-}
-```
+**业务组件（Business）：**
+- ResumeCard：简历卡片展示
+- ScoreRadar：多维评分雷达图
+- ExamPaper：试卷展示与作答
+- PayrollSheet：工资条展示
+- TimelineViewer：业务流程时间线
 
-#### 5.1.2 表单组件 (FormInput)
+### 5.2 组件通信
 
-```typescript
-interface FormInputProps {
-  label: string;
-  name: string;
-  type?: 'text' | 'number' | 'email' | 'tel' | 'password' | 'date';
-  placeholder?: string;
-  required?: boolean;
-  disabled?: boolean;
-  validate?: (value: any) => string | undefined;
-  errorMessage?: string;
-  helpText?: string;
-  // 无障碍属性
-  'aria-describedby'?: string;
-  'aria-required'?: boolean;
-}
-```
+| 场景 | 方式 |
+|------|------|
+| 父子组件 | props / emit |
+| 跨级组件 | provide / inject |
+| 兄弟组件 | Pinia Store |
+| 事件总线 | mitt（轻量发布订阅） |
+| 实时推送 | WebSocket → notificationStore |
 
-#### 5.1.3 手写签名组件 (FormSignature)
+### 5.3 组件生命周期管理
 
-```typescript
-interface FormSignatureProps {
-  label: string;
-  width?: number;      // 默认 400px
-  height?: number;     // 默认 150px
-  penColor?: string;   // 默认 '#000'
-  penWidth?: number;   // 默认 2px
-  onSign?: (dataUrl: string) => void;
-  onClear?: () => void;
-  required?: boolean;
-}
-```
+- 定时器在 onUnmounted 中清理
+- WebSocket 连接在页面切换时保持不断（全局单例）
+- 大数据表格使用虚拟滚动（vxe-table）
 
-#### 5.1.4 摄像头采集组件 (FormCamera)
+---
 
-```typescript
-interface FormCameraProps {
-  label: string;
-  mode: 'face' | 'document' | 'general';
-  onCapture?: (dataUrl: string) => void;
-  qualityCheck?: boolean;    // 启用质量检查 (亮度/清晰度)
-  maxRetakes?: number;       // 最大重拍次数
-  required?: boolean;
-}
-```
+## 6. 页面布局
 
-### 5.2 页面级组件
-
-#### 5.2.1 简历列表页面 (ResumeList)
+### 6.1 后台管理布局 (DefaultLayout)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  简历筛选                      [导入] [导出] [自然语言搜索框]  │
-├─────────────────────────────────────────────────────────────┤
-│  筛选条件栏                                                    │
-│  [岗位▼] [学历▼] [经验▼] [分类▼] [得分区间] [日期范围] [搜索] │
-├─────────────────────────────────────────────────────────────┤
-│  统计面板: 高潜 (25) | 候审 (15) | 淘汰 (8)                  │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ [复选] 姓名 | 岗位 | 学历 | 经验 | 综合得分 | 分类 | 时间  │ │
-│  ├─────────────────────────────────────────────────────────┤ │
-│  │ [  ] 张三 | 前端开发 | 本科 | 5年 | 85.5 | [高潜] | 06/10│ │
-│  │ [  ] 李四 | 前端开发 | 硕士 | 3年 | 72.3 | [候审] | 06/11│ │
-│  │ [  ] 王五 | 前端开发 | 大专 | 2年 | 45.1 | [淘汰] | 06/12│ │
-│  └─────────────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│  [分页: < 1 2 3 ... 10 >]  共 2,345 条                     │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────┐
+│  TopBar (60px)                                      │
+│  ┌──────────┬─────────────────────┬───────────────┐ │
+│  │ Logo     │ 面包屑导航           │ 用户菜单      │ │
+│  │ GBM-HR   │ > 招聘 > 简历管理    │ 通知/头像/设置 │ │
+│  └──────────┴─────────────────────┴───────────────┘ │
+├────────┬───────────────────────────────────────────┤
+│ SideBar│                                           │
+│ (200px)│  Main Content Area                        │
+│        │                                           │
+│ ┌─────┐│  ┌──────────────────────────────────┐    │
+│ │招聘管理│ │  Page Content                     │    │
+│ ├─────┤│  └──────────────────────────────────┘    │
+│ │入职管理│                                         │
+│ ├─────┤│                                         │
+│ │培训管理│                                         │
+│ ├─────┤│                                         │
+│ │考勤管理│                                         │
+│ ├─────┤│                                         │
+│ │薪资管理│  ───┐ Footer (fixed bottom)           │
+│ ├─────┤│  ┌────┘                                │
+│ │绩效管理│  │ Copyright © 2026 GBM              │
+│ ├─────┤│  └───────────────────────────────────┐ │
+│ │外务管理│                                    │ │
+│ ├─────┤│                                    │ │
+│ │证明管理│                                    │ │
+│ ├─────┤│                                    │ │
+│ │系统管理│                                    │ │
+│ ├─────┤│                                    │ │
+│ │数据分析│                                    │ │
+│ └─────┘│                                    │ │
+└────────┴───────────────────────────────────────────┘
 ```
 
-#### 5.2.2 薪资审核页面 (PayrollReview)
+### 6.2 布局特性
+
+- **侧边栏**：可折叠（200px ↔ 64px），折叠后显示图标
+- **顶部栏**：固定位置，包含面包屑和用户操作区
+- **内容区**：scroll 独立滚动，不影响侧边栏和顶部栏
+- **标签页**：支持多标签页打开（可选功能）
+- **响应式**：手机端侧边栏自动隐藏，通过汉堡按钮切换
+
+### 6.3 空白布局 (BlankLayout)
+
+用于登录页、考试页、扫码签到页等不需要框架的页面。
+
+### 6.4 移动端布局 (MobileLayout)
+
+- 底部 TabBar 导航
+- 顶部标题栏
+- 全屏内容区
+
+---
+
+## 7. 移动端设计
+
+### 7.1 移动端功能覆盖
+
+| 功能 | 端 | 说明 |
+|------|-----|------|
+| 扫码签到 | 移动端 | 相机扫码，自动签到 |
+| 工资条查看 | 移动端 | 查看/下载电子工资条 |
+| 证明申请 | 移动端 | 选择证明类型，提交申请 |
+| 培训视频 | 移动端 | 在线学习视频 |
+| 考试作答 | 移动端 | 在线答题 |
+| 请假/加班 | 移动端 | 提交申请 |
+| 人脸采集 | 移动端 | 调用前置摄像头 |
+| 消息通知 | 移动端 | 推送通知 |
+| 简历上传 | 移动端 | 新员工上传资料 |
+
+### 7.2 UniApp 页面结构
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  2026 年 06 月 薪资核算审核                                    │
-│  Agent 完成时间: 2026-06-30 22:15:32                         │
-├─────────────────────────────────────────────────────────────┤
-│  核算概况: 应发总额 ¥2,345,678.90 | 实发总额 ¥1,876,543.21   │
-│  异常数据: 3 条 (点击查看)                                     │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────────────────────────────────────────┐ │
-│  │ 工号 | 姓名 | 部门 | 应发 | 社保 | 公积金 | 个税 | 实发   │ │
-│  ├─────────────────────────────────────────────────────────┤ │
-│  │ E001 | 张三 | 研发 | 18000| 1800 | 1800  | 800  | 13600│ │
-│  │ E002 | 李四 | 产品 | 15000| 1500 | 1500  | 500  | 11500│ │
-│  │ E003 | 王五 | 测试 | 12000| 1200 | 1200  | 300  |  9300│ │
-│  └─────────────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────────────┤
-│  [导出 Excel] [查看计算底稿] [确认审核] [驳回重算]             │
-│                                                              │
-│  审核意见: [文本域]                                          │
-└─────────────────────────────────────────────────────────────┘
+gbm-ai-agent-hr-mobile/
+├── pages/
+│   ├── index/          # 首页（待办列表）
+│   ├── login/          # 登录
+│   ├── signin/         # 扫码签到
+│   ├── payslip/        # 工资条
+│   ├── certificate/    # 证明申请
+│   ├── training/       # 培训视频
+│   ├── exam/           # 在线考试
+│   ├── upload/         # 资料上传
+│   ├── profile/        # 个人中心
+│   └── message/        # 消息通知
+├── static/             # 静态资源
+├── store/              # Vuex 状态
+├── utils/              # 工具函数
+└── uni.scss            # 全局样式
 ```
 
 ---
 
-## 6. 无障碍访问设计 (WCAG 2.1 AA)
+## 8. 通用组件库
 
-### 6.1 无障碍要求
+### 8.1 GbmTable 表格组件
+
+```vue
+<GbmTable
+  :columns="columns"
+  :data="tableData"
+  :pagination="pagination"
+  @page-change="handlePageChange"
+  @sort-change="handleSortChange"
+  :exportable="true"
+  export-name="简历列表"
+  :row-selectable="true"
+  @selection-change="handleSelectionChange"
+/>
+```
+
+特性：
+- 列配置（宽度、排序、固定、隐藏）
+- 分页（服务端/客户端）
+- 多选
+- 导出按钮
+- 加载状态
+
+### 8.2 GbmForm 表单组件
+
+```vue
+<GbmForm
+  :fields="formFields"
+  :rules="validationRules"
+  :model="formData"
+  layout="horizontal"
+  :submit-text="'提交审核'"
+  @submit="handleSubmit"
+  @reset="handleReset"
+/>
+```
+
+特性：
+- 动态字段配置
+- 校验规则
+- 横向/纵向布局
+- 自定义插槽
+
+### 8.3 GbmFileUpload 文件上传
+
+```vue
+<GbmFileUpload
+  :limit="10"
+  :max-size="10"
+  accept=".pdf,.jpg,.png,.doc,.docx"
+  :drag="true"
+  :preview="true"
+  :show-progress="true"
+  @success="handleSuccess"
+  @error="handleError"
+/>
+```
+
+特性：
+- 拖拽上传
+- 图片预览
+- 进度条
+- 文件大小/类型校验
+- 断点续传
+
+---
+
+## 9. 国际化
+
+### 9.1 语言支持
+
+- 简体中文 (zh-CN) — 默认
+- 英语 (en-US)
+
+### 9.2 实现方案
+
+```
+src/
+├── locales/
+│   ├── zh-CN/
+│   │   ├── common.json
+│   │   ├── recruitment.json
+│   │   ├── onboarding.json
+│   │   └── ...
+│   └── en-US/
+│       ├── common.json
+│       ├── recruitment.json
+│       └── ...
+```
+
+- 使用 vue-i18n 9.x
+- 语言切换实时生效（不刷新页面）
+- 日期/数字格式随语言自动适配
+
+### 9.3 翻译覆盖率要求
+
+- 所有用户界面文本翻译覆盖率 ≥ 95%
+- 中英双语一致性校验
+- 每版本上线前执行双语全覆盖测试
+
+---
+
+## 10. 无障碍
+
+### 10.1 遵循标准
+
+WCAG 2.1 AA 级无障碍标准
+
+### 10.2 实现要点
 
 | 要求 | 实现方式 |
 |------|---------|
-| 屏幕阅读器支持 | 所有交互元素添加 aria-label、aria-describedby |
-| 键盘操作 | Tab 键遍历所有交互元素，Enter/Space 触发动作 |
-| 色彩对比度 | 正文 ≥ 4.5:1，大字体 ≥ 3:1 |
-| 放大至 200% | 响应式布局，不使用固定像素宽度 |
-| 焦点管理 | 模态框弹出时焦点锁定，关闭后恢复 |
-| 表单标签 | 所有输入框关联 label，错误信息关联 aria-describedby |
-| 图像替代 | 所有装饰性图像使用 aria-hidden，信息性图像使用 alt |
+| 屏幕阅读器 | 所有交互元素添加 aria-label、aria-describedby |
+| 键盘操作 | Tab 遍历所有交互元素，Enter/Space 触发 |
+| 色彩对比度 | 正文 ≥ 4.5:1，大文本 ≥ 3:1 |
+| 缩放 | 放大至 200% 时布局不破坏 |
+| 焦点管理 | 路由切换、弹窗打开时自动聚焦 |
+| 表单标签 | 所有 input 关联 label 元素 |
+| 图片替代文本 | 所有 img 添加 alt 属性 |
 
-### 6.2 关键用户路径无障碍覆盖
+### 10.3 关键用户路径无障碍覆盖
 
-| 路径 | 无障碍要求 |
-|------|-----------|
-| 登录与身份认证 | 表单标签完整、错误提示可读、MFA 输入框键盘可用 |
-| 人事专员审核待办 | 表格键盘导航、筛选条件键盘可用、审核按钮焦点可见 |
-| 工资条查看与导出 | 工资条数据可读、导出按钮键盘可用、金额格式无障碍 |
-| 员工自助证明申请 | 表单标签完整、文件上传键盘可用、提交确认无障碍 |
-| 扫码签到 | 二维码识别失败时有替代输入方式、倒计时可读 |
-
-### 6.3 无障碍测试
-
-```typescript
-// 使用 axe-core 进行自动化无障碍检测
-import { axe, toHaveNoViolations } from 'jest-axe';
-import '@testing-library/jest-dom/extend-expect';
-
-expect.extend(toHaveNoViolations);
-
-test('登录页面应无 A 级和 AA 级无障碍缺陷', async () => {
-  const { container } = render(<LoginPage />);
-  const results = await axe(container);
-  expect(results).toHaveNoViolations({
-    impact: ['critical', 'serious'],  // A 级 = 0 缺陷
-  });
-});
-```
-
----
-
-## 7. 国际化 (i18n) 设计
-
-### 7.1 语言支持
-
-| 语言 | 代码 | 说明 |
-|------|------|------|
-| 简体中文 | zh-CN | 默认语言 |
-| 英语 | en-US | 双语切换 |
-
-### 7.2 翻译文件结构
-
-```
-src/i18n/
-├── index.ts          # i18n 初始化配置
-├── zh-CN.json        # 简体中文翻译
-└── en-US.json        # 英语翻译
-```
-
-### 7.3 翻译覆盖率要求
-
-- 所有用户界面文本翻译覆盖率 ≥ 95%
-- 同一术语翻译一致率 100%
-- 每版本上线前执行双语全覆盖测试
-
-### 7.4 格式适配
-
-| 数据类型 | 简体中文格式 | 英文格式 |
-|---------|------------|---------|
-| 日期 | 2026 年 6 月 12 日 | June 12, 2026 |
-| 日期 (紧凑) | 2026-06-12 | 06/12/2026 |
-| 金额 | ¥12,345.67 | $12,345.67 |
-| 大数 | 1,234,567.89 | 1,234,567.89 |
-| 百分比 | 12.5% | 12.5% |
-
-### 7.5 语言切换实现
-
-```typescript
-// 语言切换按钮
-function LanguageSwitcher() {
-  const { i18n } = useTranslation();
-  const currentLang = uiStore.state.language;
-
-  return (
-    <Select
-      value={currentLang}
-      onChange={(lang) => {
-        i18n.changeLanguage(lang);
-        uiStore.actions.setLanguage(lang);
-      }}
-      options={[
-        { label: '简体中文', value: 'zh-CN' },
-        { label: 'English', value: 'en-US' },
-      ]}
-      aria-label="切换语言"
-    />
-  );
-}
-```
-
----
-
-## 8. 降级模式前端适配
-
-### 8.1 降级状态展示
-
-当系统进入降级模式时，前端需要展示降级状态并适配相应功能：
-
-| 降级场景 | 前端适配 |
-|---------|---------|
-| LLM 不可用 | 简历筛选页面显示"关键词匹配模式"标识；文书生成改用预置模板 |
-| OCR 不可用 | 证件上传页面转为人工录入表单；显示降级提示 |
-| 人脸不可用 | 人脸采集页面替换为"身份证+手机验证码"验证流程 |
-| RPA 被拦截 | 外务页面显示"需人工操作"提示；提供预填数据下载 |
-| 编排层异常 | 显示"手动调度模式"；开放 Agent 手动触发按钮 |
-
-### 8.2 降级提示组件
-
-```typescript
-interface DegradedBannerProps {
-  service: string;        // 受影响的服务名称
-  mode: string;           // 降级模式描述
-  estimatedRecovery?: string;  // 预计恢复时间
-  actionRequired?: boolean;    // 是否需要人工介入
-}
-
-// 页面顶部显示降级横幅
-function DegradedBanner({ service, mode, estimatedRecovery, actionRequired }) {
-  return (
-    <Alert
-      type="warning"
-      showIcon
-      closable
-      aria-live="polite"
-      message={`服务降级: ${service}`}
-      description={
-        <span>
-          当前运行模式: {mode}
-          {estimatedRecovery && ` | 预计恢复: ${estimatedRecovery}`}
-          {actionRequired && ' | 需要人工介入'}
-        </span>
-      }
-    />
-  );
-}
-```
-
----
-
-## 9. 性能优化策略
-
-### 9.1 代码分割
-
-| 分割策略 | 实现 |
-|---------|------|
-| 路由级懒加载 | React.lazy() + Suspense |
-| 组件级按需加载 | 大型组件 (图表、编辑器) 动态 import |
-| Vendor 打包分离 | Vite 配置 manualChunks |
-
-### 9.2 渲染优化
-
-| 优化手段 | 实现 |
-|---------|------|
-| React.memo | 纯组件避免重复渲染 |
-| useMemo/useCallback | 缓存计算结果和回调函数 |
-| 虚拟列表 | 大数据量表格使用 react-window |
-| 图片懒加载 | IntersectionObserver 实现 |
-
-### 9.3 网络优化
-
-| 优化手段 | 实现 |
-|---------|------|
-| 请求缓存 | React Query staleTime 配置 |
-| 请求合并 | 批量请求合并 (如多简历评分) |
-| 请求取消 | Axios CancelToken |
-| CDN 静态资源 | 前端构建产物部署至 CDN |
-
----
-
-## 10. 安全前端策略
-
-### 10.1 XSS 防护
-
-| 措施 | 实现 |
-|------|------|
-| React 自动转义 | JSX 默认转义用户输入 |
-| 富文本过滤 | DOMPurify 清理 HTML 内容 |
-| CSP 头 | Content-Security-Policy 配置 |
-| 避免 dangerouslySetInnerHTML | 仅在必要时使用，配合 DOMPurify |
-
-### 10.2 CSRF 防护
-
-| 措施 | 实现 |
-|------|------|
-| SameSite Cookie | Cookie 设置 SameSite=Strict |
-| CSRF Token | 请求头携带 CSRF Token |
-| 自定义请求头 | X-Requested-With 头验证 |
-
-### 10.3 敏感数据保护
-
-| 措施 | 实现 |
-|------|------|
-| 前端不存储敏感数据 | 身份证号、薪资等不缓存到 localStorage |
-| Token 安全存储 | HTTPOnly Cookie 存储 JWT |
-| 脱敏展示 | 身份证号显示为 123****8901 |
-| 剪贴板限制 | 敏感字段禁用复制 (contextmenu 拦截) |
-
----
-
-## 11. 测试策略
-
-### 11.1 测试金字塔
-
-```
-         ┌─────────┐
-         │  E2E     │  Playwright (关键用户路径)
-         │  Tests   │
-      ┌──┴─────────┴──┐
-      │  Integration   │  React Testing Library (组件交互)
-      │  Tests         │
-   ┌──┴────────────────┴──┐
-   │    Unit Tests        │  Vitest (工具函数、Hooks、Store)
-   │                      │
-   └──────────────────────┘
-```
-
-### 11.2 测试覆盖率目标
-
-| 层级 | 目标覆盖率 |
-|------|-----------|
-| 工具函数 | ≥ 95% |
-| Store/Hooks | ≥ 90% |
-| 通用组件 | ≥ 85% |
-| 页面组件 | ≥ 70% |
-| E2E 关键路径 | 100% (5 个关键用户路径) |
-| 无障碍测试 | 100% (5 个关键用户路径) |
-
-### 11.3 E2E 测试关键路径
-
+以下路径须 100% 覆盖无障碍测试：
 1. 用户登录与身份认证流程
 2. 人事专员审核待办事项流程
 3. 工资条查看与导出流程
 4. 员工自助证明申请流程
 5. 扫码签到流程
+
+### 10.4 测试工具
+
+- WAVE 浏览器插件 — 自动检测 A 级缺陷为 0，AA 级缺陷 ≤ 5
+- axe 浏览器插件 — 辅助检测
+- NVDA / JAWS — 屏幕阅读器手动测试
+- 键盘操作覆盖率 100%
 
 ---
 

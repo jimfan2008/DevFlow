@@ -1,0 +1,118 @@
+{
+  "key": "arch_reasonableness",
+  "reviewer": "后荣 (Hou Rong) - DevFlow 架构评审员",
+  "document": "DevFlow 架构设计文档 V8.0",
+  "version": "8.0",
+  "date": "2026-06-13",
+  "passed": false,
+  "summary": "V8.0 相比 V7.0 大幅改进，架构术语统一、数据流映射完整、部署方案清晰。但仍存在 1 项严重问题（GPU 规格矛盾未彻底修复）和多项中等问题需要解决。",
+  "critical_issues": [
+    {
+      "id": "CRITICAL-1",
+      "title": "GPU 最低硬件规格自相矛盾（4.4 节未彻底修复）",
+      "severity": "严重",
+      "location": "第 1077-1084 行（4.4 节 GPU 硬件规格表及说明）",
+      "finding": "表格中最低要求列写为 'NVIDIA RTX 4090'（24GB 显存），但紧接着的说明文字正确地指出 'RTX 4090 (24GB) 显存不足'，并推荐显存 >= 48GB 的 GPU。表格与文字自相矛盾。V7.0 变更日志中此问题被标记为【严重问题3】已在 V8.0 中修复，但修复不彻底：表格未同步更新。",
+      "impact": "按表格最低配置采购 RTX 4090 后无法加载 qwen2.5:72b Q4_K_M 模型（需 36-40GB VRAM），系统核心功能不可用",
+      "recommendation": "将表格中 GPU 最低要求改为 'NVIDIA GPU (显存 >= 48GB)' 或 'NVIDIA RTX 6000 Ada / A100 40GB'，同时修正显存列为 '48GB'。若保留 RTX 4090 作为低配选项，需明确标注 '必须使用 qwen2.5:14b 或更小模型'"
+    }
+  ],
+  "moderate_issues": [
+    {
+      "id": "MODERATE-1",
+      "title": "Redis Pub/Sub 消息丢失风险",
+      "severity": "中等",
+      "location": "第 596-624 行（3.6 节 Redis Pub/Sub 设计）",
+      "finding": "Redis Pub/Sub 是 fire-and-forget 模式，消息无持久化保障。如果 WebSocket Worker 短暂宕机，期间发布的消息将永久丢失。群聊消息和实时通知可能因此丢失。",
+      "impact": "WebSocket Worker 重启期间丢失群聊消息和通知",
+      "recommendation": "关键通知改用 Redis List 或 Stream 作为可靠队列，WebSocket Worker 消费后删除。Pub/Sub 仅用于非关键的实时推送（如进度更新）"
+    },
+    {
+      "id": "MODERATE-2",
+      "title": "Docker Socket 挂载安全权限",
+      "severity": "中等",
+      "location": "第 743 行（docker-compose swarm-executor 服务）",
+      "finding": "Swarm Executor 容器挂载 /var/run/docker.sock (ro)。虽然只读，但恶意代码可通过 Docker API 创建特权容器逃逸。",
+      "impact": "Swarm Executor 被攻破后可访问 Docker daemon",
+      "recommendation": "使用 socket 代理（如 Tini、colima）限制可执行的 Docker API 子集，或改为直接调用宿主机脚本而非通过 Docker API"
+    },
+    {
+      "id": "MODERATE-3",
+      "title": "Celery 健康检查命令在负载高时可能阻塞",
+      "severity": "中等",
+      "location": "第 710 行（docker-compose celery-worker 服务）",
+      "finding": "celery inspect ping 命令是 RPC 调用，当 worker 繁忙时可能超时或返回慢，导致 Docker 误判为不健康。",
+      "impact": "高负载时 Celery Worker 可能被 Docker 反复重启",
+      "recommendation": "改用轻量级 HTTP 健康检查端点（如 Flower 的 /api/worker 或自定义 /celery/health），或增加 inspect ping 的超时时间"
+    },
+    {
+      "id": "MODERATE-4",
+      "title": "并发项目数容量计算与实际资源存在偏差",
+      "severity": "中等",
+      "location": "第 1600-1608 行（7.2 节），第 1142-1147 行（总计表）",
+      "finding": "文档声称 10 个并发项目（内存瓶颈），但峰值总计为 54GB 内存。若服务器配置 64GB（基础推荐），余量仅 10GB。考虑操作系统本身占用 2-4GB，实际余量更紧。生产环境建议 96GB 是合理的，但 64GB 配置风险较高。",
+      "impact": "64GB 基础配置可能在峰值时出现 OOM",
+      "recommendation": "将 64GB 标注为'开发/测试配置'，生产环境最低要求明确为 96GB"
+    },
+    {
+      "id": "MODERATE-5",
+      "title": "编程工具在宿主机直接运行的安全性",
+      "severity": "中等",
+      "location": "第 1276-1296 行（4.6 节），第 1088-1096 行（10.1 节）",
+      "finding": "编程工具（Claude Code、Codex 等）在宿主机以子进程运行，通过 fcntl.flock() 做文件锁。但资源限制（CPU 4 核 / 内存 8GB）文档描述为通过 cgroup 或 --cpus/--memory 参数实现，实际 Swarm Executor 是容器内的 Python 进程，无法直接对宿主机子进程设置 cgroup 限制。",
+      "impact": "资源限制可能无法生效，单个编程工具可能耗尽宿主机资源",
+      "recommendation": "将编程工具也容器化（在 Swarm Executor 内通过 Docker API 启动），或在宿主机预配置 cgroup 规则。明确说明实际限制机制"
+    }
+  ],
+  "improvement_suggestions": [
+    {
+      "id": "SUGGEST-1",
+      "title": "缺少 API 速率限制设计",
+      "suggestion": "在网关层或 FastAPI 中间件增加 API 速率限制（如 slowapi），防止恶意请求或异常流量冲击。建议按用户/IP 设置 QPS 上限"
+    },
+    {
+      "id": "SUGGEST-2",
+      "title": "缺少优雅关停的自动化脚本",
+      "suggestion": "5.5 节描述了优雅关停流程（13 步），但缺少 docker-compose down 的 pre-stop hook 或关停脚本实现。建议编写 shutdown.sh 脚本按 5.5 节顺序关停各组件"
+    },
+    {
+      "id": "SUGGEST-3",
+      "title": "API 端点缺少分页和过滤设计",
+      "suggestion": "9.1 节列出了核心 API 端点，但未描述分页、过滤、排序机制。项目列表、QA 结果列表等在高数据量下需要分页支持"
+    },
+    {
+      "id": "SUGGEST-4",
+      "title": "Jaeger 7 天保留期偏短",
+      "suggestion": "8.2 节 Jaeger 保留 7 天，对于需要回溯调试的生产系统偏短。建议至少 14 天，或提供归档机制"
+    },
+    {
+      "id": "SUGGEST-5",
+      "title": "缺少数据库连接池详细配置",
+      "suggestion": "2.5 节提到连接池 20 / 最大 100，但 Celery Worker (concurrency=8) + FastAPI (workers=2) + Swarm Executor 可能同时打开大量连接。建议细化各组件的连接池分配（如 backend: 20, celery: 16, swarm: 4）"
+    },
+    {
+      "id": "SUGGEST-6",
+      "title": "Ollama 模型预热策略",
+      "suggestion": "系统启动后首次模型推理需要加载模型到 GPU（可能数分钟），建议设计预热机制：系统启动完成后主动发起一次推理请求，确保模型在首个任务到达前已加载"
+    },
+    {
+      "id": "SUGGEST-7",
+      "title": "缺少 Git 分支命名策略",
+      "suggestion": "Gitea 集成部分未描述分支命名策略。建议定义：主分支 (main/develop)、功能分支 (feature/step-{N}-{project_id})、回滚分支等命名规范"
+    }
+  ],
+  "positive_findings": [
+    "架构术语统一到位：V8.0 将 '单体应用' 修正为 '单体后端 + 分布式组件'，术语一致且准确",
+    "16 步工作流完整映射：Step 1-16 全部明确定义执行者、方式、产出、QA 检验、代码提交（9.2 节）",
+    "Swarm Executor 与命名 Agent 职责边界清晰（4.6 节）：命名 Agent 负责任务分析和拆分，Swarm Executor 负责执行调度和结果收集",
+    "命名 Agent 宿主机部署理由充分：Hermes Profile 依赖完整系统环境，systemd 管理方案成熟可靠",
+    "可用性声明准确：'99% 单实例目标' 表述合理，HA 扩展方案标注为可选",
+    "文档完整性：V8.0 补全了 V7.0 缺失的章节（API 契约 9.1、完整 16 步映射 9.2、编程工具生命周期 10.1、通知机制 10.2、优雅关停 11.3/5.5）",
+    "分布式追踪链路设计完整（8.2 节）：FastAPI -> Celery -> 命名 Agent -> Swarm Executor -> 编程工具全链路 trace ID 传播",
+    "数据库隔离设计合理：DevFlow 和 Gitea 使用独立 PostgreSQL 容器和用户",
+    "端口安全策略严格：仅 80/443/11434 映射到宿主机，其余管理端口仅在 Docker 内部网络可达",
+    "Checkpoint 机制完善：支持步骤级和阶段级断点续传，崩溃恢复流程清晰"
+  ],
+  "conclusion": "V8.0 相比 V7.0 有显著改进，所有 V7.0 审查项均已得到处理。文档结构完整、架构设计合理、数据流闭环清晰。主要问题是 GPU 最低规格表未与文字说明同步更新（自相矛盾），以及 Redis Pub/Sub 消息可靠性、编程工具资源限制实际可执行性等中等问题。建议修复 GPU 规格矛盾后重新审查，其余中等问题可在实施阶段逐步解决。",
+  "verdict": "不通过（需修复 GPU 规格矛盾后重新提交审查）"
+}

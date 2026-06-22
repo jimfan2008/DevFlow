@@ -16,7 +16,6 @@ from app.api.comments import router as comments_router
 from app.api.attachments import router as attachments_router
 from app.api.dependencies import router as dependencies_router
 from app.api.workload import router as workload_router
-from app.api.inbox import router as inbox_router
 from app.api.requirements import router as requirements_router
 from app.api.agents import router as agents_router
 from app.api.tasks_srs import router as tasks_srs_router
@@ -55,7 +54,7 @@ main_router.include_router(
     dependencies_router, prefix="/api/dependencies", tags=["dependencies"]
 )
 main_router.include_router(workload_router, prefix="/api/workload", tags=["workload"])
-main_router.include_router(inbox_router, prefix="/api/inbox", tags=["inbox"])
+
 # ── SRS Modules ──────────────────────────────────────
 main_router.include_router(
     requirements_router, prefix="/api/projects", tags=["requirements"]

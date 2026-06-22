@@ -1,0 +1,70 @@
+# GBM AI Agent HR - Prometheus Configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Java Domain Services (Spring Boot Actuator)
+  - job_name: 'user-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['user-domain:8081']
+
+  - job_name: 'recruit-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['recruit-domain:8082']
+
+  - job_name: 'payroll-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['payroll-domain:8083']
+
+  - job_name: 'auto-domain'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auto-domain:8084']
+
+  # Python Sub-Services
+  - job_name: 'rpa-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['rpa-service:8090']
+
+  - job_name: 'ocr-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ocr-service:8091']
+
+  - job_name: 'face-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['face-service:8092']
+
+  # MySQL Exporter
+  - job_name: 'mysql'
+    static_configs:
+      - targets: ['mysql-exporter:9104']
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Kafka Exporter
+  - job_name: 'kafka'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+
+  # Elasticsearch
+  - job_name: 'elasticsearch'
+    metrics_path: '_nodes/stats'
+    params:
+      format: ['prometheus']
+    static_configs:
+      - targets: ['elasticsearch:9200']
+
+  # Nginx
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']

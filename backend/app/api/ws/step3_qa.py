@@ -99,11 +99,12 @@ def _extract_json_array(text: str):
         except Exception:
             pass
 
-    # 尝试匹配从头到尾的完整 JSON 数组（首 [ 到尾 ]）
-    start = text.find('[')
-    if start >= 0:
-        end = text.rfind(']')
-        if end > start:
+    # 从右向左遍历每个 [ 位置，尝试解析为合法 JSON 数组
+    # 越靠右的 [ 越可能是目标 JSON 的起始（避开思考文字中的括号）
+    bracket_starts = [i for i, c in enumerate(text) if c == '[']
+    for start in reversed(bracket_starts):
+        end = text.find(']', start)
+        while end >= 0:
             candidate = text[start:end + 1]
             try:
                 parsed = _json.loads(candidate)
@@ -111,17 +112,31 @@ def _extract_json_array(text: str):
                     return parsed
             except Exception:
                 pass
+            end = text.find(']', end + 1)
 
     return []
 
 
-async def _call_hourong(websocket, prompt, timeout=180):
+HOURONG_SYSTEM_MSG = (
+    "你是后荣（HouRong），DevFlow 平台的软件需求 QA 检验员。\n"
+    "你严格按照 SRS 标准的 4 个维度（完整性、一致性、可验证性、无歧义性）检验需求文档。\n"
+    "你可以先思考分析，但最终必须输出一个严格合法的 JSON 数组作为最终回答。\n"
+    "JSON 数组必须包含全部 4 个维度的检验结果，不得遗漏、合并或替换任何维度。\n"
+    "JSON 中每个元素的 key 必须与要求完全一致。"
+)
+
+
+async def _call_hourong(websocket, prompt, timeout=180, system_message=None):
     """Call hourong (LLM) and return full reply text."""
     client = GatewayClient(profile_name="hourong", timeout=timeout)
     collected = []
+    messages = []
+    if system_message:
+        messages.append({"role": "system", "content": system_message})
+    messages.append({"role": "user", "content": prompt})
     try:
         async for chunk in client.chat_completions(
-            messages=[{"role": "user", "content": prompt}],
+            messages=messages,
             stream=True, max_tokens=8192,
         ):
             if chunk.strip():
@@ -146,7 +161,7 @@ async def _run_qa_loop(
     project_docs_dir: str = "",
 ):
     """hourong inspects → if fail, messages houxing → houxing fixes & saves → hourong re-inspects → loop"""
-    from app.api.workflow import SRS_INSPECTION_DIMENSIONS
+    from app.api.workflow.step3 import SRS_INSPECTION_DIMENSIONS
     from app.services.workflow_engine import WorkflowEngine
 
     MAX_FIX_ATTEMPTS = 10
@@ -188,29 +203,37 @@ async def _run_qa_loop(
 
         doc_source = f"文件: {last_save_path}\n\n" if last_save_path else ""
         dim_labels = "、".join(d["label"] for d in SRS_INSPECTION_DIMENSIONS)
+        dim_keys = [d["key"] for d in SRS_INSPECTION_DIMENSIONS]
+        dim_template = "\n".join(
+            f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见"}}'
+            for d in SRS_INSPECTION_DIMENSIONS
+        )
+        dim_descriptions = "\n".join(
+            f"  {i+1}. {d['label']}（{d['description']}）"
+            for i, d in enumerate(SRS_INSPECTION_DIMENSIONS)
+        )
         inspect_prompt = (
-            "你是一个专业的软件需求QA检验员（后荣）。\n\n"
             f"{doc_source}=== 需求文档 ===\n"
             f"{current_content}\n\n"
             "=== 检验维度（必须逐项检验，不可跳过任一维度）===\n"
             f"本次QA检验严格按以下 4 个维度逐项检验：{dim_labels}\n\n"
-            + "\n".join(f"  {i+1}. {d['label']}（{d['description']}）"
-                        for i, d in enumerate(SRS_INSPECTION_DIMENSIONS)) + "\n\n"
+            f"{dim_descriptions}\n\n"
             "你必须依次对上述全部 4 个维度给出通过/不通过判定及具体检验意见。\n"
             "禁止跳过任何维度，禁止合并多个维度。\n\n"
+            "!!! 重要约束 - 输出前请逐一核对：\n"
+            f"输出的 JSON 数组必须包含且仅包含以下 {len(dim_keys)} 个 key: {', '.join(dim_keys)}\n"
+            "缺少任何一个 key 都视为检验无效，你将收到批评。\n\n"
             "只输出一个 JSON 数组，不要有任何其他文字：\n"
             "[\n"
-            + ",\n".join(
-                f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见"}}'
-                for d in SRS_INSPECTION_DIMENSIONS
-            ) + "\n]"
+            f"{dim_template}\n"
+            "]"
         )
 
         await websocket.send_json({"type": "progress", "content": "\n🔍 后荣开始检验需求文档...\n"})
 
-        # 带补集的 hourong 调用：解析失败则重试一次
-        for hr_attempt in range(2):
-            reply = await _call_hourong(websocket, inspect_prompt)
+        # 带补集的 hourong 调用：解析失败则重试（最多3次，每次追加缺失维度提醒）
+        for hr_attempt in range(3):
+            reply = await _call_hourong(websocket, inspect_prompt, system_message=HOURONG_SYSTEM_MSG)
             parsed = _extract_json_array(reply)
 
             # 检查是否包含全部 4 个维度
@@ -218,11 +241,33 @@ async def _run_qa_loop(
                        if not any(r.get("key") == d["key"] for r in parsed)]
             if not missing:
                 break
-            if hr_attempt == 0:
+            if hr_attempt < 2:
+                missing_labels = [d["label"] for d in SRS_INSPECTION_DIMENSIONS if d["key"] in missing]
                 await websocket.send_json({
                     "type": "progress",
-                    "content": f"\n⚠️ 后荣未返回全部维度（缺: {', '.join(missing)}），重新请求...\n"
+                    "content": f"\n⚠️ 后荣未返回全部维度（缺: {', '.join(missing_labels)}），重新请求...\n"
                 })
+                inspect_prompt = (
+                    f"你上次输出的 JSON 缺少以下维度: {', '.join(missing_labels)}。\n"
+                    f"请务必在本次输出中包含全部 {len(SRS_INSPECTION_DIMENSIONS)} 个维度，不得遗漏！\n\n"
+                    f"重新输出完整 JSON 数组：\n"
+                    "[\n"
+                    f"{dim_template}\n"
+                    "]"
+                )
+
+        # 所有重试均失败时，返回错误而非用残缺数据继续
+        if missing:
+            missing_labels = [d["label"] for d in SRS_INSPECTION_DIMENSIONS if d["key"] in missing]
+            await websocket.send_json({
+                "type": "error",
+                "message": (
+                    f"后荣连续3次未能返回完整的检验报告，缺少维度: {', '.join(missing_labels)}。\n"
+                    "请检查后荣 agent 状态或稍后重试。"
+                ),
+            })
+            await websocket.close()
+            return
 
         results = []
         for dim in SRS_INSPECTION_DIMENSIONS:

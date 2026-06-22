@@ -356,16 +356,7 @@ class TestWorkloadIntegration:
             pytest.skip("Could not create board for workload test")
 
 
-# ============================================================
-# 7. 收件箱
-# ============================================================
 
-class TestInboxIntegration:
-    """收件箱集成测试"""
-
-    def test_get_inbox(self, api_client, auth_headers):
-        resp = api_client.get("/api/inbox/", headers=auth_headers)
-        assert resp.status_code == 200
 
 
 # ============================================================
@@ -398,10 +389,7 @@ class TestAPIRoutes:
         workload_paths = [p for p in paths if "/api/workload/" in p]
         assert len(workload_paths) > 0
 
-    def test_inbox_routes_exist(self, api_client):
-        resp = api_client.get("/openapi.json")
-        paths = resp.json().get("paths", {})
-        assert "/api/inbox/" in paths
+
 
     def test_dependency_routes_exist(self, api_client):
         resp = api_client.get("/openapi.json")
@@ -431,4 +419,4 @@ class TestAPIRoutes:
         assert "boards" in modules, "Boards module missing"
         assert "tasks" in modules, "Tasks module missing"
         assert "workload" in modules, "Workload module missing"
-        assert "inbox" in modules, "Inbox module missing"
+

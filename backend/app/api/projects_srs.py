@@ -12,7 +12,6 @@ from app.models.project import Project, ProjectMember
 from app.models.task import Task
 from app.models.board import Board, BoardColumn
 from app.models.group import Group
-from app.models.notification import InboxItem
 from app.models.enums import ProjectStatus
 from app.services.decomposition_service import DecompositionService
 from app.services.delivery_service import DeliveryService
@@ -26,34 +25,6 @@ from app.schemas.project_srs import (
 logger = logging.getLogger("devflow.projects")
 
 router = APIRouter(redirect_slashes=False)
-
-
-@router.get("", response_model=dict)
-def list_projects(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """列出所有项目"""
-    projects = db.query(Project).all()
-    return {
-        "code": 0,
-        "message": "success",
-        "data": {
-            "projects": [
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "slug": p.slug if hasattr(p, 'slug') else p.name.lower().replace(" ", "-"),
-                    "description": p.description,
-                    "status": p.status if hasattr(p, 'status') else "draft",
-                    "created_at": p.created_at.isoformat() if p.created_at else None,
-                    "project_dir": os.path.join(settings.PROJECTS_BASE_DIR, p.slug if hasattr(p, 'slug') else p.name.lower().replace(" ", "-")),
-                }
-                for p in projects
-            ],
-            "total": len(projects),
-        },
-    }
 
 
 @router.post("", response_model=dict)
@@ -218,11 +189,11 @@ def get_project_tasks(
             "tasks": [
                 {
                     "id": t.id,
-                    "title": t.title,
+                    "title": t.name,
                     "description": t.description,
                     "status": t.status,
-                    "priority": t.priority,
-                    "assignee_id": t.assignee_id,
+                    "priority": t.priority or "medium",
+                    "assignee_id": t.assignee_agent_id,
                     "acceptance_criteria": t.acceptance_criteria,
                     "created_at": t.created_at.isoformat() if t.created_at else None,
                 }
@@ -315,12 +286,8 @@ def get_project_notifications(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    items = db.query(InboxItem).filter(
-        InboxItem.user_id == current_user.id,
-        InboxItem.metadata_json.like(f'%"project_id": "{project_id}"%'),
-    ).order_by(InboxItem.created_at.desc()).all()
-
-    unread = sum(1 for i in items if not i.is_read)
+    items = []
+    unread = 0
 
     return {
         "code": 0,
