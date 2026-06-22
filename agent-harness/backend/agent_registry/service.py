@@ -7,7 +7,7 @@ class RegistryService:
     def __init__(self, db_url: str):
         self._repo = RegistryRepository(db_url)
 
-    async def initialize(self):
+    async def initialize(self) -> None:
         await self._repo.initialize()
 
     async def register_agent(
@@ -65,5 +65,8 @@ class RegistryService:
     ) -> list[HealthStatus]:
         return await self._repo.get_health_history(agent_id, limit)
 
-    async def close(self):
+    async def close(self) -> None:
         await self._repo.close()
+
+    async def update_agent_status(self, agent_id: str, status: AgentStatus) -> None:
+        await self._repo.update_status(agent_id, status)

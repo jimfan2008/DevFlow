@@ -120,8 +120,26 @@ class GatewayClient:
                 return parsed.port, api_key
 
         if check_gateway_running(self.profile_name):
+            # 网关运行但无HTTP端口，尝试从config读取远程API地址直连
+            config = read_profile_config(self.profile_name)
+            if config:
+                model_config = config.get("model", {})
+                if isinstance(model_config, dict):
+                    base_url = model_config.get("base_url", "")
+                    if base_url:
+                        self._remote_base_url = base_url.rstrip("/")
+                        self._api_key = (model_config.get("api_key") or
+                                         config.get("api_key") or
+                                         get_gateway_api_key(config) or "")
+                        # 提取端口（用于兼容）
+                        from urllib.parse import urlparse
+                        parsed = urlparse(base_url)
+                        self.port = parsed.port or 8000
+                        logger.info(f"用远程API直连 {base_url} 替代 profile '{self.profile_name}'")
+                        return self.port, self._api_key
+
             self._use_cli = True
-            logger.info(f"Gateway running but no HTTP port, will use CLI fallback for profile '{self.profile_name}'")
+            logger.info(f"Gateway运行但无HTTP端口，退到CLI模式 profile '{self.profile_name}'")
             return 0, ""
 
         raise ValueError(f"Gateway not available for profile '{self.profile_name}'. Ensure Hermes Gateway is running with API server enabled or install hermes CLI.")

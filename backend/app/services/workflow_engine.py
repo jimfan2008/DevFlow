@@ -1222,22 +1222,9 @@ class WorkflowEngine:
                         advanced = True
                         haimei_phase_msg = haimei_phase_msg or f"阶段5: 海梅推进到第{s.step_number}步"
 
-                        # ── 海梅自主调度Agent执行（使用新的 auto_execute 模块） ──
-                        # 步骤 4-14 由海梅自主控制，不需要人工点击
+                        # 步骤 4-14 由前端WS处理器执行，海梅只推进不调度
                         if 4 <= s.step_number <= 14:
-                            # 标记为 generating 防止僵尸检测重复重启
-                            self.save_step_artifacts(s.step_number, {"status": "generating", "message": f"海梅正在启动步骤{s.step_number}..."})
-                            try:
-                                import asyncio
-                                loop = asyncio.get_running_loop()
-                                from app.services.haimei_auto_execute import auto_dispatch_step
-                                dispatch_coro = auto_dispatch_step(
-                                    self.project_id, s.step_number, self.db
-                                )
-                                loop.create_task(dispatch_coro)
-                                actions.append(f"海梅已调度第{s.step_number}步的后台任务（自动执行+hourong检验）")
-                            except RuntimeError:
-                                actions.append(f"海梅已推进第{s.step_number}步，无事件循环可调度")
+                            actions.append(f"海梅已推进到第{s.step_number}步，等待前端触发执行")
                         else:
                             actions.append(f"海梅已推进第{s.step_number}步，等待执行")
                         break
@@ -1261,16 +1248,8 @@ class WorkflowEngine:
                             self.haimei_restore_agent(agent_role)
                         # 重启后台任务（使用自动执行模块）
                         if 4 <= s.step_number <= 14:
-                            # 标记为 generating 防止僵尸检测重复重启
-                            self.save_step_artifacts(s.step_number, {"status": "generating", "message": f"海梅正在启动步骤{s.step_number}..."})
-                            try:
-                                from app.services.haimei_auto_execute import auto_dispatch_step
-                                import asyncio
-                                loop = asyncio.get_running_loop()
-                                loop.create_task(auto_dispatch_step(self.project_id, s.step_number, self.db))
-                                actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，已重新启动执行")
-                            except RuntimeError:
-                                actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，无事件循环可调度")
+                            actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，重置后等待前端触发执行")
+                            self.reset_step(s.step_number)
                         else:
                             actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，等待前端触发执行")
                     elif artifacts.get("status") in ("generating",):

@@ -72,6 +72,25 @@ class TestAgentAPI:
         get_resp = await client.get("/api/v1/agents/hb-api")
         assert get_resp.json()["data"]["status"] == "active"
 
+    async def test_update_agent_status(self, client):
+        await client.post(
+            "/api/v1/agents",
+            json={"agent_id": "stat-1", "name": "Status", "version": "1.0.0"},
+        )
+        resp = await client.patch(
+            "/api/v1/agents/stat-1/status",
+            json={"status": "inactive"},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["data"]["status"] == "inactive"
+
+    async def test_update_agent_status_not_found(self, client):
+        resp = await client.patch(
+            "/api/v1/agents/nonexistent/status",
+            json={"status": "inactive"},
+        )
+        assert resp.status_code == 404
+
     async def test_delete_agent(self, client):
         await client.post(
             "/api/v1/agents",

@@ -6,7 +6,7 @@ from backend.agent_registry.models import AgentStatus
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
 
-def _ok(data):
+def _ok(data: dict | list | str) -> dict:
     return {"status": "ok", "data": data}
 
 
@@ -41,6 +41,17 @@ async def list_agents(
 @router.get("/{agent_id}")
 async def get_agent(agent_id: str, request: Request):
     svc = _get_svc(request)
+    card = await svc.get_agent(agent_id)
+    if not card:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return _ok(card.model_dump(mode="json"))
+
+
+@router.patch("/{agent_id}/status")
+async def update_agent_status(agent_id: str, body: dict, request: Request):
+    svc = _get_svc(request)
+    status = AgentStatus(body["status"])
+    await svc.update_agent_status(agent_id, status)
     card = await svc.get_agent(agent_id)
     if not card:
         raise HTTPException(status_code=404, detail="Agent not found")
