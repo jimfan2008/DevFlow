@@ -19,6 +19,7 @@ class RegistryRepository:
         path = self._db_url.replace("sqlite+aiosqlite:///", "")
         self._conn = await aiosqlite.connect(path)
         self._conn.row_factory = aiosqlite.Row
+        await self._conn.execute("PRAGMA foreign_keys = ON")
         await self._conn.execute(CREATE_AGENTS_TABLE)
         await self._conn.execute(CREATE_HEARTBEATS_TABLE)
         await self._conn.commit()
@@ -65,18 +66,20 @@ class RegistryRepository:
         rows = await cursor.fetchall()
         return [self._row_to_card(r) for r in rows]
 
-    async def update_status(self, agent_id: str, status: AgentStatus) -> None:
+    async def update_status(self, agent_id: str, status: AgentStatus) -> bool:
         now = datetime.now(timezone.utc).isoformat()
-        await self._conn.execute(
+        cursor = await self._conn.execute(
             "UPDATE agents SET status = ?, updated_at = ? WHERE agent_id = ?",
             (status.value, now, agent_id),
         )
         await self._conn.commit()
+        return cursor.rowcount > 0
 
-    async def delete(self, agent_id: str) -> None:
-        await self._conn.execute("DELETE FROM agents WHERE agent_id = ?", (agent_id,))
+    async def delete(self, agent_id: str) -> bool:
+        cursor = await self._conn.execute("DELETE FROM agents WHERE agent_id = ?", (agent_id,))
         await self._conn.execute("DELETE FROM heartbeats WHERE agent_id = ?", (agent_id,))
         await self._conn.commit()
+        return cursor.rowcount > 0
 
     async def record_heartbeat(self, hs: HealthStatus) -> None:
         await self._conn.execute(

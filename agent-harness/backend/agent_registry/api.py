@@ -1,7 +1,9 @@
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from backend.agent_registry.service import RegistryService
-from backend.agent_registry.models import AgentStatus
+from backend.agent_registry.models import (
+    AgentStatus, HeartbeatRequest, RegisterAgentRequest, StatusUpdateRequest,
+)
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
@@ -15,15 +17,15 @@ def _get_svc(request: Request) -> RegistryService:
 
 
 @router.post("")
-async def register_agent(body: dict, request: Request):
+async def register_agent(body: RegisterAgentRequest, request: Request):
     svc = _get_svc(request)
     card = await svc.register_agent(
-        agent_id=body["agent_id"],
-        name=body["name"],
-        version=body["version"],
-        description=body.get("description"),
-        capabilities=body.get("capabilities"),
-        endpoints=body.get("endpoints"),
+        agent_id=body.agent_id,
+        name=body.name,
+        version=body.version,
+        description=body.description,
+        capabilities=body.capabilities,
+        endpoints=body.endpoints,
     )
     return _ok(card.model_dump(mode="json"))
 
@@ -48,30 +50,34 @@ async def get_agent(agent_id: str, request: Request):
 
 
 @router.patch("/{agent_id}/status")
-async def update_agent_status(agent_id: str, body: dict, request: Request):
+async def update_agent_status(agent_id: str, body: StatusUpdateRequest, request: Request):
     svc = _get_svc(request)
-    status = AgentStatus(body["status"])
-    await svc.update_agent_status(agent_id, status)
-    card = await svc.get_agent(agent_id)
-    if not card:
+    updated = await svc.update_agent_status(agent_id, body.status)
+    if not updated:
         raise HTTPException(status_code=404, detail="Agent not found")
+    card = await svc.get_agent(agent_id)
     return _ok(card.model_dump(mode="json"))
 
 
 @router.delete("/{agent_id}")
 async def delete_agent(agent_id: str, request: Request):
     svc = _get_svc(request)
-    await svc.delete_agent(agent_id)
+    deleted = await svc.delete_agent(agent_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Agent not found")
     return _ok({"deleted": agent_id})
 
 
 @router.post("/{agent_id}/heartbeat")
-async def report_heartbeat(agent_id: str, body: dict, request: Request):
+async def report_heartbeat(agent_id: str, body: HeartbeatRequest, request: Request):
     svc = _get_svc(request)
-    hs = await svc.report_health(
-        agent_id=agent_id,
-        status=AgentStatus(body["status"]),
-        message=body.get("message"),
-        metrics=body.get("metrics"),
-    )
+    try:
+        hs = await svc.report_health(
+            agent_id=agent_id,
+            status=body.status,
+            message=body.message,
+            metrics=body.metrics,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     return _ok(hs.model_dump(mode="json"))

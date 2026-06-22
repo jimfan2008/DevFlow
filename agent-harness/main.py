@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from backend.agent_registry.api import router as agent_router
 from backend.agent_registry.service import RegistryService
 from backend.observability.telemetry import setup_telemetry
+from backend.security.middleware import auth_middleware
 from backend.shared.config import config
 
 
@@ -23,6 +24,7 @@ def create_app(db_url: str = config.database_url) -> FastAPI:
     app.state.db_url = db_url
     app.state.config = config
     app.include_router(agent_router)
+    app.middleware("http")(auth_middleware)
 
     @app.get("/health")
     async def health() -> JSONResponse:

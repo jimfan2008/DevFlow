@@ -1,4 +1,5 @@
 from fastapi import Request, Response, HTTPException
+from fastapi.responses import JSONResponse
 from backend.security.spire_client import SPIREIdentity
 from backend.security.opa_client import OPAClient, OPARequest
 
@@ -9,7 +10,7 @@ async def auth_middleware(request: Request, call_next) -> Response:
 
     spiffe_id = request.headers.get("X-SPIFFE-ID")
     if not spiffe_id or not SPIREIdentity.is_valid(spiffe_id):
-        raise HTTPException(status_code=401, detail="Missing or invalid SPIFFE ID")
+        return JSONResponse(status_code=401, content={"detail": "Missing or invalid SPIFFE ID"})
 
     opa = OPAClient(
         opa_url=request.app.state.config.opa_url
@@ -22,7 +23,7 @@ async def auth_middleware(request: Request, call_next) -> Response:
         )
     )
     if not allowed:
-        raise HTTPException(status_code=403, detail="Access denied")
+        return JSONResponse(status_code=403, content={"detail": "Access denied"})
 
     request.state.spiffe_id = spiffe_id
     return await call_next(request)

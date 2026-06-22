@@ -4,12 +4,15 @@ from httpx import ASGITransport, AsyncClient
 from main import create_app
 
 
+SPIFFE_HEADER = {"X-SPIFFE-ID": "spiffe://example.org/agent"}
+
+
 @pytest.fixture
 async def client():
     app = create_app(db_url=":memory:")
     async with LifespanManager(app):
         async with AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
+            transport=ASGITransport(app=app), base_url="http://test", headers=SPIFFE_HEADER
         ) as ac:
             yield ac
 

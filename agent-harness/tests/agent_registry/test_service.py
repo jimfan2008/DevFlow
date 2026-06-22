@@ -49,10 +49,9 @@ class TestRegistryService:
         result = await service.get_agent("no-exist")
         assert result is None
 
-    async def test_list_default_active(self, service):
+    async def test_list_default_all(self, service):
         a = await service.register_agent(agent_id="a", name="A", version="1.0.0")
         b = await service.register_agent(agent_id="b", name="B", version="1.0.0")
         await service._repo.update_status("b", AgentStatus.INACTIVE)
         result = await service.list_agents()
-        assert len(result) == 1
-        assert result[0].agent_id == "a"
+        assert len(result) == 2

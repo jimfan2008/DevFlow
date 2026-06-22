@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from typing import Optional
 from temporalio import activity
@@ -19,7 +20,7 @@ class HealthCheckResult:
     metrics: Optional[dict[str, float]] = None
 
 
-_REGISTRY_URL = "http://localhost:8000"
+_REGISTRY_URL = os.environ.get("AH_REGISTRY_URL", "http://localhost:8000")
 
 
 def _get_registry_url() -> str:

@@ -13,7 +13,6 @@ dependencies = [
     "opentelemetry-exporter-otlp-proto-http>=1.28.0",
     "opentelemetry-instrumentation-fastapi>=0.49b0",
     "httpx>=0.28.0",
-    "structlog>=24.4.0",
     "aiosqlite>=0.20.0",
     "asgi-lifespan>=2.1.0",
 ]

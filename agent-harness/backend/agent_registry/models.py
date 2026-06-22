@@ -33,3 +33,22 @@ class HealthStatus(BaseModel):
     )
     message: Optional[str] = None
     metrics: dict[str, float] = Field(default_factory=dict)
+
+
+class RegisterAgentRequest(BaseModel):
+    agent_id: str
+    name: str
+    version: str
+    description: Optional[str] = None
+    capabilities: Optional[list[str]] = None
+    endpoints: Optional[dict[str, str]] = None
+
+
+class HeartbeatRequest(BaseModel):
+    status: AgentStatus
+    message: Optional[str] = None
+    metrics: Optional[dict[str, float]] = None
+
+
+class StatusUpdateRequest(BaseModel):
+    status: AgentStatus

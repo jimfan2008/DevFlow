@@ -38,10 +38,10 @@ class RegistryService:
     async def list_agents(
         self, status: Optional[AgentStatus] = None
     ) -> list[AgentCard]:
-        return await self._repo.list(status=status or AgentStatus.ACTIVE)
+        return await self._repo.list(status=status)
 
-    async def delete_agent(self, agent_id: str) -> None:
-        await self._repo.delete(agent_id)
+    async def delete_agent(self, agent_id: str) -> bool:
+        return await self._repo.delete(agent_id)
 
     async def report_health(
         self,
@@ -50,6 +50,9 @@ class RegistryService:
         message: Optional[str] = None,
         metrics: Optional[dict[str, float]] = None,
     ) -> HealthStatus:
+        existing = await self._repo.get(agent_id)
+        if not existing:
+            raise ValueError(f"Agent {agent_id} not found")
         hs = HealthStatus(
             agent_id=agent_id,
             status=status,
@@ -68,5 +71,5 @@ class RegistryService:
     async def close(self) -> None:
         await self._repo.close()
 
-    async def update_agent_status(self, agent_id: str, status: AgentStatus) -> None:
-        await self._repo.update_status(agent_id, status)
+    async def update_agent_status(self, agent_id: str, status: AgentStatus) -> bool:
+        return await self._repo.update_status(agent_id, status)

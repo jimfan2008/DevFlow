@@ -85,6 +85,20 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Common Module -->
+            <dependency>
+                <groupId>com.gbm.hr</groupId>
+                <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Druid Connection Pool -->
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>druid-spring-boot-3-starter</artifactId>
+                <version>${druid.version}</version>
+            </dependency>
+
             <!-- MyBatis-Plus -->
             <dependency>
                 <groupId>com.baomidou</groupId>
