@@ -15,7 +15,28 @@ async def client():
 
 
 @pytest.mark.asyncio
+class TestHealth:
+    async def test_health_endpoint(self, client):
+        resp = await client.get("/health")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
 class TestAgentAPI:
+    async def test_list_agents(self, client):
+        await client.post(
+            "/api/v1/agents",
+            json={"agent_id": "l1", "name": "L1", "version": "1.0.0"},
+        )
+        await client.post(
+            "/api/v1/agents",
+            json={"agent_id": "l2", "name": "L2", "version": "1.0.0"},
+        )
+        resp = await client.get("/api/v1/agents")
+        assert resp.status_code == 200
+        assert len(resp.json()["data"]) == 2
+
     async def test_register_agent(self, client):
         resp = await client.post(
             "/api/v1/agents",
@@ -31,19 +52,6 @@ class TestAgentAPI:
         assert data["status"] == "ok"
         assert data["data"]["agent_id"] == "api-1"
         assert data["data"]["status"] == "active"
-
-    async def test_list_agents(self, client):
-        await client.post(
-            "/api/v1/agents",
-            json={"agent_id": "l1", "name": "L1", "version": "1.0.0"},
-        )
-        await client.post(
-            "/api/v1/agents",
-            json={"agent_id": "l2", "name": "L2", "version": "1.0.0"},
-        )
-        resp = await client.get("/api/v1/agents")
-        assert resp.status_code == 200
-        assert len(resp.json()["data"]) == 2
 
     async def test_get_agent(self, client):
         await client.post(

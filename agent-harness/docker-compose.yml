@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  registry:
+    build:
+      context: .
+      dockerfile: docker/agent-registry.Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      AH_DATABASE_URL: "sqlite+aiosqlite:////data/agent_harness.db"
+      AH_TEMPORAL_HOST: "temporal:7233"
+      AH_OPA_URL: "http://opa:8181"
+      AH_OTEL_ENDPOINT: "http://otel-collector:4318"
+    volumes:
+      - registry-data:/data
+    depends_on:
+      temporal:
+        condition: service_started
+
+  temporal:
+    image: temporalio/auto-setup:1.25
+    ports:
+      - "7233:7233"
+    environment:
+      DB: "sqlite"
+    volumes:
+      - temporal-data:/etc/temporal/data
+
+  temporal-admin-tools:
+    image: temporalio/admin-tools:1.25
+    depends_on:
+      - temporal
+
+  opa:
+    image: openpolicyagent/opa:latest
+    command: ["run", "--server", "--addr", ":8181"]
+    ports:
+      - "8181:8181"
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4318:4318"
+    volumes:
+      - ./docker/otel-config.yaml:/etc/otel/config.yaml
+
+volumes:
+  registry-data:
+  temporal-data:
