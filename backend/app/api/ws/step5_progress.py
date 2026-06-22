@@ -157,8 +157,7 @@ async def _run_step5(websocket: WebSocket, project_id: str, db) -> bool:
 
         # 发一条提示词给 houfu，不循环不收斂
         gen_path = os.path.join(docs_dir, f"{slug}_env_V1.md")
-        await websocket.send_json({"type": "progress", "message": "📤 正在向后富（HouFu）发送开发环境搭建请求..."})
-        await websocket.send_json({"type": "progress", "content": "\n# 开始生成开发环境配置...\n"})
+        await websocket.send_json({"type": "progress", "message": "📤 正在向后富（HouFu）Agent发送开发环境搭建请求..."})
 
         prompt = (
             "你是资深CI/CD工程师后富（HouFu），负责建立软件开发环境。\n\n"
@@ -173,57 +172,17 @@ async def _run_step5(websocket: WebSocket, project_id: str, db) -> bool:
         houfu = GatewayClient(profile_name="houfu", timeout=1200)
         chunks = []
         try:
-            # Direct remote API call (fast, reliable)
-            import httpx as _httpx
-            import json as _json2
-            houfu_api_url = "http://10.34.1.96:8000/v1/chat/completions"
-            houfu_api_key = "gbm_cq_vllm"
-            houfu_model = "Qwen3.6-27B-AWQ-INT4"
+            async for chunk in houfu.chat_isolated(
+                messages=[{"role": "user", "content": prompt}],
+                project_id=project_id, project_name=proj_name,
+                project_description=proj_desc, core_goal=core_goal,
+                agent_name="后富（HouFu）CI/CD工程师",
+                stream=True, max_tokens=64000,
+            ):
+                if chunk.strip():
+                    chunks.append(chunk)
+                    await websocket.send_json({"type": "progress", "content": chunk})
 
-            # Build isolated prompt (same as GatewayClient.chat_isolated)
-            system_prompt = (
-                f"你是后富（HouFu）CI/CD工程师，DevFlow 16步开发流程中的专业角色。\n"
-                f"\n【当前项目上下文】\n"
-                f"项目名称: {proj_name}\n"
-                f"项目ID: {project_id}\n"
-                f"项目描述: {proj_desc}\n"
-                f"核心目标: {core_goal}\n"
-                "\n【重要工作规则 - 项目隔离】\n"
-                "1. 你正在为上述「当前项目」工作\n"
-                "2. 请只引用上述项目信息，不要引用其他任何项目的上下文\n"
-                "3. 所有回答、分析、设计都只针对当前项目\n"
-                "4. 不得将其他项目的数据、需求、设计带入当前项目"
-            )
-            api_messages = [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt},
-            ]
-            api_payload = {
-                "model": houfu_model,
-                "messages": api_messages,
-                "stream": True,
-                "max_tokens": 64000,
-                "temperature": 0.7,
-            }
-            api_headers = {"Content-Type": "application/json", "Authorization": f"Bearer {houfu_api_key}"}
-
-            async with _httpx.AsyncClient(timeout=600) as _hx:
-                async with _hx.stream("POST", houfu_api_url, headers=api_headers, json=api_payload) as _resp:
-                    if _resp.status_code != 200:
-                        raise Exception(f"Direct API error {_resp.status_code}: {await _resp.aread()}")
-                    async for _line in _resp.aiter_lines():
-                        if _line.startswith("data: "):
-                            _data = _line[6:]
-                            if _data == "[DONE]":
-                                break
-                            try:
-                                _chunk = _json2.loads(_data)
-                                _content = _chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                                if _content:
-                                    chunks.append(_content)
-                                    await websocket.send_json({"type": "progress", "content": _content})
-                            except _json2.JSONDecodeError:
-                                continue
         except Exception as e:
             logger.error(f"Step5 houfu调用失败: {e}", exc_info=True)
             await websocket.send_json({"type": "error", "message": f"❌ 后富执行失败，已通知海梅处理: {str(e)[:100]}"})

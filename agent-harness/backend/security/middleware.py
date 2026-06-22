@@ -1,9 +1,9 @@
-from fastapi import Request, HTTPException
+from fastapi import Request, Response, HTTPException
 from backend.security.spire_client import SPIREIdentity
 from backend.security.opa_client import OPAClient, OPARequest
 
 
-async def auth_middleware(request: Request, call_next):
+async def auth_middleware(request: Request, call_next) -> Response:
     if request.url.path == "/health":
         return await call_next(request)
 
