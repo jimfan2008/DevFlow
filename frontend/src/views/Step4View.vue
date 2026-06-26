@@ -5,7 +5,7 @@
         <el-button :icon="ArrowLeft" text @click="goBack">返回</el-button>
         <div>
           <h1>第四步：架构设计</h1>
-          <p class="step4-view__subtitle">{{ projectName }} · 4个子流程并行</p>
+          <p class="step4-view__subtitle">{{ projectName }} · 4个子步骤串行</p>
         </div>
       </div>
       <div class="step4-view__header-right">
@@ -18,8 +18,8 @@
     <!-- idle -->
     <div v-if="stepStatus === 'idle'" class="step4-view__card">
       <div class="step4-view__card-icon">🏗️</div>
-      <h2>准备执行架构设计（4子流程并行）</h2>
-      <p>后旺1~4号将根据需求文档并行生成以下设计文档，后荣1~4号同步检验：</p>
+      <h2>准备执行架构设计（4个子步骤串行）</h2>
+      <p>后旺1~4号将根据需求文档串行生成以下设计文档，后荣1~4号逐项检验：<br>step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库</p>
       <div class="step4-view__doc-list-preview">
         <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🏛️</span><div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">系统整体架构、分层、模块划分、技术栈</div></div></div>
         <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🎨</span><div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">前端技术栈、组件树、路由、状态管理</div></div></div>
@@ -27,15 +27,15 @@
         <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🗄️</span><div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">完整 SQL DDL、表结构、索引、外键</div></div></div>
       </div>
       <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
-        {{ executing ? '后旺执行中...' : '开始执行' }}
+        {{ executing ? '串行执行中...' : '开始执行（4子步骤串行）' }}
       </el-button>
     </div>
 
-    <!-- executing: 4 parallel sub-flow panels -->
+    <!-- executing: 4 sequential sub-steps -->
     <div v-if="stepStatus === 'executing'" class="step4-view__card step4-view__card--executing">
       <div class="step4-view__executing-header">
         <div class="step4-view__card-icon">🏗️</div>
-        <h2>4个子流程并行运行</h2>
+        <h2>4个子步骤串行执行</h2>
       </div>
       <p class="step4-view__executing-status">{{ streamStatus }}</p>
 
@@ -69,6 +69,7 @@
             <span class="step4-view__subflow-label">{{ sf.label }}</span>
             <el-tag :type="({pending:'info',generating:'warning',reviewing:'primary',passed:'success',failed:'danger'} as Record<string,string>)[sf.status] || 'info'" size="small" effect="dark">{{ ({pending:'待执行',generating:'生成中',reviewing:'检验中',passed:'✅通过',failed:'❌未通过'} as Record<string,string>)[sf.status] || sf.status }}</el-tag>
             <span v-if="sf.rounds > 0" class="step4-view__subflow-rounds">第{{ sf.rounds }}轮</span>
+            <span v-if="sf.status === 'pending' && isAnySubStepActive" class="step4-view__subflow-queued">⏳ 排队中</span>
           </div>
           <div v-if="sf.message" class="step4-view__subflow-message">{{ sf.message }}</div>
           <div v-if="sf.detail" class="step4-view__subflow-detail">{{ sf.detail }}</div>
@@ -77,6 +78,12 @@
           </div>
           <div v-if="sf.status === 'generating' || sf.status === 'reviewing'" class="step4-view__subflow-bar">
             <el-progress :percentage="100" :stroke-width="4" status="warning" indeterminate />
+          </div>
+          <div v-if="sf.status === 'passed'" class="step4-view__subflow-bar">
+            <el-progress :percentage="100" :stroke-width="4" status="success" />
+          </div>
+          <div v-if="sf.status === 'failed'" class="step4-view__subflow-bar">
+            <el-progress :percentage="100" :stroke-width="4" status="exception" />
           </div>
         </div>
       </div>
@@ -145,7 +152,7 @@
             :loading="executing"
             @click="handleResumeFailed"
           >
-            {{ executing ? '执行中...' : `🔄 续跑未完成项（跳过已通过的${subFlowSummary.filter(s => s.status === 'passed').length}项，运行${subFlowSummary.filter(s => s.status !== 'passed').length}项）` }}
+            {{ executing ? '执行中...' : `🔄 续跑未完成子步骤（跳过已通过的${subFlowSummary.filter(s => s.status === 'passed').length}项，运行${subFlowSummary.filter(s => s.status !== 'passed').length}项）` }}
           </el-button>
         </div>
       </div>
@@ -235,10 +242,10 @@ interface SubFlowState {
 }
 
 const defaultSubFlows: Record<string, SubFlowState> = {
-  arch_reasonableness: { key: 'arch_reasonableness', label: '架构设计', icon: '🏛️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
-  frontend_feasibility: { key: 'frontend_feasibility', label: '前端设计', icon: '🎨', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
-  backend_feasibility: { key: 'backend_feasibility', label: '后端设计', icon: '⚙️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
-  database_design: { key: 'database_design', label: '数据库设计', icon: '🗄️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  arch_reasonableness: { key: 'arch_reasonableness', label: 'step4_1 架构设计', icon: '🏛️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  frontend_feasibility: { key: 'frontend_feasibility', label: 'step4_2 前端设计', icon: '🎨', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  backend_feasibility: { key: 'backend_feasibility', label: 'step4_3 后端设计', icon: '⚙️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  database_design: { key: 'database_design', label: 'step4_4 数据库设计', icon: '🗄️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
 }
 
 const subFlowStates = ref<Record<string, SubFlowState>>(JSON.parse(JSON.stringify(defaultSubFlows)))
@@ -248,6 +255,10 @@ function resetSubFlowStates() {
 }
 
 const subFlowStatesArray = computed(() => Object.values(subFlowStates.value))
+
+const isAnySubStepActive = computed(() => {
+  return subFlowStatesArray.value.some(sf => sf.status === 'generating' || sf.status === 'reviewing')
+})
 
 const subFlowMap: Record<string, string> = {
   'ARCHITECTURE': 'arch_reasonableness',
@@ -521,7 +532,7 @@ function startPolling() {
         designDoc.value = s4.design_doc
         stepStatus.value = 'qa_review'
         executing.value = false
-        streamStatus.value = '✅ 所有子流程完成'
+        streamStatus.value = '✅ 所有子步骤完成'
         clearAllTimers()
         ElMessage.success('架构设计完成，请进行 QA 检验')
       } else if (s4.status === 'error') {
@@ -531,7 +542,7 @@ function startPolling() {
         clearAllTimers()
       } else if (s4.status === 'generating' || data?.steps?.['4']?.status === 'in_progress') {
         emptyCount = 0
-        streamStatus.value = s4.message || '🏗️ 4个子流程运行中...'
+        streamStatus.value = s4.message || '🏗️ 4个子步骤串行执行中...'
       } else if (s4.sub_flow_results?.length === 4) {
         // 即使没有 design_doc，但 4 个子流程结果都已返回——可能部分失败
         // 切换到 qa_review 页面展示结果
@@ -563,16 +574,16 @@ async function handleExecute() {
   backendError.value = ''
   stuckWarning.value = ''
   designDoc.value = ''
-  stageLog.value = [{ type: 'stage', message: '🚀 4个子流程启动中...' }]
+  stageLog.value = [{ type: 'stage', message: '🚀 4个子步骤串行启动中...' }]
   liveContent.value = ''
-  streamStatus.value = '🚀 4个子流程启动中...'
+  streamStatus.value = '🚀 4个子步骤串行启动中...'
   resetSubFlowStates()
   stepStatus.value = 'executing'
   clearAllTimers()
   try {
     const res = await workflowApi.startStep4(props.projectId) as any
     if (res?.code === 0) {
-      streamStatus.value = '🏗️ 4个子流程并行运行中（houwang1→架构/hourong1←→houwang2→前端/hourong2←→houwang3→后端/hourong3←→houwang4→数据库/hourong4）'
+      streamStatus.value = '🏗️ 4个子步骤串行执行中（step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库）'
       stageLog.value.push({ type: 'stage', message: '📡 已连接后旺1~4号，等待开始生成...' })
       connectProgressWs()
       startPolling()
@@ -604,8 +615,8 @@ async function handleResumeFailed() {
     }
   }
   stepStatus.value = 'executing'
-  streamStatus.value = '🔄 续跑未完成项（已通过的不重新运行）...'
-  stageLog.value = [{ type: 'stage', message: '🔄 续跑模式启动，跳过已通过检验的文档...' }]
+  streamStatus.value = '🔄 续跑未完成子步骤（已通过的不重新运行）...'
+  stageLog.value = [{ type: 'stage', message: '🔄 续跑模式启动，跳过已通过检验的子步骤...' }]
   clearAllTimers()
   if (ws) { ws.onclose = null; ws.close(); ws = null }
   try {
@@ -645,8 +656,8 @@ async function handleRestart() {
   resetSubFlowStates()
   stepStatus.value = 'executing'
   executing.value = true
-  streamStatus.value = '♻️ 续跑模式：跳过已通过项，只重跑未通过子流程...'
-  stageLog.value = [{ type: 'stage', message: '♻️ 续跑模式启动，保留已通过检验的文档...' }]
+  streamStatus.value = '♻️ 续跑模式：跳过已通过项，只重跑未通过子步骤...'
+  stageLog.value = [{ type: 'stage', message: '♻️ 续跑模式启动，保留已通过检验的子步骤...' }]
   try {
     const res = await workflowApi.startStep4(props.projectId, true) as any
     if (res?.code === 0) {
@@ -757,6 +768,7 @@ function goToNext() { router.push({ name: 'ProjectDetail', params: { projectId: 
   &__subflow-icon { font-size: 20px; line-height: 1; }
   &__subflow-label { font-weight: 600; font-size: 14px; flex: 1; }
   &__subflow-rounds { font-size: 11px; color: #909399; background: #f5f7fa; padding: 1px 6px; border-radius: 4px; }
+  &__subflow-queued { font-size: 11px; color: #909399; background: #f5f7fa; padding: 1px 6px; border-radius: 4px; }
   &__subflow-message { font-size: 12px; color: #606266; margin-bottom: 4px; line-height: 1.4; }
   &__subflow-detail { font-size: 11px; color: #909399; margin-bottom: 4px; padding: 4px 8px; background: #f5f7fa; border-radius: 4px; line-height: 1.3; max-height: 40px; overflow: hidden; }
   &__subflow-content {

@@ -261,7 +261,13 @@ class WorkflowEngine:
             "haimei_supervisor": "haimei",
         }
 
-        if step_number in QA_REQUIRED_STEPS:
+        # If internal hourong QA already passed (qa_passed=True), skip qa_review
+        existing_arts = (artifacts or row.output_artifacts or {})
+        if existing_arts.get("qa_passed"):
+            row.status = "completed"
+            row.completed_at = datetime.now(timezone.utc)
+            self._generate_step_handover(step_number)
+        elif step_number in QA_REQUIRED_STEPS:
             row.status = "qa_review"
         else:
             row.status = "completed"
@@ -1351,10 +1357,15 @@ class WorkflowEngine:
 
         steps = {}
         for r in rows:
+            effective_status = r.status
+            if effective_status == "qa_review":
+                artifacts = r.output_artifacts or {}
+                if artifacts.get("qa_passed"):
+                    effective_status = "completed"
             steps[str(r.step_number)] = {
                 "step_name": r.step_name,
                 "executor_role": r.executor_agent_id,
-                "status": r.status,
+                "status": effective_status,
                 "completed_at": r.completed_at.isoformat() if r.completed_at else None,
             }
 

@@ -80,6 +80,7 @@ declare module 'vue' {
     TaskDetailPanel: typeof import('./src/components/tasks/TaskDetailPanel.vue')['default']
     TaskForm: typeof import('./src/components/tasks/TaskForm.vue')['default']
     TaskList: typeof import('./src/components/TaskList.vue')['default']
+    WorkflowStepBase: typeof import('./src/components/WorkflowStepBase.vue')['default']
     WorkloadBadge: typeof import('./src/components/workload/WorkloadBadge.vue')['default']
     WorkloadChart: typeof import('./src/components/workload/WorkloadChart.vue')['default']
   }
