@@ -45,7 +45,7 @@ async def _inspect_doc(project_id: str, doc_path: str, project_name: str = "", p
         if attempt > 1:
             await _asyncio.sleep(2)
             await broadcast(project_id, {"type": "step14", "message": f"🔄 hourong 第{attempt}次重新检验项目文档..."})
-        insp_prompt = f"你是一个专业的文档QA检验员（后荣）。请严格检验以下项目文档。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in DOC_INSPECTION_DIMENSIONS)
+        insp_prompt = f"你是一个专业的文档QA检验员（后荣）。请严格检验以下项目文档。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in DOC_INSPECTION_DIMENSIONS)
         qa_cli = GatewayClient(profile_name="hourong", timeout=180)
         qa_chunks = []
         async for chunk in qa_cli.chat_isolated(messages=[{"role": "user", "content": insp_prompt}], project_id=project_id, project_name=project_name, project_description=project_description, core_goal=core_goal, agent_name=agent_label or "后荣-项目文档QA检验员", stream=True, max_tokens=8192):
@@ -272,7 +272,8 @@ async def inspect_step14(project_id: str, body: Step3InspectRequest, db: Session
     active_dims = [d for d in DOC_INSPECTION_DIMENSIONS if not focus_items or d["key"] in focus_items]
     dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
     focus_hint = f"\n⚠️ 本次只检验：{[d['label'] for d in active_dims]}" if focus_items else ""
-    prompt = f"你是一个专业的文档QA检验员（后荣）。\n\n=== 项目文档 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
+    convergence_hint = "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
+    prompt = f"你是一个专业的文档QA检验员（后荣）。\n\n=== 项目文档 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
         client = GatewayClient(profile_name="hourong", timeout=120)
         chunks = []

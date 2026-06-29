@@ -82,10 +82,16 @@ async def _inspect_env_doc(
             f"  detail: string (your inspection comments)\n\n"
             f"Template:\n[\n"
             f"{dim_template}\n]\n\n"
-            f"CRITICAL RULES:\n"
-            f"1. The JSON array must be the ONLY content in your response.\n"
-            f"2. Do NOT include any text before or after the JSON array.\n"
-            f"3. Do NOT use markdown code fences (```json ... ```).\n"
+             f"CONVERGENCE RULE:\n"
+             f"The inspection report MUST focus ONLY on non-conforming items. "
+             f"Clearly indicate what specific issues need to be fixed and the direction of modification. "
+             f"Downstream agents will ONLY modify non-conforming items based on your report. "
+             f"Do NOT request changes to items that have already passed. "
+             f"Scope expansion is strictly prohibited.\n\n"
+             f"CRITICAL RULES:\n"
+             f"1. The JSON array must be the ONLY content in your response.\n"
+             f"2. Do NOT include any text before or after the JSON array.\n"
+             f"3. Do NOT use markdown code fences (```json ... ```).\n"
             f"4. Do NOT include thinking, reasoning, analysis, or explanation.\n"
             f"5. Do NOT include file content, tool calls, or tool results.\n"
             f"6. Do NOT include greetings, apologies, or any conversational text.\n"
@@ -392,7 +398,8 @@ async def inspect_step5_env(project_id: str, body: Step3InspectRequest, db: Sess
     active_dims = [d for d in ENV_SETUP_DIMENSIONS if not focus_items or d["key"] in focus_items]
     dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
     focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项：{[d['label'] for d in active_dims]}\n请只针对这些项目做出通过/不通过判定。" if focus_items else ""
-    prompt = (f"你是一个专业的环境配置QA检验员（后荣）。请严格检验以下开发环境配置。\n\n=== 环境配置 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n直接输出 JSON 数组，不要包含其他说明文字：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
+    convergence_hint = "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
+    prompt = (f"你是一个专业的环境配置QA检验员（后荣）。请严格检验以下开发环境配置。\n\n=== 环境配置 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n直接输出 JSON 数组，不要包含其他说明文字：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
     try:
         client = GatewayClient(profile_name="hourong", timeout=120)
         chunks = []

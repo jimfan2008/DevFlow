@@ -100,19 +100,6 @@ async def _run_step5(websocket: WebSocket, project_id: str, db) -> bool:
 
     try:
         engine = WorkflowEngine(project_id=project_id, db=db)
-
-        # 检查是否真的有 Haimei 后台任务在运行（不是僵尸状态）
-        step5_row = engine._get_step_row(5)
-        if step5_row and step5_row.status == "in_progress":
-            # 检查是否有后台任务在运行
-            from app.services.haimei_executor import HaimeiStepExecutor
-            has_task = HaimeiStepExecutor.is_running(project_id, 5)
-            if has_task or engine.get_step5_artifacts().get("status") == "generating":
-                await websocket.send_json({"type": "progress", "message": "♻️ Haimei 正在执行中，实时同步进度..."})
-                return False  # 保持监听
-            # 僵尸状态：重置并重新执行
-            engine.reset_step(5)
-
         engine.advance_step(5)
 
         # Gather context from previous steps

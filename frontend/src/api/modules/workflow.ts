@@ -54,6 +54,9 @@ export const workflowApi = {
   executeStep5(projectId: string) {
     return apiClient.post<ApiResponse<{ message: string; status: string }>>(`/v1/workflow/${projectId}/step5/execute`, {}, { timeout: 30000 })
   },
+  executeStep(projectId: string, stepNumber: number) {
+    return apiClient.post<ApiResponse<{ message: string; status: string }>>(`/v1/workflow/${projectId}/step${stepNumber}/execute`, {}, { timeout: 30000 })
+  },
   getStep5Status(projectId: string) {
     return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/step5/status`)
   },

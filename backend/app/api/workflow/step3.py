@@ -214,7 +214,10 @@ async def inspect_step3_srs(project_id: str, body: Step3InspectRequest,
         f"请依次逐项检验以下 {len(active_dims)} 个维度，对每个维度给出通过/不通过及具体意见：\n"
         f"{dims_json}\n\n"
         "请阅读完整需求文档，严格按照上述检验标准进行专业评审。\n"
-        f"{focus_hint}\n"
+        f"{focus_hint}"
+        "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。"
+        "后续Agent将只根据你的检验报告修改不合格项，禁止扩大修改范围。"
+        "已合格维度不得提出修改要求。\n"
         "直接输出 JSON 数组，不要包含其他说明文字：\n"
         "[\n"
         + ",\n".join(

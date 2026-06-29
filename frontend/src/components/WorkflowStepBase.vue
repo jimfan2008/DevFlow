@@ -94,6 +94,14 @@ const emit = defineEmits<{
     <div class="workflow-step-view__card-icon">🔍</div>
     <h2>等待 QA 检验</h2>
     <p>步骤执行完成，等待检验通过后进入下一步</p>
+    <div class="workflow-step-view__action-row">
+      <el-button type="primary" size="large" :loading="executing" @click="emit('execute')">
+        🔄 重新执行
+      </el-button>
+      <el-button plain size="large" @click="emit('go-prev')">
+        ← 回到步骤{{ prevStep }}
+      </el-button>
+    </div>
   </div>
 
   <!-- completed -->

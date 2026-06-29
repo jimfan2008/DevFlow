@@ -1,0 +1,677 @@
+# Agent Harness 管理平台需求规格说明书
+
+## 1. 概述
+
+企业级 Agent 管理平台，基于 ETCLOVG 七层架构，管理多种类型的 Agent（AI Agent、监控 Agent、RPA 等）。核心能力按优先级：**编排 > 安全 > 监控 > 生命周期 > 市场 > 计费**。
+
+部署模式：混合部署。核心私有化指控制面组件（G 层治理与安全、L 层 Temporal Server、L 层 Agent Registry、C 层长期记忆存储、O 层可观测性后端）部署于企业私有数据中心；云端可部署 Agent 运行时沙盒（E 层执行环境）及按需扩展的计算节点，但 Agent 间通信始终经 mTLS 加密回传至私有化控制面。面向企业内部团队，支持大规模（500+ Agent）集群管理。
+
+## 2. ETCLOVG 七层架构
+
+| 层 | 名称 | 职责 |
+|----|------|------|
+| E | Execution & Sandbox | Agent 运行环境（容器/microVM/浏览器） |
+| T | Tool Interface | 工具发现与调用（MCP/A2A/Function Calling） |
+| C | Context Management | 短期上下文/中期会话/长期记忆 |
+| L | Lifecycle/Orchestration | 执行流调度、重试、多 Agent 编排 |
+| O | Observability | 追踪/监控/日志/成本 |
+| V | Verification & Evaluation | 评测模型+Harness 组合 |
+| G | Governance & Security | 身份/权限/钩子/审计/宪法规则 |
+
+## 3. 术语和定义
+
+| 术语 | 定义 |
+|------|------|
+| 核心组件 | 控制面组件：G 层（SPIFFE/SPIRE、OPA、审计日志、宪法规则引擎）、L 层（Temporal Server、Agent Registry）、C 层长期记忆存储、O 层可观测性后端。必须部署于企业私有数据中心，不可外迁。 |
+| 云端组件 | 可部署于公有云或第三方数据中心的组件：E 层 Agent 运行时沙盒（容器/microVM/浏览器环境）、按需扩展的计算节点。云端运行 Agent 的所有通信经 mTLS 加密回传至私有化控制面。 |
+| 宕机零丢失（RPO=0） | 故障场景限定为 Temporal Server 持久化层单集群内故障，包含该集群内所有节点同时故障的场景，依赖 Temporal Durable Execution 的 Event History 持久化语义实现。跨集群故障转移场景不承诺 RPO=0，需额外部署跨区域复制方案方可保障。 |
+| Agent 类型 | 指 Agent 在平台中的运行模式分类，由以下维度形式化定义：运行模式（LangGraph ReAct 循环/定时触发/脚本执行）、通信协议（A2A + MCP / A2A 仅）、注册方式（Agent Registry / 配置文件）、沙盒类型（容器/microVM/浏览器）。新增 Agent 类型必须满足以上四维定义，无需修改平台核心代码即可通过配置文件注册。 |
+| 沙盒池 | E 层 Agent 运行时沙盒的预分配资源池，包含同类型沙盒实例的集合。沙盒池按沙盒类型（容器/microVM/浏览器）分类管理，支持按租户划分隔离。池内沙盒实例由沙盒池管理器统一分配和回收，单个沙盒实例是沙盒池的基本分配单元。 |
+| 基础 O 层 | MVP 范围内的 O 层功能子集，包含：OpenTelemetry Tracing 数据采集、运行时 Metrics 采集（调用量、延迟、错误率）、结构化日志采集。成本追踪功能不在 MVP 范围内。 |
+
+## 4. 用户角色与权限矩阵
+
+平台基于 G 层策略引擎支持的四种标准角色：
+
+| 角色 | 描述 | 权限边界 |
+|------|------|---------|
+| admin | 平台管理员，拥有全部管理权限 | Agent 注册/注销/配置修改、工作流创建/终止、策略规则增删改、审计日志查询、租户管理、用户管理、系统配置 |
+| operator | 运营运维人员，负责日常运行维护 | Agent 查看/启停、工作流查看/重试/终止、审计日志查询、监控面板查看、告警处理、沙盒池扩缩操作 |
+| developer | Agent 开发者，负责 Agent 开发与部署 | Agent 注册/更新/版本管理、工作流创建/调试、测试沙盒访问、Agent 日志查询、新 Agent 类型接入 |
+| viewer | 只读用户，仅可查看信息 | Agent 列表查看、工作流状态查看、监控面板查看、审计日志只读查询 |
+
+每项权限操作均经过 G 层 OPA 策略引擎校验，跨租户访问由 SPIFFE 命名空间隔离。
+
+## 5. 功能需求
+
+### P0 — 编排（Lifecycle & Orchestration）
+
+| 编号 | 需求描述 | 对应章节 | 验收标准 / 验证方式 |
+|------|---------|---------|-------------------|
+| F-E-01 | 沙盒执行环境管理 — 支持容器（Docker）、microVM（E2B）、浏览器三种沙盒类型的生命周期管理（创建、启动、停止、销毁）和沙盒池动态管理 | E 层 | 通过集成测试验证：每种沙盒类型可正常创建和启动；沙盒池支持按需分配和回收 |
+| F-T-01 | 工具接口协议支持 — 统一接入 MCP、A2A、Function Calling 三种协议，支持工具发现与调用 | T 层 | 通过集成测试验证：Agent 可通过 MCP 协议发现并调用外部工具；Agent 间通过 A2A 协议通信 |
+| F-L-01 | 跨 Agent 工作流编排 — 支持 Temporal Workflow 定义跨 Agent 的执行流程 | L 层核心 | 通过集成测试验证：定义包含 2 个以上 Agent 的工作流，成功执行并返回预期结果 |
+| F-L-02 | Saga 补偿事务 — 工作流失败时执行补偿操作回滚部分完成的状态 | L 层核心 | 通过故障注入测试验证：工作流中途失败，补偿操作按预期顺序执行，部分完成状态回滚至初始 |
+| F-L-03 | 人工审批（Signal）— 工作流中插入人工审批节点，支持超时后回滚 | L 层核心 | 通过集成测试验证：Signal 等待超时后工作流按回滚策略执行；Signal 发送后工作流继续执行 |
+| F-L-04 | 定时/重试调度 — 支持定时触发和自动重试策略 | L 层核心 | 通过集成测试验证：定时任务在指定时间触发；失败任务按配置重试策略自动重试 |
+| F-L-05 | Agent Registry — Agent 注册与发现，基于 A2A Agent Card 描述能力集与端点 | L 层核心 | 通过集成测试验证：Agent 注册后可被查询和发现；重复注册返回错误。批量注册操作限流阈值：单次 API 调用最多注册 100 个 Agent，超过返回 429 状态码 |
+| F-L-06 | 健康检查 — 定期检测 Agent 运行状态 | L 层核心 | 通过集成测试验证：健康检查间隔可配置；异常状态 Agent 被标记并告警 |
+| F-L-07 | LangGraph Agent 内部推理 — 每个 Agent 内部 ReAct 循环（思考→调用工具→观察→思考） | L 层核心 | 通过单元测试验证：ReAct 循环在预期轮数内完成；工具调用失败时进入重试或优雅降级 |
+
+### P1 — 安全（Governance & Security）
+
+| 编号 | 需求描述 | 对应章节 | 验收标准 / 验证方式 |
+|------|---------|---------|-------------------|
+| F-G-01 | 工作负载身份 — SPIFFE/SPIRE 为每个 Agent 和工作流分配唯一身份 | G 层 | 通过集成测试验证：每个 Agent 和工作流获得唯一 SPIFFE ID；身份可验证 |
+| F-G-02 | 传输加密 — mTLS 双向认证，所有 Agent 间通信加密 | G 层 | 通过安全测试验证：未经 mTLS 认证的连接被拒绝；通信内容经抓包验证为加密 |
+| F-G-03 | 策略引擎 — OPA 实现访问控制策略 | G 层 | 通过集成测试验证：OPA 策略生效时越权操作被拒绝；策略更新后即时生效 |
+| F-G-04 | 关系型权限 — OpenFGA 实现细粒度关系权限 | G 层 | 通过集成测试验证：用户对 Agent 的访问受 OpenFGA 模型约束；权限变更后正确生效 |
+| F-G-05 | 声明式宪法规则 — 基于 YAML 规则引擎，覆盖宪法规则定义的 3 个拦截点（tool_call.before / llm_input.before / agent_to_agent）。宪法规则先于生命周期钩子（F-G-06）执行：同一事件触发时，先评估宪法规则，若结果为 REJECT 则直接拒绝且不触发钩子；若结果为 REDACT/ALERT/APPROVE 则进入生命周期钩子继续处理 | G 层 | 通过集成测试验证：每个拦截点的规则正确触发对应的 REJECT/REDACT/alert 动作 |
+| F-G-06 | 生命周期钩子 — 四个拦截点：输入前、执行前、返回后、关键动作前 | G 层 | 通过集成测试验证：每个拦截点的钩子函数在正确时机被调用；异常时输出明确错误信息 |
+| F-G-07 | 审计日志 — Write-Once 不可篡改，记录每次调用/决策/拒绝 | G 层 | 通过安全测试验证：审计日志写入后不可修改或删除；日志写入失败时触发告警但不阻断业务。审计日志存储空间达到 90% 时触发告警；写满时新写入失败返回错误码 AUDIT_LOG_FULL，业务操作可降级继续 |
+
+### P2 — 监控（Observability）
+
+| 编号 | 需求描述 | 对应章节 | 验收标准 / 验证方式 |
+|------|---------|---------|-------------------|
+| F-O-01 | 分布式追踪 — OpenTelemetry 采集 Tracing 数据 | O 层 | 通过集成测试验证：工作流执行产生完整的 Trace 链路数据；Trace 数据可在 Langfuse 中查询 |
+| F-O-02 | 指标采集 — 运行时 Metrics（调用量、延迟、错误率） | O 层 | 通过集成测试验证：指标数据按时采集并写入可观测后端；指标面板可展示历史趋势 |
+| F-O-03 | 日志收集 — 结构化日志采集与存储 | O 层 | 通过集成测试验证：Agent 输出结构化日志；日志可按级别、时间范围、Agent ID 过滤查询。日志保留周期 >= 90 天，过期自动轮转 |
+
+> **说明**：F-O-03（O 层结构化日志）与 NFR-C-02（G 层审计日志保留周期）是两套独立的日志系统。F-O-03 记录 Agent 执行过程的结构化运行日志，用于调试与监控，存储于 O 层可观测性后端。NFR-C-02 记录安全审计事件的 Write-Once 链式日志（见 6.2 节审计日志记录实体），存储于 G 层审计存储，具备哈希链完整性保护。两套日志保留周期均 >= 90 天，但存储引擎、完整性保护级别和查询用途不同。
+| F-O-04 | 成本追踪 — 按 Agent/工作流维度的 Token 消耗与资源使用成本核算 | O 层 | 通过集成测试验证：成本数据按 Agent 和工作流维度聚合可查询；数据精度到单次调用级别 |
+
+### P3 — 生命周期管理
+
+| 编号 | 需求描述 | 对应章节 | 验收标准 / 验证方式 |
+|------|---------|---------|-------------------|
+| F-LM-01 | Agent 包管理 — 基于 OCI Distribution（Harbor）管理 Agent 镜像 | 开源工具选型 | 通过集成测试验证：Agent 镜像可推送至 Harbor；支持标签管理 |
+| F-LM-02 | 版本管理 — Agent 版本追踪与回滚 | L 层核心 | 通过集成测试验证：Agent 版本历史可查询；回滚至指定版本后功能正常 |
+| F-LM-03 | 一键部署 — 从镜像仓库部署 Agent 到运行环境 | L 层核心 | 通过集成测试验证：选定版本后 Agent 自动部署至沙盒；部署完成后健康检查通过 |
+
+### P4 — 市场（Agent Marketplace）
+
+| 编号 | 需求描述 | 对应章节 | 验收标准 / 验证方式 |
+|------|---------|---------|-------------------|
+| F-M-01 | Agent 发现 — 通过 Registry 搜索和浏览可用 Agent | L 层核心 / Agent 市场说明 | 通过集成测试验证：支持按名称、能力、类型搜索；搜索结果正确 |
+| F-M-02 | Agent 分发 — 基于 OCI 镜像协议的分发与版本管理 | L 层核心 / Agent 市场说明 | 通过集成测试验证：Agent 镜像可按标准 OCI 协议分发；版本标签正确 |
+
+### P5 — 计费（Billing）
+
+| 编号 | 需求描述 | 对应章节 | 验收标准 / 验证方式 |
+|------|---------|---------|-------------------|
+| F-B-01 | 用量统计 — 基于 Observability 层成本追踪数据统计每个 Agent 的资源消耗 | O 层 | 通过集成测试验证：用量统计数据与成本追踪原始数据一致；报表可按时间范围导出 |
+
+## 6. 数据模型定义
+
+### 6.1 Agent Card 字段规范
+
+基于 A2A Agent Card 格式，每个注册 Agent 的字段定义如下：
+
+| 字段 | 类型 | 必填 | 描述 | 约束 |
+|------|------|------|------|------|
+| agent | string | 否 | Agent 唯一标识符。用户提供时格式为 {name}@{version}；不含此字段时由平台自动生成，自动生成格式为 {type}-{uuid-short}@{auto} | 全局唯一，长度 <= 128 字符 |
+| capabilities | string[] | 是 | Agent 能力标签列表 | 每项长度 <= 64 字符，最多 20 项 |
+| auth | string | 是 | SPIFFE 身份标识，格式为 spiffe://{namespace}/{path} | 与 SPIFFE/SPIRE 分配的身份一致 |
+| rate_limit | integer | 是 | API 调用速率限制（次/秒） | 取值范围 [1, 10000] |
+| endpoints.a2a | string | 是 | A2A 协议端点 URL | 有效的 URI 格式 |
+| endpoints.mcp | string | 否 | MCP 协议端点 URL，Agent 提供工具能力时必填 | 有效的 URI 格式 |
+| health | string | 是 | 健康检查端点路径 | 以 / 开头 |
+| runtime | string | 是 | Agent 运行框架标识 | 枚举值：langgraph、custom |
+| version | string | 是 | Agent 语义化版本号 | 符合 SemVer 规范（x.y.z） |
+
+### 6.2 审计日志记录实体
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| log_id | string | 日志记录唯一标识（UUID） |
+| timestamp | datetime | 事件发生时间（UTC） |
+| agent_id | string | 触发事件的 Agent 标识 |
+| workflow_id | string | 关联的工作流标识（可选） |
+| action | string | 事件动作类型：invoke、decision、reject、approve |
+| hook_point | string | 触发拦截点：input_before、exec_before、return_after、critical_action_before（可选） |
+| policy_result | string | 策略评估结果：allowed、denied、redacted（可选） |
+| payload_hash | string | 事件内容的 SHA-256 哈希值，用于完整性校验 |
+| previous_hash | string | 上一条日志记录的哈希值，形成哈希链防篡改 |
+| tenant_id | string | 所属租户标识 |
+
+### 6.3 工作流状态实体
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| workflow_id | string | 工作流唯一标识 |
+| status | string | 状态枚举：running、completed、failed、compensating、compensated、timed_out |
+| agent_ids | string[] | 参与 Agent 列表 |
+| start_time | datetime | 开始时间 |
+| last_update | datetime | 最后更新时间 |
+| event_history | string[] | Temporal Event History 引用列表 |
+| current_activity | string | 当前执行的活动标识 |
+| error_info | string | 错误信息（状态为 failed 时） |
+
+### 6.4 策略规则实体
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| rule_id | string | 规则唯一标识 |
+| hook_point | string | 拦截点枚举：tool_call.before、llm_input.before、agent_to_agent |
+| condition | string | 规则条件表达式（OPA Rego 语法） |
+| action | string | 触发动作枚举：REJECT、REDACT、ALERT、APPROVE |
+| priority | integer | 规则优先级，数值越小优先级越高 |
+| enabled | boolean | 是否启用 |
+| tenant_id | string | 所属租户标识 |
+| created_at | datetime | 创建时间 |
+
+## 7. 整体架构
+
+架构图按 ETCLOVG 顺序（E→T→C→L→O→V→G）从上至下排列，体现从执行基础到全局治理的层次递进关系。
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                          API Gateway / Console                        │
+│                     (统一的 Web UI + CLI + API)                       │
+└──────────────────────────────────────────────────────────────────────┘
+                                      │
+┌──────────────────────────────────────────────────────────────────────┐
+│  E — Execution & Sandbox                                             │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────┐  │
+│  │ 容器运行时(Docker) │  │  microVM (E2B)   │  │  Computer Use      │  │
+│  │ + 沙盒池管理       │  │ 高隔离场景       │  │  GUI 操作场景      │  │
+│  └──────────────────┘  └──────────────────┘  └────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│  T — Tool Interface                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────┐  │
+│  │   MCP Servers     │  │   A2A Protocol   │  │   Function Calling  │  │
+│  │  (工具/数据接入)   │  │ (Agent 间通信)   │  │  (LLM 原生)        │  │
+│  └──────────────────┘  └──────────────────┘  └────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│  C — Context Management                                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────┐  │
+│  │ 短期上下文窗口     │  │ 中期会话状态      │  │ 长期持久化记忆     │  │
+│  │ (System Prompt    │  │ (结构化笔记 +    │  │ (Mem0 + 向量库 +   │  │
+│  │  渐进式披露)       │  │  工作文件)       │  │  图数据库)         │  │
+│  └──────────────────┘  └──────────────────┘  └────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│  L — Lifecycle & Orchestration                                       │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────┐  │
+│  │   Temporal        │  │   Agent Registry  │  │   Agent 市场      │  │
+│  │   - 跨Agent工作流  │  │   - A2A Agent Card│  │   - OCI 镜像/包   │  │
+│  │   - Saga 补偿     │  │   - 服务发现      │  │   - 版本管理       │  │
+│  │   - 人工审批(Signal)│  │   - 健康检查      │  │   - 一键部署       │  │
+│  │   - 定时/重试      │  │                  │  │                    │  │
+│  └──────────────────┘  └──────────────────┘  └────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│  O — Observability                                                   │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │  OpenTelemetry → Langfuse/Arize Phoenix                        │  │
+│  │  (Tracing + Metrics + Logs + 成本追踪)                         │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│  V — Verification & Evaluation                                        │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ 评测沙盒: 执行前验证 → 执行中追踪 → 多级判断 → 回归测试库       │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│  G — Governance & Security Layer                                     │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
+│  │SPIFFE/   │ │   OPA    │ │   mTLS   │ │ 宪法规则  │ │ 审计日志   │  │
+│  │SPIRE ID  │ │  策略引擎 │ │  传输加密 │ │声明式配置 │ │ 不可篡改   │  │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └───────────┘  │
+│  钩子: [输入前 → 执行前 → 返回后 → 关键动作审批]                      │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+## 8. L 层核心：编排模型
+
+### Temporal + LangGraph 双层架构
+
+```
+┌─────────────────────────────────────────────┐
+│  Temporal (编排层)                            │
+│  跨 Agent 工作流、Saga、重试、人工审批           │
+│  工作流状态 100% 持久化，宕机零丢失              │
+├─────────────────────────────────────────────┤
+│  LangGraph (Agent 内部逻辑)                   │
+│  每个 Agent 内部的 ReAct 循环、Tool Calling    │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│  │ AI Agent│ │Monitor  │ │  RPA    │        │
+│  │(LangG.) │ │(LangG.) │ │(LangG.) │        │
+│  └─────────┘ └─────────┘ └─────────┘        │
+├─────────────────────────────────────────────┤
+│  MCP Servers / A2A Protocol                   │
+└─────────────────────────────────────────────┘
+```
+
+- **Temporal** 管 Agent **之间**的编排（跨 Agent 工作流、人工审批、失败补偿）
+- **LangGraph** 管单个 Agent **内部**的推理循环（ReAct、Tool Calling、子图路由）
+
+### Agent Registry（A2A Agent Card）
+
+字段规范详见 [6.1 Agent Card 字段规范](#61-agent-card-字段规范)。以下为注册示例：
+
+```
+{
+  "agent": "hr-candidate-sourcer@v2",
+  "capabilities": ["search", "parse", "rank"],
+  "auth": "spiffe://prod/hr/sourcer",
+  "rate_limit": 100,
+  "endpoints": {
+    "a2a": "a2a://registry/hr/sourcer",
+    "mcp": "mcp://mcp-server/hr"
+  },
+  "health": "/healthz",
+  "runtime": "langgraph",
+  "version": "2.1.0"
+}
+```
+
+### Agent 市场说明
+
+Agent 市场作为 L 层 Agent Registry 的扩展能力，提供 Agent 的分发与发现功能：
+
+- **OCI 镜像/包管理**：基于 Harbor 存储 Agent 运行时包，支持版本标记（tag）和清单（manifest）
+- **版本管理**：每 Agent 支持语义化版本号（SemVer），Registry 维护版本历史
+- **一键部署**：通过 Registry 将指定版本的 Agent 部署到运行环境
+
+### 编排数据流
+
+```
+用户/系统触发任务
+  → Temporal Client.StartWorkflow("RecruitmentWF", {jobId})
+  → Temporal Server 持久化 Workflow 状态到 DB
+  → Workflow 执行 Activity:
+    Activity 1: Registry.Lookup("candidate-sourcer")
+    Activity 2: AgentA2A.Invoke(sourcer, {criteria})
+        └─ Agent 内部: LangGraph ReAct 循环
+           思考 → 调用 MCP Tool → 观察 → 思考...
+    Activity 3: HumanApproval.Signal{timeout: 24h}
+        └─ 等待 Signal / 超时 → 回滚
+    Activity 4: Compensation(失败则撤销操作)
+```
+
+## 9. G 层：安全治理 — 四道防线
+
+### 第一道：身份与传输层
+
+SPIFFE/SPIRE 为每个 Agent 和工作流分配唯一身份：
+
+- `spiffe://prod/agent/hr-sourcer`
+- `spiffe://prod/workflow/recruitment-abc123`
+- mTLS 双向认证，所有通信加密
+
+### 第二道：策略与权限
+
+- **OPA** (Open Policy Agent): 策略引擎，如"只有 HR 组的 Agent 可以访问简历数据库"
+- **OpenFGA**: 关系型权限，如"用户 A 可以管理 Agent X"
+
+### 第三道：声明式宪法
+
+```yaml
+# constitution.yaml
+rules:
+  - on: "tool_call.before"
+    if: "tool.name == 'delete_production_db'"
+    then: "REJECT + notify(ops)"
+  - on: "llm_input.before"
+    if: "contains(input, 'password')"
+    then: "REDACT + alert"
+  - on: "agent_to_agent"
+    if: "source.level < target.level"
+    then: "REJECT"
+```
+
+合规团队直接改配置文件，无需修改代码。
+
+### 第四道：生命周期钩子 + 审计日志
+
+| 拦截点 | 时机 | 作用 |
+|--------|------|------|
+| 输入前 | LLM 接收消息前 | 防提示词注入 |
+| 执行前 | 工具调用前 | 防越权 |
+| 返回后 | 工具返回结果后 | 污点追踪 |
+| 关键动作前 | 敏感操作 | 人工审批 |
+
+审计日志：Write-Once 不可篡改，记录每次调用/决策/拒绝。
+
+宪法规则（第三道）与生命周期钩子（第四道）的执行顺序：两者拦截点集合不同但存在交集——当同一事件同时触发宪法规则和生命周期钩子时，宪法规则先于生命周期钩子执行。宪法规则评估结果为 REJECT 时直接拒绝该操作，不触发后续生命周期钩子；评估结果为 REDACT/ALERT/APPROVE 时，修改后的请求继续进入生命周期钩子处理。两套机制的结果组合规则为：宪法规则 REJECT 优先级最高，覆盖钩子的任何后续处理结果；宪法规则非 REJECT 时，以生命周期钩子的最终输出为准。
+
+### 安全验证标准
+
+- **四道防线验证**：需通过年度第三方渗透测试验证。通过标准：未发现高危（Critical/High）漏洞；发现的 Medium 级别漏洞数量不超过 3 个且在 30 天内修复；Low 级别漏洞评估后确认不影响生产安全。
+- **宪法规则引擎审核**：需通过合规团队审核，覆盖宪法规则定义的 3 个拦截点（tool_call.before、llm_input.before、agent_to_agent）。审核检查清单包括：(1) 每个拦截点至少有一条生效规则；(2) 所有规则的条件表达式可正确解析和执行；(3) 拒绝类规则的动作符合最小权限原则；(4) 规则变更需经审批流程记录。
+- **生命周期钩子验证**：需通过集成测试验证全部 4 个拦截点（输入前/input_before、执行前/exec_before、返回后/return_after、关键动作前/critical_action_before）的正确触发，验证每个钩子函数在正确时机被调用、异常时输出明确错误信息。
+- **审计日志完整性验证**：Write-Once 机制需通过哈希链完整性测试验证，测试方法：构造连续 N 条日志记录，验证每条记录的 previous_hash 与上一条记录的 payload_hash 一致；尝试修改已写入的记录后校验失败。
+
+## 10. C 层：上下文管理 — 三级记忆架构
+
+| 级别 | 类比 | 技术实现 | 生命周期 |
+|------|------|---------|---------|
+| 短期 | 内存 | System Prompt 优化 + KV 缓存 + 窗口滑动 | 会话进行中 |
+| 中期 | 休眠文件 | 结构化笔记 + 工作文件 + Temporal 状态持久化 | 跨会话 |
+| 长期 | 硬盘 | Mem0 + Qdrant + Neo4j | 跨任务 |
+
+### 10.1 上下文数据实体
+
+| 字段 | 类型 | 描述 | 所属层级 |
+|------|------|------|---------|
+| session_id | string | 会话唯一标识 | 短期/中期 |
+| agent_id | string | 关联 Agent 标识 | 短期/中期/长期 |
+| context_window | json | 当前会话的 System Prompt 与消息列表，含 Token 计数 | 短期 |
+| kv_cache_key | string | KV 缓存键，关联缓存中间表示 | 短期 |
+| sliding_window_size | integer | 滑动窗口大小，单位：消息条数 | 短期 |
+| structured_notes | json | 跨会话的结构化笔记，含关键结论与未完成任务 | 中期 |
+| working_files | string[] | 中期工作文件引用列表 | 中期 |
+| temporal_state_ref | string | Temporal 工作流状态引用 | 中期 |
+| long_term_memory | json | 长期记忆条目，含观察摘要、反思记录与检索元数据 | 长期 |
+| memory_embedding | float[] | 长期记忆的向量嵌入，用于语义检索 | 长期 |
+| memory_graph_relations | json | 长期记忆间的知识图谱关系 | 长期 |
+
+### 10.2 C 层非功能需求
+
+C 层非功能需求详见第 13 节非功能需求表，其中与 C 层直接相关的 NFR 条目包括 NFR-P-03（P95 端到端响应延迟，含上下文检索时间）、NFR-C-01（工作流状态持久化）。C 层补充非功能约束如下：
+
+- **长期记忆存储容量**：单 Agent 长期记忆条目数 >= 10,000 条，超出后按最近最少使用（LRU）策略淘汰。验证方式：压力测试写入 10,000+ 记忆条目，验证检索功能正常。
+- **长期记忆检索延迟 P95**：语义检索（向量相似度）P95 <= 200ms。验证方式：负载测试持续检索，记录 P95 延迟。
+
+## 11. V 层：评测 — 五阶段闭环
+
+1. **定义** — 环境 + 成功标准
+2. **执行前验证** — 沙盒/依赖/权限初始化检查
+3. **受控执行 + 追踪捕获** — 完整记录运行轨迹
+4. **多级判断 + 故障归因** — 结果 + 工具调用合理性 + 裁判模型偏见评估
+5. **回归测试** — 失败记录 → 测试用例 → Harness 自动迭代优化
+
+### 11.1 评测数据实体
+
+| 字段 | 类型 | 描述 |
+|------|------|------|
+| eval_id | string | 评测任务唯一标识 |
+| agent_id | string | 被评测 Agent 标识 |
+| eval_stage | string | 所属阶段枚举：define、pre_validate、execute、judge、regression |
+| environment_spec | json | 评测环境定义，含沙盒类型、依赖列表、权限声明 |
+| success_criteria | json | 成功标准定义，含结果准确率阈值、工具调用合规性要求 |
+| execution_trace | json | 受控执行的完整运行轨迹记录，含时间戳与状态快照 |
+| judgment_result | json | 多级判断结果，含最终结论、工具合理性评分、裁判模型偏差评估 |
+| regression_test_cases | json[] | 回归测试用例列表，由失败记录自动生成 |
+
+### 11.2 评测 Harness 接口
+
+评测 Harness 提供以下接口供外部系统调用：
+
+| 接口 | 说明 | 请求参数 | 响应 |
+|------|------|---------|------|
+| POST /api/v1/eval/run | 启动评测任务 | { agent_id, environment_spec, success_criteria } | { eval_id, status: "running" } |
+| GET /api/v1/eval/{id} | 查询评测状态与结果 | 无 | { eval_id, status, 各阶段状态与结果 } |
+| GET /api/v1/eval/{id}/trace | 获取执行轨迹 | 无 | { eval_id, execution_trace } |
+| POST /api/v1/eval/{id}/rerun | 重新执行评测 | { regression_only?: boolean } | { eval_id, status } |
+
+## 12. 开源工具选型
+
+| 层 | 组件 | 推荐工具 | 说明 |
+|----|------|---------|------|
+| E | 沙盒 | E2B, Daytona, Docker, Firecracker | microVM 高隔离 / Docker 轻量 |
+| E | 沙盒抽象 | 自研薄层 | 统一多沙盒接口 |
+| T | 工具协议 | MCP SDK (Anthropic) | Agent↔工具 标准 |
+| T | Agent 通信 | A2A Protocol (Google) | Agent↔Agent 标准 |
+| C | 短期上下文 | LangGraph | 内部 ReAct 循环 |
+| C | 长期记忆 | Mem0 + Qdrant + Neo4j | 观察→反思→检索 |
+| L | 编排引擎 | **Temporal** | 核心选型 |
+| L | Agent 注册 | 自研 Registry | 基于 A2A Agent Card |
+| L | 包管理 | OCI Distribution (Harbor) | Agent 镜像仓库 |
+| O | 可观测 | OpenTelemetry + Langfuse | Tracing + 成本 |
+| V | 评测 | 自研框架 | 五阶段闭环 |
+| G | 身份 | SPIRE/SPIFFE (CNCF) | 工作负载身份 |
+| G | 策略 | OPA + OpenFGA | 权限 + 关系 |
+| G | 审计 | 自研 | Write-Once 审计 |
+| G | 宪法规则 | 自研声明式配置 | YAML 规则引擎 |
+
+## 13. 非功能需求
+
+| 维度 | 编号 | 描述 | 目标值 | 验证方式 |
+|------|------|------|--------|---------|
+| 性能 | NFR-P-01 | 并发 Agent 会话数 | >= 500 个 Agent 同时运行 | 负载压测：模拟 500+ Agent 并发注册和心跳，验证系统稳定运行 |
+| 性能 | NFR-P-02 | 并发工作流数 | >= 1000 | Temporal 性能测试：启动 1000+ 并行工作流，验证无超时或丢失 |
+| 性能 | NFR-P-03 | P95 端到端响应延迟（不含 Agent 内部推理时间），端到端范围定义：从 API Gateway 接收请求到 API Gateway 返回响应 | <= 500ms | 持续性能监控：记录 API 端到端延迟 P95 百分位值 |
+| 性能 | NFR-P-04 | 单日任务处理量 | >= 10 万次 | 吞吐量压测：持续运行 24 小时模拟生产负载 |
+| 性能 | NFR-P-05 | 单节点资源消耗上限 | 8vCPU / 32GB RAM | 资源监控告警：超出阈值触发告警 |
+| 可用性 | NFR-A-01 | 平台可用性 SLA | >= 99.9%（月度） | 监控：计算月度 uptime 百分比 |
+| 可用性 | NFR-A-02 | 恢复时间目标（RTO）— 热备切换 | <= 5 秒 | 故障注入测试：模拟主节点宕机，测量从检测到切换完成的时间 |
+| 可用性 | NFR-A-03 | 恢复时间目标（RTO）— 灾难恢复（跨区域） | <= 5 分钟 | 故障注入测试：模拟全区域不可用，测量跨区域恢复时间 |
+| 可用性 | NFR-A-04 | 恢复点目标（RPO） | 0（基于 Temporal Durable Execution 语义，限定于单集群内持久化层故障场景，包含该集群内所有节点同时故障；跨集群故障转移不在此承诺范围内） | 故障注入测试：启动工作流 → 写入检查点 → 强制杀进程 → 重启 → 验证工作流从最后 await 点继续执行 |
+| 容量 | NFR-C-01 | 工作流状态持久化 | 100% 持久化 | 同 RPO 验证方法 |
+| 容量 | NFR-C-02 | 审计日志保留周期 | >= 90 天 | 监控告警：日志存储空间达到 90%（约 81 天写入量）触发告警；超期日志自动轮转 |
+| 安全 | NFR-S-01 | 安全防线验证频次 | 年度第三方渗透测试 | 安全审计报告：通过标准见 9.5 安全验证标准 |
+| 安全 | NFR-S-02 | 宪法规则审核 | 合规团队审核，覆盖全部拦截点 | 合规审核报告：审核清单见 9.5 安全验证标准 |
+| 扩展性 | NFR-E-01 | Temporal 水平扩展维度 | Worker 节点数、数据库连接池、任务队列分区数 | 扩展测试：逐维增加资源配置并验证吞吐量线性增长 |
+| 扩展性 | NFR-E-02 | 沙盒池弹性伸缩 | 按 Agent 负载自动扩缩。触发条件：沙盒池利用率 > 80% 持续 60 秒触发扩容，利用率 < 30% 持续 120 秒触发缩容；单次扩缩步长：+/- 20% 当前容量；冷却期：扩容后至少 180 秒不触发新扩容，缩容后至少 300 秒不触发新缩容 | 负载压测：模拟负载波动，验证沙盒池按以上条件自动扩缩，且无频繁震荡（thrashing） |
+
+## 14. API 规范
+
+### Agent Registry API
+
+基于 A2A Agent Card 格式，注册与发现 Agent：
+
+| 方法 | 路径 | 说明 | 请求体 | 响应体 |
+|------|------|------|--------|--------|
+| GET | /api/v1/agents | 列出所有已注册 Agent | 无 | { "agents": AgentCard[], "total": integer, "page": integer, "page_size": integer } |
+| GET | /api/v1/agents/{id} | 查询单个 Agent 详情 | 无 | AgentCard（详见 6.1 节） |
+| POST | /api/v1/agents | 注册新 Agent | AgentCard（不含 agent 字段则为自动生成） | { "agent": string, "status": "registered", "created_at": datetime } |
+| PUT | /api/v1/agents/{id} | 更新 Agent 配置 | AgentCard 部分字段 | { "agent": string, "status": "updated", "updated_at": datetime } |
+| DELETE | /api/v1/agents/{id} | 注销 Agent | 无 | { "agent": string, "status": "deleted" } |
+| GET | /api/v1/agents/{id}/health | 健康检查 | 无 | { "status": "healthy"|"degraded"|"unhealthy", "last_seen": datetime, "metrics": { "uptime": integer, "error_rate": float } } |
+
+通用响应格式：
+
+| 场景 | HTTP 状态码 | 响应体 |
+|------|-----------|--------|
+| 成功 | 200 | 见上表响应体 |
+| 创建成功 | 201 | { "agent": string, "status": "registered", "created_at": datetime } |
+| 请求参数错误 | 400 | { "error": { "code": "INVALID_REQUEST", "message": "描述信息", "details": {} } } |
+| 未授权 | 401 | { "error": { "code": "UNAUTHORIZED", "message": "描述信息" } } |
+| 权限不足 | 403 | { "error": { "code": "FORBIDDEN", "message": "描述信息" } } |
+| 资源不存在 | 404 | { "error": { "code": "NOT_FOUND", "message": "描述信息" } } |
+| 请求频率超限 | 429 | { "error": { "code": "RATE_LIMITED", "message": "描述信息", "retry_after": integer } } |
+| 审计日志写入失败 | 503 | { "error": { "code": "AUDIT_LOG_FULL", "message": "审计日志存储空间已满，业务操作可降级继续" } } |
+| 服务端错误 | 500 | { "error": { "code": "INTERNAL_ERROR", "message": "描述信息" } } |
+
+## 15. 错误处理规范
+
+### 15.1 标准错误响应格式
+
+所有 API 接口统一采用以下错误响应格式：
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "人类可读的错误描述",
+    "details": {}
+  }
+}
+```
+
+### 15.2 错误码定义
+
+| 错误码 | HTTP 状态码 | 场景 | 处理建议 |
+|--------|-----------|------|---------|
+| INVALID_REQUEST | 400 | 请求参数格式错误或缺少必填字段 | 根据 details 中的字段提示修正请求 |
+| UNAUTHORIZED | 401 | 缺少或无效的认证凭据 | 检查 SPIFFE 身份或 API Token |
+| FORBIDDEN | 403 | 认证通过但权限不足 | 联系 admin 授权 |
+| NOT_FOUND | 404 | 请求的资源不存在 | 检查资源 ID 是否正确 |
+| CONFLICT | 409 | 资源冲突（如重复注册） | 检查资源是否已存在 |
+| RATE_LIMITED | 429 | API 调用频率超过限流阈值 | 等待 retry_after 秒后重试 |
+| AUDIT_LOG_FULL | 503 | 审计日志存储空间已满 | 扩容存储或清理历史日志 |
+| WORKFLOW_TIMEOUT | 504 | 工作流执行超时 | 检查工作流配置的超时参数 |
+| INTERNAL_ERROR | 500 | 服务端未预期的错误 | 联系运维查看服务端日志 |
+
+## 16. Console UI
+
+Console UI 提供以下管理功能（接入 API Gateway）：
+
+### Agent 管理
+- Agent 注册：填写 Agent Card 字段信息提交注册
+- Agent 列表：分页展示已注册 Agent，支持按名称、类型、状态筛选
+- Agent 详情：查看单个 Agent 的完整配置、运行状态、健康检查记录
+- Agent 启停：对已注册 Agent 执行启动/停止操作
+- Agent 版本管理：查看版本历史，执行版本回滚
+
+### 工作流监控
+- 工作流列表：分页展示运行中/已完成/已失败的工作流，支持按状态、Agent、时间范围筛选
+- 工作流详情：查看工作流执行轨迹、当前 Activity、Event History
+- 人工审批节点：展示待审批 Signal，支持批准/拒绝操作
+- 工作流操作：对运行中工作流执行终止、重试
+
+### 安全策略配置
+- 宪法规则管理：YAML 规则文件在线编辑与生效
+- OPA 策略管理：策略上传、启用/禁用
+- 审计日志查询：按时间、Agent、动作类型筛选审计日志记录
+
+### 监控面板
+- 实时指标：Agent 调用量、延迟 P95、错误率趋势图
+- 成本看板：按 Agent/工作流维度的 Token 消耗和资源使用统计
+- 告警管理：告警规则配置、告警历史查看
+
+### CLI 接口
+
+通过 API Gateway 提供命令行管理能力，支持上述所有 Web UI 功能的等效 CLI 命令。命令格式统一为：
+
+```
+harness <资源类型> <操作> [参数...] [--flags]
+```
+
+常用命令示例：
+
+- `harness agent register --file agent-card.json` — 注册新 Agent（从 JSON 文件读取 Agent Card）
+- `harness agent list [--type <type>] [--status <status>]` — 列出 Agent，支持按类型和状态筛选
+- `harness agent get <agent-id>` — 查询单个 Agent 详情
+- `harness agent start|stop <agent-id>` — 启动/停止 Agent
+- `harness workflow list [--status running|completed|failed]` — 列出工作流，支持按状态筛选
+- `harness workflow get <workflow-id>` — 查询工作流详情
+- `harness workflow retry|terminate <workflow-id>` — 重试/终止工作流
+- `harness policy constitution apply --file constitution.yaml` — 应用宪法规则配置文件
+- `harness audit query --since <datetime> [--agent <agent-id>] [--action invoke|decision|reject|approve]` — 查询审计日志
+- `harness monitor metrics [--since <datetime>] [--interval 1m|5m|1h]` — 查看实时指标
+
+## 17. A2A Agent 间通信
+
+Agent 通过 A2A 协议进行点对点通信，端点由 Registry 的 endpoints.a2a 字段定义。通信内容格式遵循 A2A 协议规范。
+
+## 18. MCP Tool 发现
+
+Agent 通过 MCP 协议发现和调用外部工具，MCP Server 端点由 Registry 或配置文件提供。
+
+## 19. 多租户模型
+
+平台通过 G 层的 SPIFFE/SPIRE 身份系统和 OPA 策略引擎实现多租户隔离：
+
+- **租户标识**：每个租户分配独立的 SPIFFE 命名空间（如 `spiffe://prod/tenant/{tenant_id}/agent/{agent_id}`）
+- **权限隔离**：OPA 策略限制跨租户的 Agent 通信和数据访问
+- **资源隔离**：E 层的沙盒池按租户划分，确保运行环境隔离
+- **角色分配**：每个租户内可分配 admin、operator、developer、viewer 四种角色，权限定义见第 4 节用户角色与权限矩阵
+
+## 20. Agent 类型扩展机制
+
+### 支持的 Agent 类型
+
+Agent 类型的形式化标准：由运行模式、通信协议、注册方式、沙盒类型四个维度定义。新增类型无需修改核心代码即可通过配置文件注册。
+
+| Agent 类型 | 运行模式 | 通信协议 | 注册方式 | 沙盒类型 |
+|-----------|---------|---------|---------|---------|
+| AI Agent | LangGraph ReAct 循环 | A2A + MCP | Agent Registry | 容器 |
+| 监控 Agent | LangGraph + 定时触发 | A2A | Agent Registry | 容器 |
+| RPA Agent | LangGraph + 脚本执行 | A2A + MCP | Agent Registry | 容器/microVM |
+
+### 扩展方式
+
+新 Agent 类型接入平台需完成以下步骤及验收标准：
+
+| 步骤 | 描述 | 验收标准 |
+|------|------|---------|
+| 1. A2A 协议接入 | 实现 A2A 协议端点，遵循 Agent Card 格式注册到 Agent Registry | Agent 注册后可通过 A2A 协议发送和接收消息；Agent Card 必填字段完整 |
+| 2. MCP 工具接入 | 按需接入 MCP 服务器提供工具能力 | MCP 端点可达；Agent 可通过 MCP 协议发现工具并调用 |
+| 3. 沙盒适配 | 在 E 层选择合适的沙盒类型（容器 / microVM / 浏览器） | Agent 在选定沙盒类型中正常启动并通过健康检查 |
+| 4. 安全接入 | 通过 G 层 SPIFFE 分配身份，OPA 配置访问策略 | Agent 获得唯一 SPIFFE 身份；OPA 策略正确限制其权限边界 |
+
+### 配置文件注册 Schema
+
+新增 Agent 类型通过 YAML 配置文件注册至平台，配置文件 Schema 定义如下：
+
+```yaml
+# agent-type-registration.yaml
+agent_type:
+  name: string                          # Agent 类型名称，全局唯一
+  runtime_mode: string                  # 运行模式枚举：langgraph_react | scheduled | script_execution
+  communication:
+    a2a: boolean                        # 是否支持 A2A 协议
+    mcp: boolean                        # 是否支持 MCP 协议
+  registration:
+    method: string                      # 注册方式枚举：agent_registry | config_file
+    config:                             # config_file 模式下的注册配置（可选）
+      card_template: object             # Agent Card 模板，含默认字段值
+  sandbox:
+    type: string                        # 沙盒类型枚举：container | microvm | browser
+    config:                             # 沙盒配置
+      image: string                     # 容器镜像或 microVM 镜像标识
+      resource_limits:                  # 资源限制（可选）
+        cpu: string                     # 如 "2" 表示 2 核
+        memory: string                  # 如 "4Gi"
+  default_policies:                     # 默认安全策略（可选）
+    - hook_point: string                # 拦截点
+      action: string                    # 动作
+      condition: string                 # Rego 条件表达式
+```
+
+配置示例：
+
+```yaml
+agent_type:
+  name: "data-pipeline-agent"
+  runtime_mode: "scheduled"
+  communication:
+    a2a: true
+    mcp: true
+  registration:
+    method: "agent_registry"
+  sandbox:
+    type: "container"
+    config:
+      image: "base-agent:latest"
+      resource_limits:
+        cpu: "2"
+        memory: "4Gi"
+```
+
+## 21. 部署架构约束
+
+- **混合部署**：控制面（G 层、L 层 Temporal Server、L 层 Agent Registry、C 层长期记忆存储、O 层可观测性后端）私有化部署；Agent 运行时沙盒可分布在私有数据中心和云端。私有化组件与云端组件之间的通信经 mTLS 加密回传至私有化控制面
+- **大规模**：Temporal 水平扩展支持 500+ Agent 同时运行，扩展维度包括 Worker 节点数、数据库连接池、任务队列分区数
+- **多 Agent 类型**：AI Agent / 监控 Agent / RPA Agent 统一通过 A2A 协议接入
+- **零信任安全**：所有通信 mTLS + SPIFFE 身份验证
+
+## 22. 关键设计决策
+
+### 为什么选 Temporal 而非纯 LangGraph
+
+- Temporal 提供 Durable Execution — Workflow 持久化到 DB，宕机从最后 await 点恢复，RPO = 0
+- 原生支持 Saga 补偿事务
+- Signal/Query 机制天然适合人工审批场景
+- 水平扩展已验证可支撑 >= 1000 并发工作流
+- LangGraph 作为 Agent 内部推理层与其互补而非替代
+
+### 为什么选 MCP + A2A
+
+- MCP 统一 Agent 与工具/数据源的连接（向下）
+- A2A 统一 Agent 之间的通信与协作（横向）
+- 两者由 Anthropic 和 Google 主导，生态成熟度快速提升
+
+## 23. MVP 建议
+
+**首期聚焦**: L 层（Temporal + Agent Registry）+ G 层（SPIFFE + OPA）+ 基础 O 层
+
+基础 O 层定义为 MVP 范围内的 O 层功能子集，包含：OpenTelemetry Tracing 数据采集、运行时 Metrics 采集（调用量、延迟、错误率）、结构化日志采集。成本追踪功能不在 MVP 范围内。
+
+**MVP 可验证目标**：
+
+1. 完成 1-2 种 Agent（AI Agent + 监控 Agent）的完整编排闭环：注册、部署、执行全链路通过验收测试
+2. 验证 Temporal 编排 + OPA 安全策略的集成闭环：Agent 执行需经身份验证和策略检查，通过集成测试
+3. 基础 O 层采集 Tracing + Metrics + Logs 数据并接入 Langfuse 展示，通过数据可达性验证
+4. 验证结果以压测报告和集成测试报告形式输出，作为架构可行性验证依据

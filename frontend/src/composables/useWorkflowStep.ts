@@ -112,13 +112,15 @@ export function useWorkflowStep({ projectId, stepNumber, autoLoad = true }: UseW
             setTimeout(() => {
               loadStatus().then(() => {
                 const nextStepNum = stepNumber + 1
-                if (nextStepNum <= 14) {
+                if (nextStepNum <= 16) {
                   router.push({ name: `Step${nextStepNum}`, params: { projectId }, query: { name: projectName.value } })
                 }
               })
             }, 2000)
           } else if (msg.type === 'error') {
             stageLog.value.push({ type: 'error', message: msg.message })
+            clearAllTimers()
+            executing.value = false
           }
         } catch {}
       }
@@ -191,7 +193,7 @@ export function useWorkflowStep({ projectId, stepNumber, autoLoad = true }: UseW
 
       if (stepStatus.value === 'completed') {
         const nextStepNum = stepNumber + 1
-        if (nextStepNum <= 14) {
+        if (nextStepNum <= 16) {
           clearAllTimers()
           setTimeout(() => {
             router.push({ name: `Step${nextStepNum}`, params: { projectId }, query: { name: projectName.value } })
@@ -233,11 +235,16 @@ export function useWorkflowStep({ projectId, stepNumber, autoLoad = true }: UseW
     stageLog.value.push({ type: 'stage', message: `🚀 正在启动步骤${stepNumber}...` })
 
     if (stepNumber >= 6 && stepNumber <= 14) {
+      // Connect WS BEFORE execute to avoid missing initial broadcasts
+      connectWs()
+      startPolling()
+      resetStuckTimer()
+
       try {
         const res = await workflowApi.executeStep(projectId, stepNumber)
         const data = res?.data || res
 
-        // 等待片刻后检查状态（防 haimei_auto_advance 僵尸检测导致的短暂 pending）
+        // 等待片刻后检查状态
         await new Promise(r => setTimeout(r, 1000))
         let retries = 3
         let stepRow: any
@@ -255,9 +262,6 @@ export function useWorkflowStep({ projectId, stepNumber, autoLoad = true }: UseW
           ElMessage.success(`步骤${stepNumber}已启动`)
           stepStatus.value = 'in_progress'
           streamStatus.value = '🚀 正在执行...'
-          connectWs()
-          startPolling()
-          resetStuckTimer()
         } else if (stepRow?.status === 'completed' || stepRow?.status === 'qa_review') {
           executing.value = false
           ElMessage.success(`步骤${stepNumber}已完成`)
@@ -309,17 +313,13 @@ export function useWorkflowStep({ projectId, stepNumber, autoLoad = true }: UseW
   }
 
   function handleGoPrev() {
-    if (prevStep.value === 4) {
-      router.push({ name: 'Step4', params: { projectId }, query: { name: projectName.value } })
-    } else {
+    if (prevStep.value >= 2) {
       router.push({ name: `Step${prevStep.value}`, params: { projectId }, query: { name: projectName.value } })
     }
   }
 
   function handleGoNext() {
-    if (nextStep.value <= 4) {
-      router.push({ name: 'Step4', params: { projectId }, query: { name: projectName.value } })
-    } else if (nextStep.value <= 16) {
+    if (nextStep.value <= 16) {
       router.push({ name: `Step${nextStep.value}`, params: { projectId }, query: { name: projectName.value } })
     }
   }

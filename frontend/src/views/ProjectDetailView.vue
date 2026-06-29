@@ -177,7 +177,7 @@ function goToStep(stepNum: number) {
   } else if (stepNum === 4) {
     router.push({ name: 'Step4', params: { projectId }, query: { name: projectName } })
   } else {
-    router.push({ name: 'WorkflowStep', params: { projectId, stepNumber: stepNum }, query: { name: projectName } })
+    router.push({ name: `Step${stepNum}`, params: { projectId }, query: { name: projectName } })
   }
 }
 

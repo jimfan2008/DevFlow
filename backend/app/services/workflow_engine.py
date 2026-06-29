@@ -103,9 +103,16 @@ class WorkflowEngine:
                 pass
             return
 
+        def _step_is_active_or_done(r) -> bool:
+            if r.status in ("in_progress", "completed"):
+                return True
+            if r.status == "qa_review" and (r.output_artifacts or {}).get("qa_passed"):
+                return True
+            return False
+
         max_step = 1
         for r in rows:
-            if r.status == "in_progress" or r.status == "completed":
+            if _step_is_active_or_done(r):
                 max_step = max(max_step, r.step_number)
             if r.step_number == 2 and r.output_artifacts:
                 self._cached_step2_artifacts = r.output_artifacts
@@ -840,6 +847,16 @@ class WorkflowEngine:
             "mobilized_at": datetime.now(timezone.utc).isoformat(),
         }
 
+    def _is_step_effectively_completed(self, row) -> bool:
+        """检查步骤是否有效完成（状态为completed，或qa_review但产物标记了qa_passed）"""
+        if row.status == "completed":
+            return True
+        if row.status == "qa_review":
+            artifacts = row.output_artifacts or {}
+            if artifacts.get("qa_passed"):
+                return True
+        return False
+
     def haimei_supervise_step(self, step_number: int) -> dict:
         """海梅对即将执行的步骤进行全面监督审查"""
         step_defs = {s.step_number: s for s in self.steps}
@@ -852,10 +869,10 @@ class WorkflowEngine:
             if not row:
                 return {"approved": False, "message": f"步骤{step_number}未初始化"}
 
-            # 1. 检查前一步是否完成
+            # 1. 检查前一步是否完成（支持 qa_review + qa_passed 视为已完成）
             if step_number > 1:
                 prev_row = self._get_step_row(step_number - 1)
-                if prev_row and prev_row.status not in ("completed",):
+                if prev_row and not self._is_step_effectively_completed(prev_row):
                     return {
                         "approved": False,
                         "message": f"第{step_number-1}步尚未完成，海梅不允许执行第{step_number}步",
@@ -927,15 +944,22 @@ class WorkflowEngine:
                         action_needed = f"Agent {r.executor_agent_id} 忙碌中"
                 step_info["action_needed"] = action_needed
 
-            if r.status == "qa_review":
+            if r.status == "qa_review" and not (r.output_artifacts or {}).get("qa_passed"):
                 blocked_steps.append(r.step_number)
 
             steps_status[str(r.step_number)] = step_info
 
         agent_statuses = self.haimei_get_all_agent_statuses()
 
-        # 计算整体完成百分比
-        completed = sum(1 for r in rows if r.status == "completed")
+        # 计算整体完成百分比（包含 qa_review + qa_passed 视为已完成）
+        def _is_completed(row) -> bool:
+            if row.status == "completed":
+                return True
+            if row.status == "qa_review" and (row.output_artifacts or {}).get("qa_passed"):
+                return True
+            return False
+
+        completed = sum(1 for r in rows if _is_completed(r))
         total = len(rows) if rows else 16
         progress_pct = round(completed / total * 100, 1) if total > 0 else 0
 
@@ -1039,7 +1063,11 @@ class WorkflowEngine:
             if s.step_number == 1:
                 continue
             row = step_map.get(s.step_number)
-            step_status = row.status if row else "pending"
+            raw_status = row.status if row else "pending"
+            if raw_status == "qa_review" and row and (row.output_artifacts or {}).get("qa_passed"):
+                step_status = "completed"
+            else:
+                step_status = raw_status
             mapping = step_status_map.get(step_status, step_status_map["pending"])
             executor = s.executor_role or "user"
 
@@ -1180,8 +1208,12 @@ class WorkflowEngine:
                         actions.append(f"海梅发现Agent {r.executor_agent_id}离线，等待上线")
                 haimei_phase_msg = haimei_phase_msg or f"阶段2: 第{r.step_number}步正在执行中，海梅持续监控"
 
-        # Phase 3: 检查qa_review阻塞步骤
-        qa_blocked = [r for r in rows if r.status == "qa_review"]
+        # Phase 3: 检查qa_review阻塞步骤（排除已标记 qa_passed 的步骤）
+        qa_blocked = [
+            r for r in rows
+            if r.status == "qa_review"
+            and not (r.output_artifacts or {}).get("qa_passed")
+        ]
         if qa_blocked:
             blocked_nums = [r.step_number for r in qa_blocked]
             actions.append(f"海梅等待步骤 {blocked_nums} 的QA检验通过")
@@ -1211,7 +1243,7 @@ class WorkflowEngine:
                 continue
             if r.status == "pending":
                 prev_row = step_map.get(s.step_number - 1)
-                if prev_row and prev_row.status == "completed":
+                if prev_row and self._is_step_effectively_completed(prev_row):
                     try:
                         # 检查执行Agent是否可用
                         agent_role = s.executor_role
@@ -1238,36 +1270,17 @@ class WorkflowEngine:
                         actions.append(f"海梅尝试推进第{s.step_number}步但条件不满足: {e}")
                         break
             elif r.status == "in_progress":
-                # 检查是否有后台任务在运行（防止僵尸状态）
-                from app.services.haimei_executor import HaimeiStepExecutor
-                has_task = HaimeiStepExecutor.is_running(self.project_id, s.step_number)
-                if not has_task:
-                    # 无后台任务 = 僵尸状态，尝试重启
-                    artifacts = self.get_step_artifacts(s.step_number) or {}
-                    # 只有完全无产物（status 为空 且 无文档 且 无环境配置）才视为僵尸
-                    # status="generating" 表示正在执行，不应重启
-                    if (not artifacts.get("status") and
-                        not artifacts.get("design_doc") and
-                        not artifacts.get("env_info")):
-                        agent_role = s.executor_role
-                        if agent_role:
-                            self.haimei_restore_agent(agent_role)
-                        # 重启后台任务（使用自动执行模块）
-                        if 4 <= s.step_number <= 14:
-                            actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，重置后等待前端触发执行")
-                            self.reset_step(s.step_number)
-                        else:
-                            actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，等待前端触发执行")
-                    elif artifacts.get("status") in ("generating",):
-                        # 产物显示正在执行，不是僵尸
-                        actions.append(f"海梅检测到第{s.step_number}步正在执行中（status={artifacts.get('status')}），跳过")
-                    break
-            elif r.status == "completed":
+                pass
+            elif r.status == "completed" or (r.status == "qa_review" and (r.output_artifacts or {}).get("qa_passed")):
                 continue
 
-        # Phase 6: 检查项目是否全部完成
+        # Phase 6: 检查项目是否全部完成（包含 qa_review + qa_passed 视为已完成）
         all_done = all(
-            step_map.get(s.step_number) and step_map[s.step_number].status == "completed"
+            step_map.get(s.step_number) and (
+                step_map[s.step_number].status == "completed"
+                or (step_map[s.step_number].status == "qa_review"
+                    and (step_map[s.step_number].output_artifacts or {}).get("qa_passed"))
+            )
             for s in self.steps
         )
         if all_done:

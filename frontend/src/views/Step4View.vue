@@ -711,14 +711,20 @@ async function handleComplete() {
   try {
     const res = await workflowApi.qaStep(props.projectId, 4, 'passed') as any
     const data = res?.data || res
-    if (res?.code === 0 || data?.qa) { ElMessage.success('第四步完成！'); stepStatus.value = 'qa_passed' }
-    else ElMessage.warning(data?.message || 'QA 提交失败')
+    if (res?.code === 0 || data?.qa) {
+      ElMessage.success('第四步完成！')
+      stepStatus.value = 'qa_passed'
+      // auto-redirect to step5
+      setTimeout(() => {
+        router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName } })
+      }, 1500)
+    } else ElMessage.warning(data?.message || 'QA 提交失败')
   } catch (e: any) { ElMessage.error(e?.message || 'QA 提交失败') }
   finally { loading.value = false }
 }
 
 function goBack() { router.push({ name: 'ProjectDetail', params: { projectId: props.projectId } }) }
-function goToNext() { router.push({ name: 'ProjectDetail', params: { projectId: props.projectId } }) }
+function goToNext() { router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName } }) }
 </script>
 
 <style scoped lang="scss">

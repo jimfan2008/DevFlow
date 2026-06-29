@@ -34,36 +34,36 @@ DevFlow 是一个面向人类用户与 AI Agent 协同的全自动化软件开�
 
 ### 1.3 术语定义
 
-| 术语 | 定义 |
-|------|------|
-| **HaiMei（海梅）** | 默认 Hermes Agent，项目经理角色，负责任务分派，对项目交付成果负责 |
-| **HouXing（后兴）** | Hermes Agent，需求分析师角色，负责需求分析，产出完整、准确的软件需求说明书 |
-| **HouWang（后旺）** | Hermes Agent，架构设计师角色，负责架构设计、后端设计、前端设计、数据库设计 |
-| **HouFa（后发）** | Hermes Agent，程序员角色，负责建立代码编写Agent蜂群，监督蜂群完成TDD测试用例和代码编写 |
-| **HouDa（后达）** | Hermes Agent，测试员角色，负责建立代码测试Agent蜂群，执行单元测试、模块测试、集成测试、前端实操验证 |
-| **HouFu（后富）** | Hermes Agent，CI/CD工程师角色，负责开发环境搭建和代码部署到测试/生产环境 |
-| **HouGui（后贵）** | Hermes Agent，文档管理员角色，负责整个项目文档的一致性管理 |
-| **HouRong（后荣）** | Hermes Agent，QA角色，负责检验每个Agent的产出是否达到验收标准，未达标退回重做，达标放行并提交代码库 |
-| **HouHua（后华）** | Hermes Agent，安全员角色，负责代码审计、合规审查、渗透测试、漏洞修复 |
-| **Agent蜂群** | 由后发或后达建立的编程Agent集群，成员可以是Claude Code/Codex/Opencode/Cursor/CodeArts/Trae/Lingma/hermes/pi-codeing-agent的子agent |
-| **QA门控** | 每步产出必须经后荣(QA)检验合格方可进入下一步的机制，检验合格产出全部提交代码库 |
-| **原子化任务** | 最小不可再分的任务单元，每个任务有明确的、可量化的验收标准，与测试用例一一对应 |
-| **TDD** | 测试驱动开发(Test-Driven Development)，先编写测试用例，再编写功能代码 |
-| **项目讨论群** | 项目创建后自动建立的群组，所有10个Agent加入，用于项目沟通和协作 |
-| Hermes Agent | 由 Nous Research 开发的开源 AI 代理(github.com/NousResearch/hermes-agent) |
-| Hermes Profile | Hermes Agent 的配置文件，定义名称、模型、Gateway端口等 |
-| Hermes Gateway | Hermes Agent 的消息网关模式，提供 REST API + WebSocket 接口 |
-| Gateway API | Hermes Gateway 暴露的标准 API 接口，支持流式和非流式响应 |
-| MCP | Model Context Protocol，Hermes Agent 通过 MCP 扩展能力 |
-| Profile 扫描 | DevFlow 通过扫描用户 profiles 目录自动发现可用 Hermes Agent |
-| 编程 Agent | 专业 AI 编程代理，如 Claude Code/Codex/Opencode/Cursor/CodeArts/Trae/Lingma 等 |
-| Gitea | 轻量级自托管 Git 服务，用于本地代码仓库管理 |
-| Git Flow | 标准化分支管理策略，包括 master/develop/feature/release/hotfix 五种分支类型 |
-| Pull Request | 代码合并请求机制，合并前需代码审查 |
-| Conventional Commits | 标准化 Git 提交消息格式规范 |
-| 群组(Group) | 由多个 Agent 成员组成的协作单元，支持讨论模式和会议模式 |
-| 讨论模式 | 群组自由工作模式，成员可自主发言、回复，支持 @mention |
-| 会议模式 | 群组结构化工作模式，由主持人控制议程，产出决议/待办/风险等 |
+| 术语                   | 定义                                                                                                            |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **HaiMei（海梅）**       | 默认 Hermes Agent，项目经理角色，负责任务分派，对项目交付成果负责                                                                       |
+| **HouXing（后兴）**      | Hermes Agent，需求分析师角色，负责需求分析，产出完整、准确的软件需求说明书                                                                   |
+| **HouWang（后旺）**      | Hermes Agent，架构设计师角色，负责架构设计、后端设计、前端设计、数据库设计                                                                   |
+| **HouFa（后发）**        | Hermes Agent，程序员角色，负责建立代码编写Agent蜂群，监督蜂群完成TDD测试用例和代码编写                                                         |
+| **HouDa（后达）**        | Hermes Agent，测试员角色，负责建立代码测试Agent蜂群，执行单元测试、模块测试、集成测试、前端实操验证                                                    |
+| **HouFu（后富）**        | Hermes Agent，CI/CD工程师角色，负责开发环境搭建和代码部署到测试/生产环境                                                                 |
+| **HouGui（后贵）**       | Hermes Agent，文档管理员角色，负责整个项目文档的一致性管理                                                                           |
+| **HouRong（后荣）**      | Hermes Agent，QA角色，负责检验每个Agent的产出是否达到验收标准，未达标退回重做，达标放行并提交代码库                                                   |
+| **HouHua（后华）**       | Hermes Agent，安全员角色，负责代码审计、合规审查、渗透测试、漏洞修复                                                                      |
+| **Agent蜂群**          | 由后发或后达建立的编程Agent集群，成员可以是Claude Code/Codex/Opencode/Cursor/CodeArts/Trae/Lingma/hermes/pi-codeing-agent的子agent |
+| **QA门控**             | 每步产出必须经后荣(QA)检验合格方可进入下一步的机制，检验合格产出全部提交代码库                                                                     |
+| **原子化任务**            | 最小不可再分的任务单元，每个任务有明确的、可量化的验收标准，与测试用例一一对应                                                                       |
+| **TDD**              | 测试驱动开发(Test-Driven Development)，先编写测试用例，再编写功能代码                                                               |
+| **项目讨论群**            | 项目创建后自动建立的群组，所有10个Agent加入，用于项目沟通和协作                                                                           |
+| Hermes Agent         | 由 Nous Research 开发的开源 AI 代理(github.com/NousResearch/hermes-agent)                                             |
+| Hermes Profile       | Hermes Agent 的配置文件，定义名称、模型、Gateway端口等                                                                         |
+| Hermes Gateway       | Hermes Agent 的消息网关模式，提供 REST API + WebSocket 接口                                                               |
+| Gateway API          | Hermes Gateway 暴露的标准 API 接口，支持流式和非流式响应                                                                        |
+| MCP                  | Model Context Protocol，Hermes Agent 通过 MCP 扩展能力                                                               |
+| Profile 扫描           | DevFlow 通过扫描用户 profiles 目录自动发现可用 Hermes Agent                                                                 |
+| 编程 Agent             | 专业 AI 编程代理，如 Claude Code/Codex/Opencode/Cursor/CodeArts/Trae/Lingma 等                                         |
+| Gitea                | 轻量级自托管 Git 服务，用于本地代码仓库管理                                                                                      |
+| Git Flow             | 标准化分支管理策略，包括 master/develop/feature/release/hotfix 五种分支类型                                                     |
+| Pull Request         | 代码合并请求机制，合并前需代码审查                                                                                             |
+| Conventional Commits | 标准化 Git 提交消息格式规范                                                                                              |
+| 群组(Group)            | 由多个 Agent 成员组成的协作单元，支持讨论模式和会议模式                                                                               |
+| 讨论模式                 | 群组自由工作模式，成员可自主发言、回复，支持 @mention                                                                               |
+| 会议模式                 | 群组结构化工作模式，由主持人控制议程，产出决议/待办/风险等                                                                                |
 
 ***
 
@@ -75,19 +75,19 @@ DevFlow 是一个面向人类用户与 AI Agent 协同的全自动化软件开�
 
 ### 2.2 用户角色
 
-| 角色 | 描述 | 权限 |
-|------|------|------|
-| 人类用户 | 软件开发项目发起者，提出项目需求 | 项目创建、需求沟通、成果验收、查看项目进度、参与群组讨论 |
-| HaiMei（海梅） | 项目经理（Hermes Agent） | 任务分派、流程管控、交付成果负责、对项目讨论群管理 |
-| HouXing（后兴） | 需求分析师（Hermes Agent） | 需求分析、需求评审、产出软件需求说明书 |
-| HouWang（后旺） | 架构设计师（Hermes Agent） | 架构设计、后端设计、前端设计、数据库设计 |
-| HouFa（后发） | 程序员（Hermes Agent） | 建立代码编写Agent蜂群、监督蜂群完成TDD测试用例和代码编写 |
-| HouDa（后达） | 测试员（Hermes Agent） | 建立代码测试Agent蜂群、执行全类型测试 |
-| HouFu（后富） | CI/CD工程师（Hermes Agent） | 开发环境搭建、代码部署到测试/生产环境 |
-| HouGui（后贵） | 文档管理员（Hermes Agent） | 全项目文档一致性管理 |
-| HouRong（后荣） | QA（Hermes Agent） | 检验每个Agent产出、验收标准判定、不合格退回重做、合格提交代码库 |
-| HouHua（后华） | 安全员（Hermes Agent） | 代码审计、合规审查、渗透测试、漏洞修复 |
-| 系统管理员 | 平台运维人员（Hermes Agent） | 配置Agent能力、监控系统运行状态、管理权限 |
+| 角色          | 描述                     | 权限                                 |
+| ----------- | ---------------------- | ---------------------------------- |
+| 人类用户        | 软件开发项目发起者，提出项目需求       | 项目创建、需求沟通、成果验收、查看项目进度、参与群组讨论       |
+| HaiMei（海梅）  | 项目经理（Hermes Agent）     | 任务分派、流程管控、交付成果负责、对项目讨论群管理          |
+| HouXing（后兴） | 需求分析师（Hermes Agent）    | 需求分析、需求评审、产出软件需求说明书                |
+| HouWang（后旺） | 架构设计师（Hermes Agent）    | 架构设计、后端设计、前端设计、数据库设计               |
+| HouFa（后发）   | 程序员（Hermes Agent）      | 建立代码编写Agent蜂群、监督蜂群完成TDD测试用例和代码编写   |
+| HouDa（后达）   | 测试员（Hermes Agent）      | 建立代码测试Agent蜂群、执行全类型测试              |
+| HouFu（后富）   | CI/CD工程师（Hermes Agent） | 开发环境搭建、代码部署到测试/生产环境                |
+| HouGui（后贵）  | 文档管理员（Hermes Agent）    | 全项目文档一致性管理                         |
+| HouRong（后荣） | QA（Hermes Agent）       | 检验每个Agent产出、验收标准判定、不合格退回重做、合格提交代码库 |
+| HouHua（后华）  | 安全员（Hermes Agent）      | 代码审计、合规审查、渗透测试、漏洞修复                |
+| 系统管理员       | 平台运维人员（Hermes Agent）   | 配置Agent能力、监控系统运行状态、管理权限            |
 
 ### 2.3 Agent组织架构
 
@@ -152,11 +152,11 @@ DevFlow 平台依赖本地部署的 Gitea 作为代码托管服务，所有项�
 
 #### 2.6.1 支持的安装方式
 
-| 安装方式 | 描述 | 推荐场景 |
-|---------|------|---------|
+| 安装方式          | 描述                       | 推荐场景           |
+| ------------- | ------------------------ | -------------- |
 | Docker 安装（推荐） | 使用官方 Gitea Docker 镜像快速部署 | 生产环境、快速部署、易于维护 |
-| 二进制安装 | 下载官方二进制包直接运行 | 开发环境、小型部署 |
-| 源码安装 | 从源码编译安装 | 定制化需求、特殊架构 |
+| 二进制安装         | 下载官方二进制包直接运行             | 开发环境、小型部署      |
+| 源码安装          | 从源码编译安装                  | 定制化需求、特殊架构     |
 
 #### 2.6.2 Docker 安装（推荐生产配置）
 
@@ -226,13 +226,14 @@ gitea:
 
 DevFlow 通过 Profile Scanner 自动发现用户系统中的所有 Hermes Agent，替代传统的主动注册模式。
 
-| 发现方式 | 机制 | 适用场景 |
-|---------|------|---------|
+| 发现方式         | 机制                                         | 适用场景         |
+| ------------ | ------------------------------------------ | ------------ |
 | Profile 目录扫描 | 定期扫描用户 profiles 目录，自动发现和识别 Hermes Agent 配置 | 主要发现方式，零配置使用 |
-| 手动刷新 | 用户可通过 API 触发立即扫描 | 实时同步场景 |
-| 状态轮询 | 定期检查各 profile 的 Gateway 运行状态（端口监听检测） | 在线状态监控 |
+| 手动刷新         | 用户可通过 API 触发立即扫描                           | 实时同步场景       |
+| 状态轮询         | 定期检查各 profile 的 Gateway 运行状态（端口监听检测）       | 在线状态监控       |
 
 Profile 存储路径：
+
 - Linux/macOS: `~/.hermes`
 - Windows (WSL): `\\wsl$\{distro}\home\{user}\.hermes`
 
@@ -264,6 +265,7 @@ Profile 存储路径：
 ```
 
 通信特点：
+
 - 流式响应：支持 Server-Sent Events (SSE) 流式输出
 - 并发控制：通过信号量限制最大并发请求数（默认 5）
 
@@ -272,6 +274,7 @@ Profile 存储路径：
 ## 3. AI Agent 全自动开发流程（16步标准流程）
 
 > **核心原则**：
+> 
 > 1. 每步产出必须经 HouRong（后荣/QA）检验合格方可进入下一步
 > 2. 检验合格的产出品全部提交到代码库
 > 3. 检验不合格的产出品退回重做，直到合格
@@ -292,41 +295,49 @@ Profile 存储路径：
 
 ### 第二步：海梅主动与人类用户对话，确认项目核心目标并搭建组织架构
 
-- **执行者**: HaiMei（海梅）— 项目经理
+- **执行者**: HaiMei（海梅）— 项目经理，Hermes Agent,profiles-HaiMei
+
 - **输入**: 人类用户的项目描述和初始需求
+
 - **处理**:
+  
   1. 海梅主动与人类用户对话，沟通并确认项目的核心目标
   2. 搭建项目组织架构，激活以下9个Agent角色：
-
-  | Agent名称 | 中文名 | 角色 | 职责 |
-  |-----------|--------|------|------|
-  | HaiMei | 海梅 | 项目经理 | 负责任务分派，对项目的交付成果负责 |
-  | HouXing | 后兴 | 需求分析师 | 负责需求分析，产出完整、准确的软件需求说明书 |
-  | HouWang | 后旺 | 架构设计师 | 负责架构设计、后端设计、前端设计、数据库设计等 |
-  | HouFa | 后发 | 程序员 | 负责建立代码编写Agent蜂群，监督蜂群完成TDD测试用例和代码编写 |
-  | HouDa | 后达 | 测试员 | 负责建立代码测试Agent蜂群，执行单元测试、模块测试、集成测试、前端实操验证 |
-  | HouFu | 后富 | CI/CD工程师 | 专门负责开发环境搭建和代码部署到测试环境或生产环境 |
-  | HouGui | 后贵 | 文档管理员 | 负责整个项目的文档一致性管理 |
-  | HouRong | 后荣 | QA | 负责检验每个Agent的产出是否达到验收标准，未达标退回重做，达标放行并提交代码库 |
-  | HouHua | 后华 | 安全员 | 负责代码审计、合规审查、渗透测试、漏洞修复等 |
-
+  
+  | Agent名称 | 中文名 | 角色       | 职责                                        |
+  | ------- | --- | -------- | ----------------------------------------- |
+  | HaiMei  | 海梅  | 项目经理     | 负责任务分派，对项目的交付成果负责                         |
+  | HouXing | 后兴  | 需求分析师    | 负责需求分析，产出完整、准确的软件需求说明书                    |
+  | HouWang | 后旺  | 架构设计师    | 负责架构设计、后端设计、前端设计、数据库设计等                   |
+  | HouFa   | 后发  | 程序员      | 负责建立代码编写Agent蜂群，监督蜂群完成TDD测试用例和代码编写        |
+  | HouDa   | 后达  | 测试员      | 负责建立代码测试Agent蜂群，执行单元测试、模块测试、集成测试、前端实操验证   |
+  | HouFu   | 后富  | CI/CD工程师 | 专门负责开发环境搭建和代码部署到测试环境或生产环境                 |
+  | HouGui  | 后贵  | 文档管理员    | 负责整个项目的文档一致性管理                            |
+  | HouRong | 后荣  | QA       | 负责检验每个Agent的产出是否达到验收标准，未达标退回重做，达标放行并提交代码库 |
+  | HouHua  | 后华  | 安全员      | 负责代码审计、合规审查、渗透测试、漏洞修复等                    |
+  
   3. 建立项目讨论群，将人类用户及所有Agent（海梅、后兴、后旺、后发、后达、后富、后贵、后荣、后华）加入群组
+
 - **产出成果**:
+  
   1. 软件项目的核心目标（经用户确认）
   2. 项目组织架构（9个Agent角色定义）
   3. 项目讨论群（所有Agent已加入）
+
 - **QA门控**: 后荣检验核心目标是否明确、组织架构是否完整、讨论群是否正常
+
 - **业务规则**:
+  
   - 海梅必须主动发起对话，不能等待用户追问
   - 所有Agent必须加入项目讨论群
   - 讨论群支持讨论模式和会议模式
 
 ### 第三步：海梅安排后兴与用户对话，产出软件需求说明书
 
-- **执行者**: HaiMei（海梅）安排 HouXing（后兴）
+- **执行者**:HouXing（后兴）
 - **输入**: 项目核心目标、用户初始需求
 - **处理**:
-  1. 海梅安排后兴（Hermes Agent — 需求分析师角色）一起与人类用户对话，沟通具体需求
+  1. 安排后兴（Hermes Agent — 需求分析师角色）一起与人类用户对话，沟通具体需求
   2. 如果项目较复杂，在项目讨论群中召开需求评审会议（会议类型：`requirement_review`）
   3. 后兴根据沟通结果和会议纪要，生成完整、准确的软件需求说明书（SRS）
 - **产出成果**: 完整、准确的软件需求说明书（SRS）
@@ -344,7 +355,7 @@ Profile 存储路径：
 
 ### 第四步：海梅安排后旺进行架构设计
 
-- **执行者**: HaiMei（海梅）安排 HouWang（后旺）
+- **执行者**:  HouWang（后旺）
 - **输入**: 项目核心目标、软件需求说明书
 - **处理**:
   1. 海梅安排后旺，依据项目的核心目标、软件需求说明书，依次生成：
@@ -363,7 +374,7 @@ Profile 存储路径：
 
 ### 第五步：海梅安排后富建立软件开发环境
 
-- **执行者**: HaiMei（海梅）安排 HouFu（后富）
+- **执行者**:  HouFu（后富）
 - **输入**: 软件需求说明书、架构设计文档、后端设计文档、前端设计文档、数据库设计文档
 - **处理**:
   1. 海梅安排后富，依据上述文档建立软件开发环境
@@ -394,7 +405,7 @@ Profile 存储路径：
 
 ### 第七步：海梅安排后发建立Agent蜂群编写TDD测试用例
 
-- **执行者**: HaiMei（海梅）安排 HouFa（后发）
+- **执行者**: HouFa（后发）
 - **输入**: 《TDD测试用例编写计划》
 - **处理**:
   1. 海梅安排后发，依据《TDD测试用例编写计划》，建立Agent蜂群
@@ -428,7 +439,7 @@ Profile 存储路径：
 
 ### 第九步：海梅安排后发建立Agent蜂群编写功能代码
 
-- **执行者**: HaiMei（海梅）安排 HouFa（后发）
+- **执行者**: HouFa（后发）
 - **输入**: 《TDD测试用例编写计划》、《代码编写计划》
 - **处理**:
   1. 海梅安排后发，依据《TDD测试用例编写计划》和《代码编写计划》，建立Agent蜂群
@@ -446,7 +457,7 @@ Profile 存储路径：
 
 ### 第十步：海梅安排后富将代码部署到测试环境
 
-- **执行者**: HaiMei（海梅）安排 HouFu（后富）
+- **执行者**: HouFu（后富）
 - **输入**: 代码库中的全部代码
 - **处理**:
   1. 海梅安排后富将代码部署到测试环境
@@ -458,7 +469,7 @@ Profile 存储路径：
 
 ### 第十一步：海梅安排后达执行全面测试
 
-- **执行者**: HaiMei（海梅）安排 HouDa（后达）
+- **执行者**: HouDa（后达）
 - **输入**: 测试环境中的应用、《TDD测试用例编写计划》
 - **处理**:
   1. 海梅安排后达，建立代码测试的Agent蜂群
@@ -478,7 +489,7 @@ Profile 存储路径：
 
 ### 第十二步：海梅安排后华进行安全审计
 
-- **执行者**: HaiMei（海梅）安排 HouHua（后华）
+- **执行者**: HouHua（后华）
 - **输入**: 代码库中的全部代码、测试报告
 - **处理**:
   1. 海梅安排后华执行安全审计
@@ -497,7 +508,7 @@ Profile 存储路径：
 
 ### 第十三步：海梅安排后富将代码部署到生产环境
 
-- **执行者**: HaiMei（海梅）安排 HouFu（后富）
+- **执行者**: HouFu（后富）
 - **输入**: 通过全部测试和安全审计的代码
 - **处理**:
   1. 海梅安排后富将代码部署到生产环境
@@ -509,7 +520,7 @@ Profile 存储路径：
 
 ### 第十四步：海梅安排后贵完善项目文档
 
-- **执行者**: HaiMei（海梅）安排 HouGui（后贵）
+- **执行者**:HouGui（后贵）
 - **输入**: 全部项目产出（需求说明书、设计文档、代码、测试报告、安全审计报告等）
 - **处理**:
   1. 海梅安排后贵修改完善整个项目的文档
@@ -703,13 +714,13 @@ Profile 存储路径：
 
 #### 4.2.3 技能匹配规则
 
-| 任务类型 | 技能组合 | 优先Agent类型 |
-|---------|---------|-------------|
-| TDD测试用例编写 | tdd_test + code_review | claude_code, codebuddy |
-| 功能代码编写 | code_generation + code_review | opencode, cursor, claude_code, codearts, trae, lingma |
-| 测试用例编写 | test_creation + code_review | claude_code, codebuddy |
-| 环境部署 | deployment + code_generation | cursor, codebuddy, codearts |
-| 集成测试 | test_creation + debugging | claude_code, trae |
+| 任务类型      | 技能组合                          | 优先Agent类型                                             |
+| --------- | ----------------------------- | ----------------------------------------------------- |
+| TDD测试用例编写 | tdd_test + code_review        | claude_code, codebuddy                                |
+| 功能代码编写    | code_generation + code_review | opencode, cursor, claude_code, codearts, trae, lingma |
+| 测试用例编写    | test_creation + code_review   | claude_code, codebuddy                                |
+| 环境部署      | deployment + code_generation  | cursor, codebuddy, codearts                           |
+| 集成测试      | test_creation + debugging     | claude_code, trae                                     |
 
 ### 4.3 QA门控模块
 
@@ -723,17 +734,17 @@ Profile 存储路径：
   4. 检验不合格：退回重做，附带修改建议，Agent必须在时限内修改重新提交
 - **检验维度**（按产出类型）:
 
-| 产出类型 | 检验维度 |
-|---------|---------|
-| 软件需求说明书 | 完整性、一致性、可验证性、无歧义性 |
-| 设计文档 | 完整性、需求覆盖度、技术可行性、架构合理性 |
-| 开发环境 | 可用性、配置正确性、依赖完整性 |
-| TDD测试用例 | 正确性、覆盖率、原子化、验收标准可量化 |
-| 计划文档 | 任务原子化、测试用例对应、依赖关系正确性 |
-| 功能代码 | 正确性、测试通过、需求匹配度、代码规范 |
-| 测试报告 | 覆盖率、通过率、缺陷严重度、实操验证结果 |
-| 安全审计报告 | 漏洞修复率、合规达标、渗透测试通过 |
-| 项目文档 | 完整性、一致性、准确性 |
+| 产出类型    | 检验维度                  |
+| ------- | --------------------- |
+| 软件需求说明书 | 完整性、一致性、可验证性、无歧义性     |
+| 设计文档    | 完整性、需求覆盖度、技术可行性、架构合理性 |
+| 开发环境    | 可用性、配置正确性、依赖完整性       |
+| TDD测试用例 | 正确性、覆盖率、原子化、验收标准可量化   |
+| 计划文档    | 任务原子化、测试用例对应、依赖关系正确性  |
+| 功能代码    | 正确性、测试通过、需求匹配度、代码规范   |
+| 测试报告    | 覆盖率、通过率、缺陷严重度、实操验证结果  |
+| 安全审计报告  | 漏洞修复率、合规达标、渗透测试通过     |
+| 项目文档    | 完整性、一致性、准确性           |
 
 #### 4.3.2 代码库提交规则
 
@@ -745,16 +756,16 @@ Profile 存储路径：
   - 未检验或检验不合格的产出禁止提交
 - **提交时机**:
 
-| 阶段 | 提交内容 | 目标分支 |
-|------|---------|---------|
-| 需求分析完成 | 软件需求说明书 | develop |
-| 设计完成 | 设计文档 | develop |
-| TDD测试用例完成 | 测试用例代码 | feature/* |
-| 功能代码完成 | 功能代码 + 单元测试 | feature/* |
-| 测试通过 | 测试报告 | develop（通过PR） |
-| 安全审计通过 | 安全审计报告 | develop |
-| 发布就绪 | 全部产出 | release/* |
-| 生产发布 | 稳定版本 | main（通过PR） |
+| 阶段        | 提交内容        | 目标分支          |
+| --------- | ----------- | ------------- |
+| 需求分析完成    | 软件需求说明书     | develop       |
+| 设计完成      | 设计文档        | develop       |
+| TDD测试用例完成 | 测试用例代码      | feature/*     |
+| 功能代码完成    | 功能代码 + 单元测试 | feature/*     |
+| 测试通过      | 测试报告        | develop（通过PR） |
+| 安全审计通过    | 安全审计报告      | develop       |
+| 发布就绪      | 全部产出        | release/*     |
+| 生产发布      | 稳定版本        | main（通过PR）    |
 
 ### 4.4 代码库管理模块
 
@@ -773,6 +784,7 @@ Profile 存储路径：
 #### 4.4.2 分支管理（Git Flow）
 
 采用 Git Flow 分支策略：
+
 - `main`: 生产分支，仅通过PR合并
 - `develop`: 开发分支，仅通过PR合并
 - `feature/*`: 功能分支
@@ -791,21 +803,22 @@ Profile 存储路径：
 <footer>
 ```
 
-| 类型 | 描述 |
-|------|------|
-| feat | 新功能 |
-| fix | Bug修复 |
-| docs | 文档更新 |
-| style | 代码格式调整 |
-| refactor | 代码重构 |
-| test | 添加或修改测试 |
-| build | 构建系统或依赖更新 |
-| ci | CI配置更新 |
-| chore | 其他杂项任务 |
+| 类型       | 描述        |
+| -------- | --------- |
+| feat     | 新功能       |
+| fix      | Bug修复     |
+| docs     | 文档更新      |
+| style    | 代码格式调整    |
+| refactor | 代码重构      |
+| test     | 添加或修改测试   |
+| build    | 构建系统或依赖更新 |
+| ci       | CI配置更新    |
+| chore    | 其他杂项任务    |
 
 #### 4.4.4 Pull Request流程
 
 所有代码合并必须通过Pull Request流程，确保代码质量：
+
 1. 创建分支 → 2. 开发编码 → 3. 推送远程 → 4. 创建PR → 5. 代码审查 → 6. 自动化测试 → 7. 审批通过 → 8. 合并 → 9. 删除源分支
 
 ### 4.5 Hermes Agent管理模块
@@ -847,14 +860,14 @@ Profile 存储路径：
 
 ### 5.1 性能要求
 
-| 指标 | 目标值 |
-|------|-------|
-| 页面加载时间 | < 2 秒 |
-| Agent响应时间 | < 3 秒 |
-| 蜂群Agent任务分配响应时间 | < 500 毫秒 |
-| QA检验自动化处理时间 | 单产出 < 1 分钟 |
-| 并发项目数 | 支持 20 个项目同时执行 |
-| 数据库查询响应 | < 100 毫秒 |
+| 指标              | 目标值           |
+| --------------- | ------------- |
+| 页面加载时间          | < 2 秒         |
+| Agent响应时间       | < 3 秒         |
+| 蜂群Agent任务分配响应时间 | < 500 毫秒      |
+| QA检验自动化处理时间     | 单产出 < 1 分钟    |
+| 并发项目数           | 支持 20 个项目同时执行 |
+| 数据库查询响应         | < 100 毫秒      |
 
 ### 5.2 安全要求
 
@@ -884,16 +897,16 @@ Profile 存储路径：
 
 ### 6.1 技术栈
 
-| 层 | 技术 |
-|----|------|
-| 前端 | Vue 3 + Element Plus + 实时通信组件 |
-| 后端 | Python FastAPI + Celery（任务调度）+ asyncio（异步并发控制） |
-| 数据库 | PostgreSQL + Redis（缓存/状态存储） |
-| 代码托管层 | Gitea（本地部署的自托管Git服务） |
-| AI Agent交互层 | Gateway Client（OpenAI兼容）、Profile Scanner、Conversation Coordinator |
-| 群聊协作层 | WebSocket实时通信、Connection Manager、Meeting State |
-| Hermes Agent | 独立部署的开源AI代理，10个命名Agent角色 |
-| 部署 | Docker + Docker Compose |
+| 层            | 技术                                                                |
+| ------------ | ----------------------------------------------------------------- |
+| 前端           | Vue 3 + Element Plus + 实时通信组件                                     |
+| 后端           | Python FastAPI + Celery（任务调度）+ asyncio（异步并发控制）                    |
+| 数据库          | PostgreSQL + Redis（缓存/状态存储）                                       |
+| 代码托管层        | Gitea（本地部署的自托管Git服务）                                              |
+| AI Agent交互层  | Gateway Client（OpenAI兼容）、Profile Scanner、Conversation Coordinator |
+| 群聊协作层        | WebSocket实时通信、Connection Manager、Meeting State                    |
+| Hermes Agent | 独立部署的开源AI代理，10个命名Agent角色                                          |
+| 部署           | Docker + Docker Compose                                           |
 
 ### 6.2 架构图
 
@@ -972,59 +985,77 @@ Profile 存储路径：
 #### 核心表
 
 1. **users** - 人类用户表
+   
    - id, username, email, password_hash, role, created_at
 
 2. **projects** - 项目表
+   
    - id, name, description, creator_id, core_goal, status, current_step(1-16), created_at, completed_at
 
 3. **requirements** - 需求表
+   
    - id, project_id, content, version, is_locked, confirmed_at
 
 4. **agents** - Agent角色表（10个命名Agent + 编程Agent蜂群）
+   
    - id, name(唯一), agent_type, role_name, chinese_name, status(online/offline/busy), api_endpoint, config(JSON), created_at
 
 5. **tasks** - 任务表
+   
    - id, project_id, name, description, type, priority, assignee_agent, status, acceptance_criteria, step_number(1-16), is_atomic, parent_task_id, created_at, completed_at
 
 6. **task_dependencies** - 任务依赖表
+   
    - id, source_task_id, target_task_id, created_at
 
 7. **agent_execution_logs** - Agent执行日志表
+   
    - id, task_id, agent_id, execution_content, result, created_at
 
 8. **qa_records** - QA检验记录表
+   
    - id, task_id, qa_agent_id, acceptance_result(pass/fail), problem_details, review_dimensions(JSON), created_at
 
 9. **groups** - 群组表（项目讨论群）
+   
    - id, project_id, name, description, members(JSON数组), host_agent, mode, created_at
 
 10. **group_messages** - 群聊消息表
+    
     - id, group_id, sender, role, content, timestamp, is_streaming, metadata(JSON)
 
 11. **meeting_outcomes** - 会议结果表
+    
     - id, group_id, meeting_topic, host_agent, started_at, ended_at, minutes, decisions(JSON), todos(JSON), risks(JSON), open_issues(JSON)
 
 12. **swarms** - Agent蜂群表
+    
     - id, project_id, manager_agent_id(后发/后达), members(JSON), purpose, status, created_at
 
 13. **notifications** - 通知表
+    
     - id, user_id, project_id, content, type, is_read, created_at
 
 #### 代码仓库相关表
 
 1. **repos** - 代码仓库表
+   
    - id, project_id, gitea_repo_id, name, url, ssh_url, http_url, default_branch, is_private, created_at
 
 2. **repo_branches** - 分支表
+   
    - id, repo_id, name, commit_sha, is_protected, created_at
 
 3. **pull_requests** - PR表
+   
    - id, repo_id, number, title, description, source_branch, target_branch, author, status, created_at, merged_at
 
 4. **commits** - 提交记录表
+   
    - id, repo_id, sha, message, author, created_at
 
 5. **task_commits** - 任务与提交关联表
+   
    - id, task_id, commit_id, created_at
 
 ***
@@ -1035,130 +1066,130 @@ Profile 存储路径：
 
 #### 7.1.1 用户与项目管理
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/auth/login | 人类用户登录 |
-| POST | /api/projects | 人类用户创建项目（第一步） |
-| GET | /api/projects/:id | 获取项目详情 |
-| GET | /api/projects/:id/progress | 获取项目16步流程进度 |
-| POST | /api/projects/:id/complete | 确认项目完成 |
+| 方法   | 路径                         | 描述            |
+| ---- | -------------------------- | ------------- |
+| POST | /api/auth/login            | 人类用户登录        |
+| POST | /api/projects              | 人类用户创建项目（第一步） |
+| GET  | /api/projects/:id          | 获取项目详情        |
+| GET  | /api/projects/:id/progress | 获取项目16步流程进度   |
+| POST | /api/projects/:id/complete | 确认项目完成        |
 
 #### 7.1.2 Agent角色管理
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | /api/agents | 获取所有Agent列表（含10个命名Agent+蜂群Agent） |
-| GET | /api/agents/:id | 获取指定Agent详情 |
-| POST | /api/agents/register | 编程Agent注册（蜂群成员） |
-| DELETE | /api/agents/:id | 移除Agent |
-| GET | /api/profiles | 获取所有扫描到的Hermes Agent Profiles |
-| POST | /api/agents/sync-hermes | 同步发现的profiles到数据库 |
+| 方法     | 路径                      | 描述                               |
+| ------ | ----------------------- | -------------------------------- |
+| GET    | /api/agents             | 获取所有Agent列表（含10个命名Agent+蜂群Agent） |
+| GET    | /api/agents/:id         | 获取指定Agent详情                      |
+| POST   | /api/agents/register    | 编程Agent注册（蜂群成员）                  |
+| DELETE | /api/agents/:id         | 移除Agent                          |
+| GET    | /api/profiles           | 获取所有扫描到的Hermes Agent Profiles    |
+| POST   | /api/agents/sync-hermes | 同步发现的profiles到数据库                |
 
 #### 7.1.3 16步流程调度
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/projects/:id/step2 | 执行第二步：海梅确认核心目标+搭建组织架构 |
-| POST | /api/projects/:id/step3 | 执行第三步：后兴需求分析 |
-| POST | /api/projects/:id/step4 | 执行第四步：后旺架构设计 |
-| POST | /api/projects/:id/step5 | 执行第五步：后富建立开发环境 |
-| POST | /api/projects/:id/step6 | 执行第六步：海梅制订TDD测试用例计划 |
-| POST | /api/projects/:id/step7 | 执行第七步：后发蜂群编写TDD测试用例 |
-| POST | /api/projects/:id/step8 | 执行第八步：海梅制订代码编写计划 |
-| POST | /api/projects/:id/step9 | 执行第九步：后发蜂群编写功能代码 |
-| POST | /api/projects/:id/step10 | 执行第十步：后富部署到测试环境 |
-| POST | /api/projects/:id/step11 | 执行第十一步：后达蜂群全面测试 |
-| POST | /api/projects/:id/step12 | 执行第十二步：后华安全审计 |
-| POST | /api/projects/:id/step13 | 执行第十三步：后富部署到生产环境 |
-| POST | /api/projects/:id/step14 | 执行第十四步：后贵完善文档 |
-| POST | /api/projects/:id/step15 | 执行第十五步：海梅报告交付成果 |
-| POST | /api/projects/:id/step16 | 执行第十六步：用户满意度确认 |
+| 方法   | 路径                       | 描述                    |
+| ---- | ------------------------ | --------------------- |
+| POST | /api/projects/:id/step2  | 执行第二步：海梅确认核心目标+搭建组织架构 |
+| POST | /api/projects/:id/step3  | 执行第三步：后兴需求分析          |
+| POST | /api/projects/:id/step4  | 执行第四步：后旺架构设计          |
+| POST | /api/projects/:id/step5  | 执行第五步：后富建立开发环境        |
+| POST | /api/projects/:id/step6  | 执行第六步：海梅制订TDD测试用例计划   |
+| POST | /api/projects/:id/step7  | 执行第七步：后发蜂群编写TDD测试用例   |
+| POST | /api/projects/:id/step8  | 执行第八步：海梅制订代码编写计划      |
+| POST | /api/projects/:id/step9  | 执行第九步：后发蜂群编写功能代码      |
+| POST | /api/projects/:id/step10 | 执行第十步：后富部署到测试环境       |
+| POST | /api/projects/:id/step11 | 执行第十一步：后达蜂群全面测试       |
+| POST | /api/projects/:id/step12 | 执行第十二步：后华安全审计         |
+| POST | /api/projects/:id/step13 | 执行第十三步：后富部署到生产环境      |
+| POST | /api/projects/:id/step14 | 执行第十四步：后贵完善文档         |
+| POST | /api/projects/:id/step15 | 执行第十五步：海梅报告交付成果       |
+| POST | /api/projects/:id/step16 | 执行第十六步：用户满意度确认        |
 
 #### 7.1.4 QA门控
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/qa/:task_id/inspect | 后荣检验产出 |
-| GET | /api/qa/:project_id/records | 获取项目QA检验记录 |
-| POST | /api/qa/:task_id/rollback | 退回重做 |
+| 方法   | 路径                          | 描述         |
+| ---- | --------------------------- | ---------- |
+| POST | /api/qa/:task_id/inspect    | 后荣检验产出     |
+| GET  | /api/qa/:project_id/records | 获取项目QA检验记录 |
+| POST | /api/qa/:task_id/rollback   | 退回重做       |
 
 #### 7.1.5 Agent蜂群
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/swarms | 建立Agent蜂群 |
-| GET | /api/swarms/:id | 获取蜂群详情 |
+| 方法   | 路径                       | 描述        |
+| ---- | ------------------------ | --------- |
+| POST | /api/swarms              | 建立Agent蜂群 |
+| GET  | /api/swarms/:id          | 获取蜂群详情    |
 | POST | /api/swarms/:id/dispatch | 蜂群调度：分发任务 |
-| GET | /api/swarms/:id/progress | 获取蜂群执行进度 |
+| GET  | /api/swarms/:id/progress | 获取蜂群执行进度  |
 
 #### 7.1.6 项目讨论群
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | /api/groups | 获取所有群组列表 |
-| POST | /api/groups | 创建群组 |
-| GET | /api/groups/:group_id | 获取群组详情 |
-| POST | /api/groups/:group_id/members | 添加成员 |
-| GET | /api/groups/:group_id/messages | 获取群组历史消息 |
+| 方法   | 路径                             | 描述       |
+| ---- | ------------------------------ | -------- |
+| GET  | /api/groups                    | 获取所有群组列表 |
+| POST | /api/groups                    | 创建群组     |
+| GET  | /api/groups/:group_id          | 获取群组详情   |
+| POST | /api/groups/:group_id/members  | 添加成员     |
+| GET  | /api/groups/:group_id/messages | 获取群组历史消息 |
 
 #### 7.1.7 Gateway通信
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| GET | /api/hermes/health | 检查Gateway健康状态 |
-| POST | /api/hermes/chat | 与指定Agent对话（非流式） |
+| 方法   | 路径                      | 描述              |
+| ---- | ----------------------- | --------------- |
+| GET  | /api/hermes/health      | 检查Gateway健康状态   |
+| POST | /api/hermes/chat        | 与指定Agent对话（非流式） |
 | POST | /api/hermes/chat/stream | 与Agent对话（流式SSE） |
 
 #### 7.1.8 代码库管理
 
-| 方法 | 路径 | 描述 |
-|------|------|------|
-| POST | /api/repos | 创建代码仓库 |
-| GET | /api/repos/:repo_id | 获取仓库详情 |
-| GET | /api/repos/:repo_id/branches | 获取分支列表 |
-| POST | /api/repos/:repo_id/branches | 创建分支 |
-| GET | /api/repos/:repo_id/pulls | 获取PR列表 |
-| POST | /api/repos/:repo_id/pulls | 创建PR |
-| POST | /api/repos/:repo_id/pulls/:number/merge | 合并PR |
-| GET | /api/repos/:repo_id/commits | 获取提交记录 |
-| POST | /api/repos/validate-commit | 验证提交规范 |
+| 方法   | 路径                                      | 描述     |
+| ---- | --------------------------------------- | ------ |
+| POST | /api/repos                              | 创建代码仓库 |
+| GET  | /api/repos/:repo_id                     | 获取仓库详情 |
+| GET  | /api/repos/:repo_id/branches            | 获取分支列表 |
+| POST | /api/repos/:repo_id/branches            | 创建分支   |
+| GET  | /api/repos/:repo_id/pulls               | 获取PR列表 |
+| POST | /api/repos/:repo_id/pulls               | 创建PR   |
+| POST | /api/repos/:repo_id/pulls/:number/merge | 合并PR   |
+| GET  | /api/repos/:repo_id/commits             | 获取提交记录 |
+| POST | /api/repos/validate-commit              | 验证提交规范 |
 
 ### 7.2 WebSocket事件
 
 #### 7.2.1 核心事件
 
-| 事件 | 描述 |
-|------|------|
-| project.step.started | 某步骤开始执行 |
-| project.step.completed | 某步骤执行完成 |
-| project.step.failed | 某步骤执行失败 |
-| qa.inspection.passed | QA检验通过 |
-| qa.inspection.failed | QA检验未通过 |
-| task.assigned | 任务分配给Agent |
-| task.status.changed | 任务状态变更 |
-| project.completed | 项目完成通知 |
+| 事件                     | 描述         |
+| ---------------------- | ---------- |
+| project.step.started   | 某步骤开始执行    |
+| project.step.completed | 某步骤执行完成    |
+| project.step.failed    | 某步骤执行失败    |
+| qa.inspection.passed   | QA检验通过     |
+| qa.inspection.failed   | QA检验未通过    |
+| task.assigned          | 任务分配给Agent |
+| task.status.changed    | 任务状态变更     |
+| project.completed      | 项目完成通知     |
 
 #### 7.2.2 群聊WebSocket端点
 
 WebSocket端点: `ws://{host}/ws/group-chat`
 
-| 客户端消息类型 | 描述 |
-|-------------|------|
-| subscribe | 订阅群组消息 |
-| unsubscribe | 取消订阅 |
-| send_message | 发送消息（支持@mention） |
-| start_meeting | 启动会议 |
-| stop_meeting | 停止会议 |
-| meeting_intervention | 会议中用户干预 |
+| 客户端消息类型              | 描述               |
+| -------------------- | ---------------- |
+| subscribe            | 订阅群组消息           |
+| unsubscribe          | 取消订阅             |
+| send_message         | 发送消息（支持@mention） |
+| start_meeting        | 启动会议             |
+| stop_meeting         | 停止会议             |
+| meeting_intervention | 会议中用户干预          |
 
-| 服务端事件类型 | 描述 |
-|-------------|------|
-| message_new | 新消息 |
-| message_chunk | 流式内容块 |
-| message_complete | 回复完成 |
-| meeting_started | 会议开始 |
-| meeting_minutes | 会议纪要 |
-| task_created | 新任务创建 |
+| 服务端事件类型          | 描述    |
+| ---------------- | ----- |
+| message_new      | 新消息   |
+| message_chunk    | 流式内容块 |
+| message_complete | 回复完成  |
+| meeting_started  | 会议开始  |
+| meeting_minutes  | 会议纪要  |
+| task_created     | 新任务创建 |
 
 ***
 

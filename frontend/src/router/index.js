@@ -142,11 +142,95 @@ const routes = [
     meta: { requiresAuth: true, title: '第四步：架构设计' }
   },
   {
-    path: '/step/:projectId/:stepNumber',
-    name: 'WorkflowStep',
-    component: () => import('@/views/WorkflowStepView.vue'),
+    path: '/step1/:projectId',
+    name: 'Step1',
+    component: () => import('@/views/Step1View.vue'),
     props: true,
-    meta: { requiresAuth: true, title: '工作流步骤' }
+    meta: { requiresAuth: true, title: '第一步：项目概览' }
+  },
+  {
+    path: '/step5/:projectId',
+    name: 'Step5',
+    component: () => import('@/views/Step5View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第五步：建立开发环境' }
+  },
+  {
+    path: '/step6/:projectId',
+    name: 'Step6',
+    component: () => import('@/views/Step6View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第六步：制订TDD测试用例计划' }
+  },
+  {
+    path: '/step7/:projectId',
+    name: 'Step7',
+    component: () => import('@/views/Step7View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第七步：编写TDD测试用例' }
+  },
+  {
+    path: '/step8/:projectId',
+    name: 'Step8',
+    component: () => import('@/views/Step8View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第八步：制订代码编写计划' }
+  },
+  {
+    path: '/step9/:projectId',
+    name: 'Step9',
+    component: () => import('@/views/Step9View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第九步：编写功能代码' }
+  },
+  {
+    path: '/step10/:projectId',
+    name: 'Step10',
+    component: () => import('@/views/Step10View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十步：部署到测试环境' }
+  },
+  {
+    path: '/step11/:projectId',
+    name: 'Step11',
+    component: () => import('@/views/Step11View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十一步：全面测试' }
+  },
+  {
+    path: '/step12/:projectId',
+    name: 'Step12',
+    component: () => import('@/views/Step12View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十二步：安全审计' }
+  },
+  {
+    path: '/step13/:projectId',
+    name: 'Step13',
+    component: () => import('@/views/Step13View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十三步：部署到生产环境' }
+  },
+  {
+    path: '/step14/:projectId',
+    name: 'Step14',
+    component: () => import('@/views/Step14View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十四步：完善项目文档' }
+  },
+  {
+    path: '/step15/:projectId',
+    name: 'Step15',
+    component: () => import('@/views/Step15View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十五步：报告交付成果' }
+  },
+  {
+    path: '/step16/:projectId',
+    name: 'Step16',
+    component: () => import('@/views/Step16View.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第十六步：用户满意度确认与迭代' }
   },
 
   {

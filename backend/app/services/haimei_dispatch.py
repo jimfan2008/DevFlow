@@ -572,7 +572,12 @@ STEP_CONFIGS: Dict[int, tuple] = {
 
 async def dispatch_step_n(project_id: str, engine: WorkflowEngine, step_number: int) -> None:
     """通用步骤执行调度器（适用于 6-15 的简单 Agent 执行步骤）"""
-    from app.api.ws.step4_progress import broadcast
+    import importlib as _importlib
+    try:
+        ws_mod = _importlib.import_module(f"app.api.ws.step{step_number}_progress")
+        broadcast = ws_mod.broadcast
+    except (ImportError, AttributeError):
+        from app.api.ws.step4_progress import broadcast
     from app.services.gateway_client import GatewayClient
 
     config = STEP_CONFIGS.get(step_number)
@@ -628,11 +633,8 @@ async def dispatch_step_n(project_id: str, engine: WorkflowEngine, step_number: 
         messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=65536
     ):
         full_reply.append(chunk)
-        if len(full_reply) % 20 == 0:
-            await broadcast(project_id, {
-                "type": "progress",
-                "message": f"⏳ Agent {profile_name} 执行中...（已生成 {len(''.join(full_reply))} 字符）",
-            })
+        if chunk.strip():
+            await broadcast(project_id, {"type": "content", "content": chunk})
 
     reply = "".join(full_reply).strip()
     if reply and len(reply) >= 50:
