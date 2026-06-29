@@ -356,6 +356,17 @@ async def _run_qa_loop(
                     except Exception as e:
                         logger.warning(f"生成交接文档文件失败: {e}")
 
+                    artifacts_payload = {
+                        "doc_content": current_content,
+                        "srs": current_content,
+                        "doc_path": save_path,
+                        "handover_path": handover_path,
+                        "handover_doc": handover_content,
+                        "qa_inspections": results,
+                        "qa_checked": True,
+                    }
+                    engine.complete_step(3, artifacts=artifacts_payload)
+                    engine.pass_qa(3)
                     engine.save_step3_artifacts({
                         "doc_content": current_content,
                         "srs": current_content,
@@ -365,18 +376,6 @@ async def _run_qa_loop(
                         "qa_passed": True,
                         "qa_checked": True,
                     })
-                    artifacts_payload = {
-                        "doc_content": current_content,
-                        "srs": current_content,
-                        "doc_path": save_path,
-                        "handover_path": handover_path,
-                        "handover_doc": handover_content,
-                        "qa_inspections": results,
-                        "qa_passed": True,
-                        "qa_checked": True,
-                    }
-                    engine.complete_step(3, artifacts=artifacts_payload)
-                    engine.pass_qa(3)
                     await websocket.send_json({
                         "type": "progress",
                         "content": f"\n✅ 合格需求文档已保存至: {save_path}\n✅ 步骤已推进！可以进入第4步（后旺架构设计）\n"

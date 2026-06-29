@@ -199,7 +199,7 @@ async def _run_step6(websocket: WebSocket, project_id: str, db) -> bool:
 
         convergence_log, final_path, final_content = [], "", ""
 
-        # Check for existing TDD doc that never passed QA — skip haimei, go straight to hourong
+        # Check for existing TDD doc on disk that never passed QA — skip haimei, go straight to hourong
         _skip_arts = engine.get_step6_artifacts() or {}
         _skip_doc = _skip_arts.get("tdd_plan", "")
         if not _skip_doc and _skip_arts.get("doc_path") and os.path.exists(_skip_arts["doc_path"]):
@@ -208,6 +208,16 @@ async def _run_step6(websocket: WebSocket, project_id: str, db) -> bool:
                     _skip_doc = f.read()
             except Exception:
                 pass
+        if not _skip_doc and max_ver > 0:
+            latest_path = os.path.join(docs_dir, f"{slug}_tddplan_V{max_ver}.md")
+            if os.path.exists(latest_path):
+                try:
+                    with open(latest_path, "r", encoding="utf-8") as f:
+                        _skip_doc = f.read()
+                    if _skip_doc and _skip_doc.strip():
+                        _skip_arts["doc_path"] = latest_path
+                except Exception:
+                    pass
         skip_haimei_round1 = bool(_skip_doc and _skip_doc.strip())
 
         for fix_round in range(1, 11):

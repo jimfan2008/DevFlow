@@ -168,11 +168,11 @@ async function loadStatus() {
     }
 
     if (stepStatus.value === 'in_progress') {
-      stageLog.value.push({ type: 'stage', message: `🔄 检测到步骤6正在执行中，尝试恢复...` })
+      stageLog.value.push({ type: 'stage', message: `🔄 检测到步骤6中断，正在重新执行...` })
       connectWsStep6(() => {
         stepStatus.value = 'in_progress'
-        streamStatus.value = '🚀 正在恢复执行...'
-      }, true)
+        streamStatus.value = '🚀 正在执行...'
+      })
       startPolling()
       resetStuckTimer()
     }

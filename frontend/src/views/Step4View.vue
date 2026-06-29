@@ -433,13 +433,26 @@ function connectProgressWs() {
             liveContent.value += msg.content
           } else if (msg.type === 'done') {
             if (msg.message) stageLog.value.push({ type: 'done', message: msg.message })
-            streamStatus.value = '✅ 4子流程执行完成'
+            streamStatus.value = msg.message
+            clearAllTimers()
+            executing.value = false
+            // 后端 orchestrator 已自动 complete_step(4) + pass_qa(4)，检查状态后导航至 step5
+            setTimeout(async () => {
+              try {
+                const res = await workflowApi.getStatus(props.projectId) as any
+                const step4Row = (res?.data || res)?.steps?.['4']
+                if (step4Row?.status === 'completed') {
+                  router.push({
+                    name: 'Step5',
+                    params: { projectId: props.projectId },
+                    query: { name: projectName },
+                  })
+                }
+              } catch {}
+            }, 2000)
           } else if (msg.type === 'error') {
             if (msg.message) stageLog.value.push({ type: 'error', message: msg.message })
           }
-        }
-        if (msg.type === 'done' || msg.type === 'error') {
-          streamStatus.value = msg.message || streamStatus.value
         }
       } catch { /* ignore parse errors */ }
     }
@@ -534,7 +547,15 @@ function startPolling() {
         executing.value = false
         streamStatus.value = '✅ 所有子步骤完成'
         clearAllTimers()
-        ElMessage.success('架构设计完成，请进行 QA 检验')
+        // 若后端已 auto-complete (orchestrator 调用了 pass_qa)，直接导航至 step5
+        const step4Row = data?.steps?.['4']
+        if (step4Row?.status === 'completed') {
+          setTimeout(() => {
+            router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName } })
+          }, 1500)
+        } else {
+          ElMessage.success('架构设计完成，请进行 QA 检验')
+        }
       } else if (s4.status === 'error') {
         backendError.value = s4.message || '后端任务执行失败'
         stuckWarning.value = '❌ 后台任务已终止，请点"强制重新执行"恢复'

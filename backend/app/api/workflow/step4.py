@@ -97,106 +97,53 @@ def _build_inspect_prompt(
     )
 
     return (
-        f"You are a JSON-only API. Your entire response MUST be a single, "
-        f"valid JSON object — nothing else.\n\n"
-        f"Role: 专业的设计方案 QA 检验员（后荣 / HouRong）\n\n"
+        "你是一个严格的 JSON-only API，你的回复必须是一个合法的 JSON 对象，不能包含任何其他文字。\n\n"
+        "角色：专业的设计方案 QA 检验员（后荣 / HouRong）\n\n"
         f"=== 检验项目 ===\n"
         f"{dim_label}（{dim_desc}）\n\n"
         f"=== 文档路径 ===\n"
         f"{doc_path}\n\n"
-        f"Task: 读取该文档文件，严格对照以下检验标准逐项评分并输出格式化检验报告。\n"
-        f"注意：文档文件位于上述路径，请直接读取文件进行完整检验。\n\n"
+        f"任务：读取该文档文件，严格逐项对照检验标准进行检验。\n\n"
         f"=== 检验标准与权重 ===\n"
         f"{std_items}\n\n"
-        f"=== 评分规则 ===\n"
-        f"每项标准按1-5分评分：\n"
-        f"  5 = 完全符合（无可挑剔）\n"
-        f"  4 = 良好（有小瑕疵但不影响）\n"
-        f"  3 = 合格（基本满足，需要改进）\n"
-        f"  2 = 不足（有明显缺陷）\n"
-        f"  1 = 严重不达标（基本未涉及）\n\n"
+        f"=== 评分规则（每项1-5分）===\n"
+        f"  5 = 完全符合，4 = 良好，3 = 合格，2 = 不足，1 = 严重不达标\n\n"
         f"=== 判定规则 ===\n"
-        f"- 存在任意 critical 权重项评分 < 3 → passed = false\n"
-        f"- 存在 2 项及以上 major 权重项评分 < 3 → passed = false\n"
+        f"- 存在任意 critical 项评分 < 3 → passed = false\n"
+        f"- 存在 2 项及以上 major 项评分 < 3 → passed = false\n"
         f"- 其余情况 → passed = true\n\n"
-        f"=== OUTPUT JSON FORMAT (STRICT) ===\n"
-        f'Output ONLY a JSON object with the following structure:\n'
-        f'{{\n'
+        f"=== 强制输出格式 ===\n"
+        f"必须输出且仅输出以下 JSON 对象（不要加 markdown 代码块标记）：\n"
+        f"{{\n"
         f'  "key": "{dim_key}",\n'
-        f'  "passed": true/false,\n'
-        f'  "detail": "格式化的检验报告文本（见下方要求）",\n'
-        f'  "report": {{\n'
-        f'    "standards": [\n'
-        f'      {{\n'
-        f'        "name": "标准名称",\n'
-        f'        "score": 1-5,\n'
-        f'        "severity": "critical"/"major",\n'
-        f'        "comment": "评分说明",\n'
-        f'        "issue": "发现的问题（无则留空）"\n'
-        f'      }}\n'
-        f'    ],\n'
-        f'    "overall_score": 3.5,\n'
-        f'    "summary": "检验总结",\n'
-        f'    "problems": [\n'
-        f'      {{"severity": "critical"/"major"/"minor", "description": "问题描述"}}\n'
-        f'    ],\n'
-        f'    "recommendations": ["改进建议1", "改进建议2"]\n'
-        f'  }}\n'
-        f'}}\n\n'
-        f"=== detail 字段格式要求 ===\n"
-        f"detail 字段必须是一个格式化的文本报告，包含以下内容：\n"
-        f"1. 报告标题（后荣设计文档检验报告）\n"
-        f"2. 检验项目名称\n"
-        f"3. 各标准逐项评分（名称、评分、说明）\n"
-        f"4. 发现的全部问题列表（含严重程度标记）\n"
-        f"5. 总体评分和判定结果\n"
-        f"6. 改进建议\n\n"
-        f"Example detail format:\n"
-        f"========================================\n"
-        f"后荣（HouRong）设计文档检验报告\n"
-        f"========================================\n"
-        f"检验项目: {dim_label}\n"
-        f"\n"
+        f'  "passed": true 或 false,\n'
+        f'  "detail": "完整的格式化检验报告（见下方要求）"\n'
+        f"}}\n\n"
+        f"=== detail 字段要求（这是最重要的字段，绝不能为空）===\n"
+        f"如果 passed = false，detail 中必须逐条列出每个不合格标准的具体问题。\n"
+        f"格式如下：\n"
+        f"【检验报告】{dim_label}\n"
         f"【逐项评分】\n"
-        f"1. 完整性 [critical] — 评分: 4/5\n"
-        f"   说明: 覆盖了主要功能需求\n"
-        f"   问题: 非功能需求未充分说明\n"
-        f"2. 合理性 [critical] — 评分: 2/5\n"
-        f"   说明: 模块划分不够清晰\n"
-        f"   问题: 用户模块和订单模块职责重叠\n"
-        f"\n"
+        f"1. [标准名称] — 评分: X/5 — 问题: 具体问题描述\n"
+        f"2. [标准名称] — 评分: X/5 — 问题: 具体问题描述\n"
         f"【问题清单】\n"
-        f"- [critical] 模块划分不清晰 — 用户模块和订单模块职责重叠\n"
-        f"- [major] 可扩展性不足 — 未考虑未来扩展\n"
-        f"\n"
-        f"【综合评定】\n"
-        f"总体评分: 3.2/5\n"
-        f"判定: ❌ 未通过（存在critical项评分<3）\n"
-        f"\n"
+        f"- [严重程度] 具体问题 — 需要修改的方向\n"
         f"【改进建议】\n"
-        f"1. 重新定义模块边界，明确各模块职责\n"
-        f"2. 补充非功能需求覆盖说明\n"
-        f"3. 增加扩展性设计\n"
-        f"========================================\n\n"
-f"CONVERGENCE RULE:\n"
-         f"The inspection report MUST focus ONLY on non-conforming items. "
-         f"Clearly indicate what specific issues need to be fixed and the direction of modification. "
-         f"Downstream agents will ONLY modify non-conforming items based on your report. "
-         f"Do NOT request changes to items that have already passed. "
-         f"Scope expansion is strictly prohibited.\n\n"
-         f"CRITICAL RULES:\n"
-         f"1. The JSON object must be the ONLY content in your response.\n"
-         f"2. Do NOT include any text before or after the JSON object.\n"
-         f"3. Do NOT use markdown code fences (```json ... ```).\n"
-        f"4. Do NOT include thinking, reasoning, analysis, or explanation.\n"
-        f"5. Do NOT include file content, tool calls, or tool results.\n"
-        f"6. Do NOT include greetings, apologies, or any conversational text.\n"
-        f"7. Ensure all string values use double quotes and are properly escaped.\n"
-        f"8. The JSON must parse successfully without any modifications.\n"
-        f"9. After generating the JSON, verify it is valid before outputting.\n"
-        f"10. The detail field must contain the full formatted report text.\n"
+        f"1. 具体修改建议\n"
+        f"2. 具体修改建议\n\n"
+        f"=== 收敛性要求 ===\n"
+        f"检验报告必须聚焦于不合格项，明确指出每个不合格项的具体问题及修改方向。\n"
+        f"后续工程师将严格根据你的检验报告只修改不合格项，禁止扩大修改范围。\n"
+        f"已合格的项目不得要求修改。\n\n"
+        f"=== 关键规则 ===\n"
+        f"1. 只输出 JSON 对象，不能有任何其他文字\n"
+        f"2. 不要用 ```json 代码块包裹\n"
+        f"3. 不要包含推理、分析、思考过程\n"
+        f"4. 所有字符串使用双引号\n"
+        f"5. passed = false 时，detail 字段必须详细说明不合格原因和修改方向\n"
+        f"6. 必须直接读取文件进行检验\n"
         f"{retry_pressure}"
-        f"Now output the JSON object:"
+        f"现在输出 JSON 对象："
     )
 
 
@@ -227,13 +174,15 @@ async def _inspect_doc(
                 "subflow": dim_key,
             })
 
-        # 重试时追加"上次输出无效"批评，强化 JSON 约束
+        # 重试时追加纠正信息
         retry_pressure = ""
         if attempt > 1:
             retry_pressure = (
-                f"\n\n⚠️ 你上一次输出包含了无法解析的内容。"
-                f"你必须输出一个合法的 JSON 对象，不能再包含其他文字、推理、分析、"
-                f"文件内容、工具调用结果或任何解释性说明！\n"
+                f"\n\n⚠️ 你上一次输出不合法：要么不是合法 JSON，要么 passed=false 时缺少详细检验意见。\n"
+                f"本次必须严格遵守以下要求：\n"
+                f"1. 输出合法的 JSON 对象（不要任何其他文字、推理、分析）\n"
+                f"2. passed=false 时，detail 字段必须详细说明每个不合格项的具体问题及修改方向（至少50字）\n"
+                f"3. 不要用 markdown 代码块包裹 JSON\n"
             )
 
         insp_prompt = _build_inspect_prompt(
@@ -249,7 +198,7 @@ async def _inspect_doc(
             project_description=project_description,
             core_goal=core_goal,
             agent_name=agent_label or f"后荣-{dim_key} QA检验员",
-            stream=True, max_tokens=4096,
+            stream=True, max_tokens=8192,
         ):
             qa_chunks.append(chunk)
         qa_r = "".join(qa_chunks).strip()
@@ -355,11 +304,23 @@ async def _inspect_doc(
             return {"key": dim_key, "passed": False, "detail": "后荣返回了无法解析的检验报告"}
 
         overall_passed = bool(single.get("passed", False))
-        detail_text = single.get("detail", "未返回检验意见")
+        detail_text = single.get("detail", "").strip()
+
+        # 未通过时必须返回详细理由
+        if not overall_passed and (not detail_text or len(detail_text) < 20):
+            if attempt < max_retries:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ hourong 判定{dim_label}未通过但未说明理由，要求重新出具详细检验报告（第{attempt}次）",
+                    "subflow": dim_key,
+                })
+                continue
+            detail_text = "后荣判定不合格但未返回详细检验意见"
+
         return {
             "key": dim_key,
             "passed": overall_passed,
-            "detail": detail_text,
+            "detail": detail_text or "检验完成",
         }
 
     return {"key": dim_key, "passed": False, "detail": "后荣检验失败"}
@@ -1016,15 +977,11 @@ async def execute_step4(project_id: str,
                         db: Session = Depends(get_db),
                         current_user=Depends(get_current_user),
                         resume: bool = False):
-    """异步启动第4步架构设计（4个子步骤串行执行），立即返回
-    resume=True: 续跑模式，跳过已通过检验的子步骤，只重跑未通过/失败的
-    """
-    from app.services.gateway_client import GatewayClient
+    """异步启动第4步——协调4个子步骤串行执行，聚合设计文档后推进至第5步"""
     import asyncio as _asyncio
 
     try:
         engine = _get_engine(project_id, db)
-
         if resume:
             existing = engine.get_step4_artifacts() or {}
         else:
@@ -1041,7 +998,6 @@ async def execute_step4(project_id: str,
     step3 = engine.get_step3_artifacts() or {}
     requirement = (step3.get("doc_content") or step3.get("content") or
                    step3.get("requirement") or step3.get("srs") or "")
-
     if not requirement:
         if not resume:
             engine.reset_step(4)
@@ -1051,259 +1007,154 @@ async def execute_step4(project_id: str,
     engine.save_step4_artifacts({
         **_existing_artifacts,
         "status": "generating",
-        "message": "🚀 4个子步骤串行启动——step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库",
+        "message": "🚀 step4 orchestration: step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库",
     })
 
-    # ── 4个子步骤定义（串行） ──
-    SUB_STEP_DEFS = [
-        {
-            "step_label": "step4_1",
-            "cfg": SUB_FLOW_CONFIGS[0],
-            "consistency_pairs": [],
-        },
-        {
-            "step_label": "step4_2",
-            "cfg": SUB_FLOW_CONFIGS[1],
-            "consistency_pairs": [
-                {"name": "架构设计←→前端设计", "a": "arch_reasonableness", "b": "frontend_feasibility"},
-            ],
-        },
-        {
-            "step_label": "step4_3",
-            "cfg": SUB_FLOW_CONFIGS[2],
-            "consistency_pairs": [
-                {"name": "架构设计←→后端设计", "a": "arch_reasonableness", "b": "backend_feasibility"},
-                {"name": "前端设计←→后端设计", "a": "frontend_feasibility", "b": "backend_feasibility"},
-            ],
-        },
-        {
-            "step_label": "step4_4",
-            "cfg": SUB_FLOW_CONFIGS[3],
-            "consistency_pairs": [
-                {"name": "后端设计←→数据库设计", "a": "backend_feasibility", "b": "database_design"},
-            ],
-        },
+    # ── 子步骤定义 ──
+    SUB_STEP_ORDER = [
+        {"step": 1, "key": "step4_1_result", "dim_key": "arch_reasonableness",
+         "run_name": "run_sub_step_4_1", "module": "app.api.workflow.step4_1",
+         "label": "架构设计"},
+        {"step": 2, "key": "step4_2_result", "dim_key": "frontend_feasibility",
+         "run_name": "run_sub_step_4_2", "module": "app.api.workflow.step4_2",
+         "label": "前端设计"},
+        {"step": 3, "key": "step4_3_result", "dim_key": "backend_feasibility",
+         "run_name": "run_sub_step_4_3", "module": "app.api.workflow.step4_3",
+         "label": "后端设计"},
+        {"step": 4, "key": "step4_4_result", "dim_key": "database_design",
+         "run_name": "run_sub_step_4_4", "module": "app.api.workflow.step4_4",
+         "label": "数据库设计"},
     ]
 
-    async def _generate():
-        """后台任务：4个子步骤串行执行"""
+    async def _run_orchestration():
+        """后台任务：串行调用子步骤，汇总后推进至step5"""
         try:
             from app.database import SessionLocal
-            from app.services.workflow_engine import WorkflowEngine
             from app.api.ws.step4_progress import broadcast
+            from app.models.project import Project as _Project
 
             bg_db = SessionLocal()
             try:
                 bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                proj = bg_db.query(_Project).filter(_Project.id == project_id).first()
+                if not proj:
+                    raise Exception("项目不存在")
+
+                slug = proj.slug if proj.slug else project_id.replace("-", "")
+                docs_dir = os.path.join(settings.PROJECTS_BASE_DIR, slug, "docs")
+                os.makedirs(docs_dir, exist_ok=True)
+
+                step2 = bg_engine.get_step2_artifacts() or {}
+                core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+                proj_name = proj.name or ""
+                proj_desc = proj.description or ""
 
                 step3 = bg_engine.get_step3_artifacts() or {}
                 doc_path = step3.get("doc_path", "")
 
-                from app.config import settings as _settings
-                from app.models.project import Project as _Project
-                import os as _os
-
-                proj = bg_db.query(_Project).filter(_Project.id == project_id).first()
-                slug = proj.slug if proj else project_id.replace("-", "")
-                docs_dir = _os.path.join(_settings.PROJECTS_BASE_DIR, slug, "docs")
-                _os.makedirs(docs_dir, exist_ok=True)
-
-                step2 = bg_engine.get_step2_artifacts() or {}
-                core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
-                proj_name = proj.name if proj else ""
-                proj_desc = proj.description or ""
-
-                # ── 续跑检测 ──
-                existing_sub_results = (bg_engine.get_step4_artifacts() or {}).get("sub_flow_results", [])
-                passed_keys = {r["key"] for r in existing_sub_results if r.get("passed")}
-                existing_doc_paths = (bg_engine.get_step4_artifacts() or {}).get("doc_paths", {})
-
-                all_results = []
-                doc_paths_map = dict(existing_doc_paths)
                 all_passed = True
+                all_results = {}
 
-                for sub in SUB_STEP_DEFS:
-                    cfg = sub["cfg"]
-                    step_label = sub["step_label"]
-                    dim_key = cfg["dim"]["key"]
+                for sub in SUB_STEP_ORDER:
+                    step_label = f"step4_{sub['step']}"
 
-                    if dim_key in passed_keys:
-                        preserved = next((r for r in existing_sub_results if r["key"] == dim_key), None)
-                        if preserved:
-                            all_results.append(preserved)
-                            doc_paths_map[dim_key] = existing_doc_paths.get(dim_key, "")
+                    # 续跑跳过
+                    artifacts = bg_engine.get_step4_artifacts() or {}
+                    saved = artifacts.get(sub["key"]) or {}
+                    if saved.get("passed"):
+                        all_results[sub["key"]] = saved
                         await broadcast(project_id, {
                             "type": "stage",
-                            "message": f"♻️ {step_label}: {cfg['label']}已通过，跳过",
-                            "subflow": dim_key,
+                            "message": f"♻️ {step_label}: {sub['label']}已通过，跳过",
+                            "subflow": sub["dim_key"],
                         })
                         continue
 
                     await broadcast(project_id, {
                         "type": "stage",
-                        "message": f"🚀 {step_label}: houwang开始生成{cfg['label']}...",
-                        "subflow": dim_key,
+                        "message": f"🚀 {step_label}: 启动{sub['label']}子步骤...",
+                        "subflow": sub["dim_key"],
                     })
 
-                    # 1. houwang生成 + hourong检验
-                    result = await _run_doc_sub_flow(
-                        project_id=project_id, slug=slug, docs_dir=docs_dir,
-                        cfg=cfg, requirement=requirement,
-                        project_name=proj_name, project_description=proj_desc,
-                        core_goal=core_goal,
-                    )
+                    # 构造前序文档映射
+                    prev_docs_map = {}
+                    if sub["step"] >= 2:
+                        for prev_sub in SUB_STEP_ORDER[:sub["step"] - 1]:
+                            prev_result = artifacts.get(prev_sub["key"]) or all_results.get(prev_sub["key"]) or {}
+                            if prev_result.get("path"):
+                                prev_docs_map[prev_sub["dim_key"]] = prev_result["path"]
 
-                    all_results.append(result)
-                    if result.get("path"):
-                        doc_paths_map[dim_key] = result["path"]
+                    # 动态导入并运行子步骤
+                    import importlib as _il
+                    mod = _il.import_module(sub["module"])
+                    run_fn = getattr(mod, sub["run_name"])
 
+                    if sub["step"] == 1:
+                        result = await run_fn(
+                            project_id=project_id, slug=slug, docs_dir=docs_dir,
+                            requirement=requirement, project_name=proj_name,
+                            project_description=proj_desc, core_goal=core_goal,
+                        )
+                    else:
+                        result = await run_fn(
+                            project_id=project_id, slug=slug, docs_dir=docs_dir,
+                            requirement=requirement, project_name=proj_name,
+                            project_description=proj_desc, core_goal=core_goal,
+                            prev_docs_map=prev_docs_map,
+                        )
+
+                    all_results[sub["key"]] = result
                     bg_engine.save_step4_artifacts({
-                        "sub_flow_results": [
-                            {"key": r["key"], "label": r.get("label", ""), "passed": r.get("passed", False),
-                             "rounds": r.get("rounds", 0), "convergence": r.get("convergence", [])}
-                            for r in all_results
-                        ],
-                        "doc_paths": doc_paths_map,
-                        "message": f"{step_label}: {cfg['label']} {'通过' if result['passed'] else '未通过'} hourong检验",
+                        sub["key"]: {
+                            "key": result["key"], "label": result.get("label", ""),
+                            "path": result.get("path", ""), "passed": result["passed"],
+                            "rounds": result.get("rounds", 0),
+                            "convergence": result.get("convergence", []),
+                        },
+                        "message": f"{step_label}: {sub['label']} {'通过' if result['passed'] else '未通过'}",
                     })
 
                     if not result["passed"]:
                         all_passed = False
                         await broadcast(project_id, {
                             "type": "stage",
-                            "message": f"❌ {step_label}: {cfg['label']}未通过hourong检验，终止后续子步骤",
-                            "subflow": dim_key,
+                            "message": f"❌ {step_label}: {sub['label']}未通过，终止后续子步骤",
+                            "subflow": sub["dim_key"],
                         })
                         break
-
-                    # 2. 增量一致性检验
-                    if sub["consistency_pairs"]:
-                        docs_map = {}
-                        for ar in all_results:
-                            if ar.get("path", "").strip():
-                                docs_map[ar["key"]] = ar["path"]
-
-                        for ar in all_results:
-                            if not ar.get("content", "").strip() and ar.get("path", ""):
-                                try:
-                                    with open(ar["path"], "r", encoding="utf-8") as f:
-                                        ar["content"] = f.read()
-                                except Exception:
-                                    pass
-
-                        MAX_CONSISTENCY_ROUNDS = 3
-                        consistency_passed = False
-
-                        for cc_round in range(1, MAX_CONSISTENCY_ROUNDS + 1):
-                            await broadcast(project_id, {
-                                "type": "stage",
-                                "message": f"🔄 {step_label}: 跨文档一致性检验第{cc_round}轮——{len(sub['consistency_pairs'])}对一致性",
-                                "subflow": dim_key,
-                            })
-
-                            check_result = await _check_consistency_pairs(
-                                project_id=project_id,
-                                docs_map=docs_map,
-                                pairs=sub["consistency_pairs"],
-                                project_name=proj_name,
-                                project_description=proj_desc,
-                                core_goal=core_goal,
-                            )
-
-                            if check_result["passed"]:
-                                consistency_passed = True
-                                await broadcast(project_id, {
-                                    "type": "stage",
-                                    "message": f"✅ {step_label}: 跨文档一致性检验通过（第{cc_round}轮）",
-                                    "subflow": dim_key,
-                                })
-                                break
-
-                            feedback_parts = []
-                            for pair in check_result.get("pairs", []):
-                                if not pair.get("passed", True) and dim_key in pair.get("affected_docs", []):
-                                    feedback_parts.append(f"{pair['name']}: {pair['issue']}")
-
-                            if not feedback_parts:
-                                consistency_passed = True
-                                break
-
-                            feedback = "\n".join(feedback_parts)
-                            await broadcast(project_id, {
-                                "type": "stage",
-                                "message": f"🔄 {step_label}: houwang根据一致性反馈修复{cfg['label']}（第{cc_round}轮）",
-                                "subflow": dim_key,
-                            })
-
-                            fix_result = await _fix_doc_from_consistency_feedback(
-                                project_id=project_id, slug=slug, docs_dir=docs_dir,
-                                cfg=cfg, requirement=requirement,
-                                current_content=result.get("content", ""),
-                                consistency_feedback=feedback,
-                                project_name=proj_name, project_description=proj_desc,
-                                core_goal=core_goal,
-                            )
-
-                            result = fix_result
-                            if fix_result.get("path"):
-                                doc_paths_map[dim_key] = fix_result["path"]
-
-                            if fix_result["passed"]:
-                                consistency_passed = True
-                                await broadcast(project_id, {
-                                    "type": "stage",
-                                    "message": f"✅ {step_label}: 一致性修复后通过检验",
-                                    "subflow": dim_key,
-                                })
-                                break
-
-                        if not consistency_passed:
-                            all_passed = False
-                            await broadcast(project_id, {
-                                "type": "stage",
-                                "message": f"❌ {step_label}: {cfg['label']}一致性检验未通过，终止后续子步骤",
-                                "subflow": dim_key,
-                            })
-                            break
 
                 # ── 汇总结果 ──
                 design_parts = []
                 final_paths = {}
-                for r in all_results:
-                    content = r.get("content", "")
-                    if not content.strip() and r.get("path", ""):
-                        try:
-                            with open(r["path"], "r", encoding="utf-8") as f:
-                                content = f.read()
-                        except Exception:
-                            pass
-                    if content.strip():
-                        design_parts.append(f"# {r.get('label', '')}\n\n{content}")
-                        final_paths[r["key"]] = r.get("path", "")
+                step4_1 = all_results.get("step4_1_result") or {}
+                step4_2 = all_results.get("step4_2_result") or {}
+                step4_3 = all_results.get("step4_3_result") or {}
+                step4_4 = all_results.get("step4_4_result") or {}
+
+                for r in [step4_1, step4_2, step4_3, step4_4]:
+                    if r and r.get("passed"):
+                        content = r.get("content", "")
+                        if not content.strip() and r.get("path", ""):
+                            try:
+                                with open(r["path"], "r", encoding="utf-8") as f:
+                                    content = f.read()
+                            except Exception:
+                                pass
+                        if content.strip():
+                            design_parts.append(f"# {r.get('label', '')}\n\n{content}")
+                            final_paths[r["key"]] = r.get("path", "")
 
                 full_design = "\n\n---\n\n".join(design_parts) if design_parts else ""
-                passed_count = sum(1 for r in all_results if r.get("passed"))
-                sub_flow_detail = "; ".join(
-                    f"{r.get('label', '')}: {'✅' if r.get('passed') else '❌'}({r.get('rounds', 0)}轮)"
-                    for r in all_results
-                )
+                passed_count = sum(1 for r in all_results.values() if r.get("passed"))
 
                 if full_design and len(full_design) >= 50:
                     artifacts = {
                         "design_doc": full_design,
                         "requirement_source": requirement[:200],
                         "status": "done",
-                        "message": f"✅ 架构设计完成（{passed_count}/4 通过）\n{sub_flow_detail}",
+                        "message": f"✅ 架构设计完成（{passed_count}/4 通过）",
                         "docs_dir": docs_dir,
                         "doc_paths": final_paths,
-                        "sub_flow_results": [
-                            {
-                                "key": r.get("key", ""), "label": r.get("label", ""),
-                                "passed": r.get("passed", False), "rounds": r.get("rounds", 0),
-                                "convergence": r.get("convergence", []),
-                            }
-                            for r in all_results
-                        ],
                     }
                     if doc_path:
                         artifacts["requirement_doc_path"] = doc_path
@@ -1314,7 +1165,7 @@ async def execute_step4(project_id: str,
                         bg_engine.pass_qa(4)
                         await broadcast(project_id, {
                             "type": "done",
-                            "message": f"✅ 全部4个子步骤通过hourong QA检验与跨文档一致性检验，已推进至第5步",
+                            "message": "✅ 全部4个子步骤通过hourong QA检验与一致性检验，已推进至第5步",
                         })
                     else:
                         bg_engine.save_step4_artifacts({
@@ -1322,47 +1173,40 @@ async def execute_step4(project_id: str,
                         })
                         await broadcast(project_id, {
                             "type": "done",
-                            "message": f"⚠️ {4 - passed_count} 份文档未通过检验\n{sub_flow_detail}",
+                            "message": f"⚠️ {4 - passed_count} 份文档未通过检验",
                         })
                 else:
-                    bg_engine.save_step4_artifacts({
-                        "status": "error",
-                        "message": "❌ 子步骤未生成有效设计文档",
-                    })
+                    bg_engine.save_step4_artifacts({"status": "error", "message": "❌ 子步骤未生成有效设计文档"})
                     bg_engine.reset_step(4)
                     await broadcast(project_id, {"type": "error", "message": "❌ 子步骤未生成有效设计文档"})
+
             except Exception as e:
-                logger.error(f"Step4 sequential sub-steps failed: {e}")
+                logger.error(f"Step4 orchestration failed: {e}")
                 try:
-                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
-                    bg_engine.save_step4_artifacts({
-                        "status": "error",
-                        "message": f"❌ 串行子步骤执行失败: {str(e)[:200]}",
-                    })
-                    bg_engine.reset_step(4)
+                    eng = WorkflowEngine(project_id=project_id, db=bg_db)
+                    eng.save_step4_artifacts({"status": "error", "message": f"❌ 执行失败: {str(e)[:200]}"})
+                    eng.reset_step(4)
                 except Exception:
                     pass
                 try:
-                    await broadcast(project_id, {"type": "error", "message": f"❌ 串行子步骤执行失败: {str(e)[:200]}"})
+                    await broadcast(project_id, {"type": "error", "message": f"❌ 执行失败: {str(e)[:200]}"})
                 except Exception:
                     pass
             finally:
                 bg_db.close()
         except Exception as e:
-            logger.error(f"Step4 background task fatal: {e}")
+            logger.error(f"Step4 orchestration fatal: {e}")
 
-    task = _asyncio.create_task(_generate())
+    _asyncio.create_task(_run_orchestration())
 
-    sub_flow_results = existing.get("sub_flow_results", []) if resume else []
     response_data = {
-        "message": "第四步已启动，4个子步骤串行执行（step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库）",
+        "message": "第四步已启动，4个子步骤串行执行（架构→前端→后端→数据库）",
         "status": "generating",
     }
-    if resume and sub_flow_results:
-        response_data["sub_flow_results"] = [
-            {"key": r["key"], "label": r.get("label", ""), "passed": r.get("passed", False)}
-            for r in sub_flow_results
-        ]
+    if resume:
+        existing_results = engine.get_step4_artifacts().get("step4_1_result") or {}
+        if existing_results:
+            response_data["resume_info"] = "检测到已有进度，将跳过已通过的子步骤"
     return APIResponse(code=0, data=response_data)
 
 

@@ -107,17 +107,20 @@ async def _run_step5(websocket: WebSocket, project_id: str, db) -> bool:
         requirement = (step3.get("doc_content") or step3.get("content") or
                        step3.get("requirement") or step3.get("srs") or "")
         step4 = engine.get_step4_artifacts() or {}
-        subs = step4.get("sub_flow_results") or []
         step2 = engine.get_step2_artifacts() or {}
         core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
 
-        # Build design docs summary from step4 sub_flow_results
-        design_summary = ""
-        for doc in subs:
-            label = doc.get("label", "")
-            content = doc.get("content", "")
-            if content:
-                design_summary += f"\n=== {label} ===\n{content}\n"
+        # Use aggregated design_doc from step4 orchestrator (new: step4_N_result keys, old: sub_flow_results)
+        design_summary = step4.get("design_doc") or ""
+        if not design_summary:
+            subs = step4.get("sub_flow_results") or []
+            parts = []
+            for doc in subs:
+                label = doc.get("label", "")
+                content = doc.get("content", "")
+                if content:
+                    parts.append(f"\n=== {label} ===\n{content}\n")
+            design_summary = "\n".join(parts)
 
         # Resolve project info
         proj = db.query(Project).filter(Project.id == project_id).first()
