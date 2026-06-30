@@ -42,7 +42,7 @@ async def broadcast(project_id: str, message: dict):
 
 
 async def _inspect_tdd_plan(
-    websocket: WebSocket, project_id: str, doc_path: str,
+    websocket: WebSocket, project_id: str, doc_content: str,
     project_name: str = "", project_description: str = "",
     core_goal: str = "", agent_label: str = "",
     max_retries: int = 3,
@@ -55,13 +55,17 @@ async def _inspect_tdd_plan(
             await _asyncio.sleep(2)
             await broadcast(project_id, {"type": "progress", "message": f"🔄 hourong 正在第{attempt}次重新检验TDD计划..."})
 
+        if not doc_content or not doc_content.strip():
+            await broadcast(project_id, {"type": "error", "message": "❌ 检验文档内容为空，无法检验"})
+            return {"detail": "文档内容为空"}
+
         insp_prompt = (
             "你是一个专业的测试计划QA检验员（后荣）。请严格检验以下TDD测试用例编写计划。\n\n"
             "=== 检验项目与标准 ===\n"
             f"{dims_json}\n\n"
-            "=== 文档路径 ===\n"
-            f"{doc_path}\n\n"
-            "请读取该文档文件，严格逐项检验。\n"
+            "=== 待检验文档内容 ===\n"
+            f"{doc_content[:20000]}\n\n"
+            "请严格逐项检验。\n"
             "⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。"
             "后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n"
             "只输出 JSON 数组，不要有其他文字:\n"
@@ -245,11 +249,35 @@ async def _run_step6(websocket: WebSocket, project_id: str, db) -> bool:
                     "你是资深项目经理海梅（HaiMei），负责制订TDD测试用例编写计划。\n",
                 ]
                 if srs_path:
-                    prompt_lines.append(f"请读取需求文档（SRS）：{srs_path}\n\n")
+                    try:
+                        with open(srs_path, "r", encoding="utf-8") as _f:
+                            _srs = _f.read()
+                    except Exception:
+                        _srs = ""
+                    if _srs:
+                        prompt_lines.append(f"=== 需求文档（SRS） ===\n{_srs[:15000]}\n\n")
+                    else:
+                        prompt_lines.append(f"请读取需求文档（SRS）：{srs_path}\n\n")
                 if design_path:
-                    prompt_lines.append(f"请读取架构设计文档：{design_path}\n\n")
+                    try:
+                        with open(design_path, "r", encoding="utf-8") as _f:
+                            _design = _f.read()
+                    except Exception:
+                        _design = ""
+                    if _design:
+                        prompt_lines.append(f"=== 架构设计文档 ===\n{_design[:30000]}\n\n")
+                    else:
+                        prompt_lines.append(f"请读取架构设计文档：{design_path}\n\n")
                 if env_path:
-                    prompt_lines.append(f"请读取开发环境信息：{env_path}\n\n")
+                    try:
+                        with open(env_path, "r", encoding="utf-8") as _f:
+                            _env = _f.read()
+                    except Exception:
+                        _env = ""
+                    if _env:
+                        prompt_lines.append(f"=== 开发环境信息 ===\n{_env[:10000]}\n\n")
+                    else:
+                        prompt_lines.append(f"请读取开发环境信息：{env_path}\n\n")
                 if feedback:
                     prompt_lines.append(f"=== 上次检验未通过项 ===\n{feedback}\n请只针对不合格项修改，不要扩大修改范围。\n\n")
                 prompt_lines.append(
@@ -295,9 +323,20 @@ async def _run_step6(websocket: WebSocket, project_id: str, db) -> bool:
             final_path, final_content = gen_path, content
             engine.save_step6_artifacts({"tdd_plan": content, "doc_path": gen_path, "status": "generating"})
 
-            await broadcast(project_id, {"type": "progress", "message": f"🔍 hourong 正在检验TDD计划（文件：{gen_path}）"})
-            qa_result = await _inspect_tdd_plan(websocket, project_id, gen_path, project_name=proj_name, project_description=proj_desc, core_goal=core_goal)
-            convergence_log.append({"round": fix_round, "detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", [])})
+            await broadcast(project_id, {"type": "progress", "message": f"🔍 hourong 正在检验TDD计划（第{fix_round}轮）"})
+            qa_result = await _inspect_tdd_plan(websocket, project_id, content, project_name=proj_name, project_description=proj_desc, core_goal=core_goal)
+
+            # If hourong failed to return a valid report, retry within the same round (never send to haimei fix without a report)
+            hr_retry = 0
+            while "passed" not in qa_result and hr_retry < 3:
+                hr_retry += 1
+                await broadcast(project_id, {"type": "progress", "message": f"⚠️ hourong未生成有效检验报告，第{hr_retry}次重新检验..."})
+                qa_result = await _inspect_tdd_plan(websocket, project_id, content, project_name=proj_name, project_description=proj_desc, core_goal=core_goal)
+
+            if "passed" not in qa_result:
+                await broadcast(project_id, {"type": "error", "message": "❌ hourong多次无法生成有效检验报告，终止步骤"})
+                convergence_log.append({"round": fix_round, "detail": "hourong多次未能生成有效检验报告", "passed": False, "failed_details": ["hourong检验失败"]})
+                break
 
             if qa_result.get("passed"):
                 await broadcast(project_id, {"type": "progress", "message": f"✅ TDD计划已通过 hourong 检验（共{fix_round}轮）"})

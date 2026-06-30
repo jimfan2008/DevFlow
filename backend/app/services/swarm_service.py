@@ -5,7 +5,18 @@ from datetime import datetime, timezone
 
 SUPPORTED_SWARM_AGENTS = [
     "claude_code", "codex", "opencode", "cursor",
-    "codearts", "trae", "lingma", "hermes_sub_agent", "pi_coding_agent"
+    "codearts", "trae", "lingma", "hermes_sub_agent",
+    "pi_coding_agent", "reasonix",
+]
+
+WRITER_AGENT_TYPES = [
+    "opencode", "cursor", "claude_code", "lingma",
+    "codearts", "trae", "codebuddy", "pi_coding_agent",
+    "reasonix",
+]
+
+TESTER_AGENT_TYPES = [
+    "codex", "devika", "hermes",
 ]
 
 MANAGER_PURPOSE_MAP = {
@@ -144,3 +155,20 @@ class SwarmService:
         result = dict(swarm)
         result["assignments"] = self._assignments.get(swarm_id, [])
         return result
+
+    @staticmethod
+    def get_online_agents_by_types(db, agent_types: list) -> list:
+        from app.models.agent import Agent
+        return (
+            db.query(Agent)
+            .filter(Agent.agent_type.in_(agent_types), Agent.status == "online")
+            .all()
+        )
+
+    @staticmethod
+    def get_online_writer_agents(db) -> list:
+        return SwarmService.get_online_agents_by_types(db, WRITER_AGENT_TYPES)
+
+    @staticmethod
+    def get_online_tester_agents(db) -> list:
+        return SwarmService.get_online_agents_by_types(db, TESTER_AGENT_TYPES)

@@ -6,11 +6,12 @@ from app.services.swarm_service import SwarmService, SUPPORTED_SWARM_AGENTS
 class TestSwarmService:
 
     def test_supported_swarm_agents_count(self):
-        assert len(SUPPORTED_SWARM_AGENTS) == 9
+        assert len(SUPPORTED_SWARM_AGENTS) == 10
 
     def test_supported_agents_include_all_types(self):
         expected = {"claude_code", "codex", "opencode", "cursor",
-                    "codearts", "trae", "lingma", "hermes_sub_agent", "pi_coding_agent"}
+                    "codearts", "trae", "lingma", "hermes_sub_agent",
+                    "pi_coding_agent", "reasonix"}
         assert set(SUPPORTED_SWARM_AGENTS) == expected
 
     def test_create_code_swarm(self):

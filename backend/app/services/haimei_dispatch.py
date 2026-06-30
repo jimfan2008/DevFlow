@@ -657,7 +657,27 @@ async def dispatch_step_n(project_id: str, engine: WorkflowEngine, step_number: 
 
 # Dispatch function aliases for HaimeiStepExecutor
 dispatch_step6 = lambda pid, eng: dispatch_generic_step(pid, eng, 6)
-dispatch_step7 = lambda pid, eng: dispatch_generic_step(pid, eng, 7)
+
+async def dispatch_step7(project_id: str, engine) -> None:
+    """后发蜂群并行TDD测试用例（绕过通用调度，使用新的蜂群并行逻辑）"""
+    from app.api.workflow.step7 import run_step7_swarm
+    logger.info("Haimei dispatching step7 with swarm parallel flow")
+    step3 = engine.get_step3_artifacts() or {}
+    requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    step6 = engine.get_step6_artifacts() or {}
+    tdd_plan = step6.get("tdd_plan") or step6.get("plan_content") or ""
+    step2 = engine.get_step2_artifacts() or {}
+    core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+    await run_step7_swarm(
+        project_id=project_id,
+        requirement=requirement,
+        design_doc=design_doc,
+        tdd_plan=tdd_plan,
+        core_goal=core_goal,
+    )
+
 dispatch_step8 = lambda pid, eng: dispatch_generic_step(pid, eng, 8)
 dispatch_step9 = lambda pid, eng: dispatch_generic_step(pid, eng, 9)
 dispatch_step10 = lambda pid, eng: dispatch_generic_step(pid, eng, 10)
