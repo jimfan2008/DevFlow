@@ -160,6 +160,7 @@ function formatTime(timestamp: string): string {
       border: 1px solid $hairline;
       color: $ink;
       border-bottom-left-radius: $radius-sm;
+      width: 100%;
     }
 
     &.content-speaker {

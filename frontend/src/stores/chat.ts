@@ -72,6 +72,13 @@ export const useChatStore = defineStore('chat', () => {
     return agentStatuses.value[groupId]?.[profileName] || 'idle'
   }
 
+  function removeTempMessages(groupId: string, content: string, sender: string) {
+    if (!messagesMap.value[groupId]) return
+    messagesMap.value[groupId] = messagesMap.value[groupId].filter(
+      m => !(m.id.startsWith('tmp_') && m.content === content && m.sender === sender)
+    )
+  }
+
   function clearMessages(groupId: string) {
     messagesMap.value[groupId] = []
   }
@@ -130,8 +137,8 @@ export const useChatStore = defineStore('chat', () => {
 
   async function fetchMessages(groupId: string) {
     try {
-      const response = await apiClient.get(`/groups/${groupId}/messages`)
-      const data = (response as any)?.data?.messages || (response as any)?.messages || (response as any)?.data
+      const response = await apiClient.get(`/groups/${groupId}/ws-messages`)
+      const data = (response as any)?.data?.messages || (response as any)?.messages
       if (Array.isArray(data)) {
         messagesMap.value[groupId] = data
       }
@@ -153,6 +160,7 @@ export const useChatStore = defineStore('chat', () => {
     setAgentStatus,
     getAgentStatus,
     clearMessages,
+    removeTempMessages,
     getMeetingState,
     startMeetingState,
     setMeetingAgenda,

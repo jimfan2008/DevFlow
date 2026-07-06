@@ -146,6 +146,12 @@ async def get_group_messages(group_id: str, limit: int = 200, db: Session = Depe
     return {"code": 0, "message": "success", "data": {"messages": [m.to_dict() for m in messages]}}
 
 
+@router.get("/{group_id}/ws-messages")
+async def get_ws_messages(group_id: str, limit: int = 200):
+    messages = chat_store.get_messages(group_id, limit=limit)
+    return {"code": 0, "message": "success", "data": {"messages": messages}}
+
+
 @router.post("/{group_id}/messages")
 async def send_group_message(
     group_id: str,

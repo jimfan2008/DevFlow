@@ -1,6 +1,6 @@
 <template>
   <div class="chat-view">
-    <div class="chat-view__sidebar">
+    <div class="chat-view__sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="chat-view__sidebar-header">
         <h3>群聊与会议</h3>
         <el-button type="primary" size="small" :icon="Plus" @click="showCreateDialog = true">新建</el-button>
@@ -39,8 +39,27 @@
       </div>
     </div>
 
+    <el-button
+      text
+      size="small"
+      :icon="sidebarCollapsed ? Expand : Fold"
+      class="chat-view__sidebar-toggle"
+      @click="sidebarCollapsed = !sidebarCollapsed"
+    />
     <div v-if="currentGroup" class="chat-view__main">
-      <MemberList />
+      <div class="member-list-wrap" :class="{ collapsed: memberListCollapsed }">
+        <div class="member-list-toggle">
+          <span class="member-list-toggle__title">成员</span>
+        </div>
+        <MemberList />
+      </div>
+      <el-button
+        text
+        size="small"
+        :icon="memberListCollapsed ? Expand : Fold"
+        class="chat-view__member-toggle"
+        @click="memberListCollapsed = !memberListCollapsed"
+      />
       <div class="chat-view__chat-area">
         <div class="chat-view__messages" ref="messagesRef">
           <MessageItem
@@ -102,7 +121,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { Plus, Delete } from '@element-plus/icons-vue'
+import { Plus, Delete, Fold, Expand } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useChatStore } from '@/stores/chat'
 import { useTasksStore } from '@/stores/tasks'
@@ -127,6 +146,8 @@ const inputMessage = ref('')
 const sending = ref(false)
 const showCreateDialog = ref(false)
 const showMeetingModal = ref(false)
+const sidebarCollapsed = ref(false)
+const memberListCollapsed = ref(false)
 const showMentions = ref(false)
 const mentionCandidates = ref<string[]>([])
 const messagesRef = ref<HTMLElement | null>(null)
@@ -156,6 +177,7 @@ onMounted(async () => {
 
   ws.on('message_new', (data: any) => {
     if (data.message) {
+      chatStore.removeTempMessages(data.group_id, data.message.content, data.message.sender)
       chatStore.addMessage(data.group_id, data.message)
       scrollToBottom()
     }
@@ -316,12 +338,27 @@ function selectMention(member: string) {
   showMentions.value = false
 }
 
+function _tempId() {
+  return 'tmp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8)
+}
+
 async function handleSend() {
   const content = inputMessage.value.trim()
   if (!content || !currentGroupId.value || sending.value) return
 
   inputMessage.value = ''
   sending.value = true
+
+  const tempId = _tempId()
+  chatStore.addMessage(currentGroupId.value, {
+    id: tempId,
+    group_id: currentGroupId.value,
+    sender: 'user',
+    role: 'user',
+    content,
+    timestamp: new Date().toISOString(),
+    is_streaming: false,
+  })
 
   try {
     if (meetingState.value?.isActive) {
@@ -418,13 +455,21 @@ function formatDate(d: string) {
     display: flex;
     flex-direction: column;
     background: $canvas;
+    overflow: hidden;
+    transition: width 0.25s ease;
+
+    &.collapsed {
+      width: 0;
+      min-width: 0;
+    }
 
     &-header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: $spacing-xs;
       padding: $spacing-sm $spacing-4;
       border-bottom: 1px solid $hairline;
+      white-space: nowrap;
       h3 {
         margin: 0;
         font-family: $font-text;
@@ -563,6 +608,54 @@ function formatDate(d: string) {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  &__sidebar-toggle {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: $spacing-xs;
+    border-right: 1px solid $hairline;
+    border-radius: 0;
+    height: 36px;
+  }
+
+  &__member-toggle {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: $spacing-xs;
+    border-left: 1px solid $hairline;
+    border-radius: 0;
+    height: 36px;
+  }
+}
+
+.member-list-wrap {
+  width: 220px;
+  overflow: hidden;
+  transition: width 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-left: 1px solid $hairline;
+
+  &.collapsed {
+    width: 0;
+    min-width: 0;
+  }
+}
+
+.member-list-toggle {
+  display: flex;
+  align-items: center;
+  padding: $spacing-sm $spacing-4;
+  border-bottom: 1px solid $hairline;
+  white-space: nowrap;
+
+  &__title {
+    font-family: $font-text;
+    font-size: $body-strong-size;
+    font-weight: $body-strong-weight;
+    letter-spacing: $body-strong-tracking;
   }
 }
 </style>

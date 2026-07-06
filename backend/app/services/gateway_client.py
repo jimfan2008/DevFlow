@@ -16,7 +16,7 @@ import logging
 logger = logging.getLogger("devflow.gateway_client")
 
 MAX_CONCURRENT = 20
-REQUEST_TIMEOUT = 360
+REQUEST_TIMEOUT = 120
 _semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
 HERMES_CLI_PATH = shutil.which("hermes")
@@ -119,6 +119,30 @@ class GatewayClient:
                 logger.info(f"Using HERMES_API_BASE port {parsed.port} for profile '{self.profile_name}'")
                 return parsed.port, api_key
 
+        # 兜底：配置有端口但之前检查全部失败时，再强试一次 HTTP API
+        if config:
+            port = get_gateway_port_from_config(config)
+            api_key = get_gateway_api_key(config) or ""
+            if port:
+                import httpx as _httpx
+                try:
+                    host = os.environ.get("HERMES_GATEWAY_HOST", "localhost")
+                    test_url = f"http://{host}:{port}/v1/chat/completions"
+                    with _httpx.Client(timeout=5) as _client:
+                        _resp = _client.post(
+                            test_url,
+                            json={"model": "test", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                            headers={"Content-Type": "application/json"}
+                            | ({"Authorization": f"Bearer {api_key}"} if api_key else {}),
+                        )
+                        if _resp.status_code in (200, 201, 401, 422):
+                            self.port = port
+                            self._api_key = api_key
+                            logger.info(f"[fallback] Port {port} reachable for '{self.profile_name}', using gateway HTTP")
+                            return port, api_key
+                except Exception as _e:
+                    logger.warning(f"[fallback] Port {port} unreachable for '{self.profile_name}': {_e}")
+
         if check_gateway_running(self.profile_name):
             self._use_cli = True
             logger.info(f"用hermes CLI调用Agent profile '{self.profile_name}'")
@@ -144,9 +168,13 @@ class GatewayClient:
             raise ConnectionError("Hermes CLI not found. Install hermes or enable Gateway API server.")
 
         def _run_cli():
+            cmd = [HERMES_CLI_PATH, "chat"]
+            profile = self.profile_name.lower()
+            if profile and profile != "default":
+                cmd += ["--profile", profile]
+            cmd += ["-q", message, "-Q"]
             return subprocess.run(
-                [HERMES_CLI_PATH, "chat", "-q", message, "--profile", self.profile_name, "-Q"],
-                capture_output=True, text=True, timeout=self.timeout,
+                cmd, capture_output=True, text=True, timeout=self.timeout,
             )
 
         try:

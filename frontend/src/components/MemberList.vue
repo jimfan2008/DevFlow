@@ -106,7 +106,6 @@ function getStatusText(profileName: string): string {
 <style lang="scss" scoped>
 .member-list {
   background: $canvas;
-  border-left: 1px solid $hairline;
   display: flex;
   flex-direction: column;
   height: 100%;

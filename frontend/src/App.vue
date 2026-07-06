@@ -55,7 +55,7 @@ watch(isLoggedIn, (val) => {
   &__inner {
     max-width: $grid-max-width;
     margin: 0 auto;
-    padding: $spacing-section $spacing-xxl;
+    padding: 20px;
     min-height: 0;
     display: flex;
     flex-direction: column;
