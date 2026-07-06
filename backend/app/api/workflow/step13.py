@@ -36,16 +36,18 @@ async def step13_chat(project_id: str, body: Step13ChatRequest,
         return APIResponse(code=1, message="与后富对话失败", data=None)
 
 
-async def _inspect_deploy_prod(project_id: str, doc_path: str, project_name: str = "", project_description: str = "", core_goal: str = "", agent_label: str = "", max_retries: int = 3) -> dict:
+async def _inspect_deploy_prod(project_id: str, doc_path: str, project_name: str = "", project_description: str = "", core_goal: str = "", agent_label: str = "", max_retries: int = 3, failed_keys: list = None) -> dict:
     import json as _json, asyncio as _asyncio
     from app.services.gateway_client import GatewayClient
     from app.api.ws.step4_progress import broadcast
-    dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in DEPLOY_PROD_DIMENSIONS])
+    active_dims = [d for d in DEPLOY_PROD_DIMENSIONS if not failed_keys or d["key"] in failed_keys]
+    dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in active_dims])
     for attempt in range(1, max_retries + 1):
         if attempt > 1:
             await _asyncio.sleep(2)
             await broadcast(project_id, {"type": "step13", "message": f"🔄 hourong 第{attempt}次重新检验生产部署..."})
-        insp_prompt = f"你是一个专业的部署QA检验员（后荣）。请严格检验以下生产环境部署报告。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in DEPLOY_PROD_DIMENSIONS)
+        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项（上一轮不合格项）：{[d['label'] for d in active_dims]}\n请只针对这些项目做出通过/不通过判定，禁止扩大检验范围。" if failed_keys else ""
+        insp_prompt = f"你是一个专业的部署QA检验员（后荣）。请严格检验以下生产环境部署报告。\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n评分规则：每个检验维起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims)
         qa_cli = GatewayClient(profile_name="hourong", timeout=180)
         qa_chunks = []
         async for chunk in qa_cli.chat_isolated(messages=[{"role": "user", "content": insp_prompt}], project_id=project_id, project_name=project_name, project_description=project_description, core_goal=core_goal, agent_name=agent_label or "后荣-生产部署QA检验员", stream=True, max_tokens=8192):
@@ -67,7 +69,9 @@ async def _inspect_deploy_prod(project_id: str, doc_path: str, project_name: str
                 continue
             return {"detail": "后荣未返回检验结果"}
         if isinstance(parsed, list) and parsed:
-            return {"passed": all(bool(r.get("passed")) for r in parsed), "detail": "", "failed_details": [r.get("detail", "") for r in parsed if not r.get("passed")], "results": parsed}
+            scores = [int(r.get("score", 100)) for r in parsed]
+            avg_score = sum(scores) / len(scores)
+            return {"passed": avg_score > 90, "score": avg_score, "total_score": sum(scores), "max_score": len(scores) * 100, "detail": "", "failed_details": [r.get("detail", "") for r in parsed if int(r.get("score", 100)) < 90], "results": parsed}
         if attempt < max_retries:
             await broadcast(project_id, {"type": "step13", "message": f"⚠️ hourong 格式异常，重试（第{attempt}次）"})
             continue
@@ -133,7 +137,15 @@ async def execute_step13_async(project_id: str, db: Session = Depends(get_db), c
                     if m:
                         max_ver = max(max_ver, int(m.group(1)))
                 convergence_log, final_path, final_content = [], "", ""
-                for fix_round in range(1, 11):
+                start_round = 1
+                if resume and prev:
+                    saved_round = prev.get("current_fix_round", 0)
+                    saved_convergence = prev.get("convergence", [])
+                    if saved_round > 0:
+                        start_round = saved_round + 1
+                        convergence_log = list(saved_convergence)
+                        await broadcast(project_id, {"type": "step13", "message": f"♻️ 续跑：从第{start_round}轮继续"})
+                for fix_round in range(start_round, 11):
                     nv = max_ver + fix_round
                     gen_path = os.path.join(docs_dir, f"{slug}_deployprod_V{nv}.md")
                     await broadcast(project_id, {"type": "step13", "message": f"🚀 后富正在{'修复' if fix_round > 1 else '部署'}生产环境（第{fix_round}轮）..."})
@@ -164,10 +176,15 @@ async def execute_step13_async(project_id: str, db: Session = Depends(get_db), c
                         await broadcast(project_id, {"type": "step13", "message": "❌ 后富未生成有效内容，重试"})
                         continue
                     final_path, final_content = gen_path, content
-                    bg_engine.save_step13_artifacts({"deployment_log": content, "doc_path": gen_path, "status": "generating"})
+                    bg_engine.save_step13_artifacts({"deployment_log": content, "doc_path": gen_path, "status": "generating", "current_fix_round": fix_round, "convergence": convergence_log})
                     await broadcast(project_id, {"type": "step13", "message": f"🔍 hourong 正在检验生产部署（文件：{gen_path}）"})
-                    qa_result = await _inspect_deploy_prod(project_id, gen_path, project_name=proj_name, project_description=proj_desc, core_goal=core_goal)
-                    convergence_log.append({"round": fix_round, "detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", [])})
+                    failed_keys = []
+                    if fix_round > 1 and convergence_log:
+                        last_results = convergence_log[-1].get("results", [])
+                        if last_results:
+                            failed_keys = [r.get("key", "") for r in last_results if int(r.get("score", 100)) < 90]
+                    qa_result = await _inspect_deploy_prod(project_id, gen_path, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, failed_keys=failed_keys if failed_keys else None)
+                    convergence_log.append({"round": fix_round, "detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", []), "results": qa_result.get("results", [])})
                     if qa_result.get("passed"):
                         await broadcast(project_id, {"type": "step13", "message": f"✅ 生产部署已通过 hourong 检验（共{fix_round}轮）"})
                         bg_engine.save_step13_artifacts({"deployment_log": content, "doc_path": gen_path, "convergence": convergence_log, "status": "done", "qa_passed": True, "message": "✅ 生产部署完成"})
@@ -226,7 +243,8 @@ async def inspect_step13(project_id: str, body: Step3InspectRequest, db: Session
     dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
     focus_hint = f"\n⚠️ 本次只检验：{[d['label'] for d in active_dims]}" if focus_items else ""
     convergence_hint = "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
-    prompt = f"你是一个专业的部署QA检验员（后荣）。\n\n=== 部署报告 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
+    scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
+    prompt = f"你是一个专业的部署QA检验员（后荣）。\n\n=== 部署报告 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
         client = GatewayClient(profile_name="hourong", timeout=120)
         chunks = []
@@ -243,5 +261,12 @@ async def inspect_step13(project_id: str, body: Step3InspectRequest, db: Session
     results = []
     for dim in active_dims:
         m = next((r for r in parsed if r.get("key") == dim["key"]), None)
-        results.append({"key": dim["key"], "label": dim["label"], "passed": bool(m.get("passed", False)) if m else False, "detail": m.get("detail", "") if m else ""})
-    return APIResponse(code=0, data={"passed": all(r["passed"] for r in results), "dimensions": results})
+        results.append({"key": dim["key"], "label": dim["label"], "score": int(m.get("score", 100)) if m else 0, "passed": int(m.get("score", 100)) >= 90 if m else False, "detail": m.get("detail", "") if m else ""})
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
+    all_passed = avg_score > 90
+    _engine = _get_engine(project_id, db)
+    _engine.save_step13_artifacts({
+        "inspect_result": {"passed": all_passed, "avg_score": avg_score, "dimensions": results, "inspected_at": __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()},
+        "qa_passed": all_passed, "qa_checked": True,
+    })
+    return APIResponse(code=0, data={"passed": avg_score > 90, "score": avg_score, "dimensions": results})

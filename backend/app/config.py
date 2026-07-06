@@ -103,13 +103,13 @@ class Settings(BaseSettings):
     # ── 项目存储 ───────────────────────────────────────────
     PROJECTS_BASE_DIR: str = os.getenv(
         "PROJECTS_BASE_DIR",
-        os.path.join(os.path.expanduser("~"), "DevFlow", "projects"),
+        "/home/jim/projects",
     )
 
-    # ── 项目存储 ───────────────────────────────────────────
+    # ── 项目存储（重复定义，同时修改）──
     PROJECTS_BASE_DIR: str = os.getenv(
         "PROJECTS_BASE_DIR",
-        os.path.join(os.path.expanduser("~"), "DevFlow", "projects"),
+        "/home/jim/projects",
     )
 
     # ── 文件上传 ──────────────────────────────────────────

@@ -94,4 +94,13 @@ export const workflowApi = {
   haimeiGetReport(projectId: string) {
     return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/haimei/report`)
   },
+  uploadStep3Ref(projectId: string, name: string, content: string) {
+    return apiClient.post(`/v1/workflow/${projectId}/step3/upload-ref`, { name, content })
+  },
+  listStep3Refs(projectId: string) {
+    return apiClient.post<ApiResponse<{ refs: { name: string; path: string; size: number; preview: string }[] }>>(`/v1/workflow/${projectId}/step3/list-refs`, {})
+  },
+  readStep3File(projectId: string, path: string) {
+    return apiClient.post<ApiResponse<{ path: string; name: string; content: string }>>(`/v1/workflow/${projectId}/step3/read-file`, { path })
+  },
 }

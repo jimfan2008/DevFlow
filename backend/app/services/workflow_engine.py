@@ -485,11 +485,12 @@ class WorkflowEngine:
         self._cached_step3_artifacts = artifacts
         self._ensure_steps()
         row = self._get_step_row(3)
-        if row:
-            existing = row.output_artifacts or {}
-            existing.update(artifacts)
-            row.output_artifacts = existing
-            self.db.commit()
+        if not row:
+            raise ValueError(f"项目{self.project_id}不存在第3步，无法保存产物")
+        existing = row.output_artifacts or {}
+        existing.update(artifacts)
+        row.output_artifacts = existing
+        self.db.commit()
 
     def get_step3_artifacts(self) -> dict:
         if hasattr(self, '_cached_step3_artifacts') and self._cached_step3_artifacts:

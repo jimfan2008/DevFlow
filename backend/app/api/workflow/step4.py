@@ -5,6 +5,7 @@ from app.api.workflow.core import (
     Step3InspectRequest, Step5ChatRequest, QAResultRequest,
     DocsListRequest, ARCH_DESIGN_DIMENSIONS, _wf_engines, WorkflowEngine,
 )
+from app.api.ws.step4_progress import broadcast
 
 @router.post("/{project_id}/step4/artifacts")
 def save_step4_artifacts(project_id: str, body: dict = Body(...),
@@ -84,10 +85,10 @@ SUB_FLOW_CONFIGS = [
 
 def _build_inspect_prompt(
     doc_path: str, dim: dict, standards: list,
-    dim_key: str, retry_pressure: str = "",
+    dim_key: str, prev_feedback: str = "",
+    chapter_label: str = "",
 ) -> str:
-    """构建 hourong 检验提示词（含标准 + 格式化报告要求）"""
-    import json as _json
+    """构建 hourong 检验提示词（简洁、严格 JSON 格式）"""
     dim_label = dim["label"]
     dim_desc = dim["description"]
 
@@ -96,54 +97,44 @@ def _build_inspect_prompt(
         for i, s in enumerate(standards)
     )
 
+    converge_hint = ""
+    if prev_feedback:
+        converge_hint = (
+            f"\n⚠️ 收敛性检查（极其重要）：\n"
+            f"上次检验报告指出了以下问题，请逐条核实本次文档是否已修复：\n"
+            f"{prev_feedback}\n"
+            f"如果问题已修复，不要再重复报告；如果问题未修复，继续报告。\n"
+            f"禁止报告与上次相同的问题（如果上次指出的问题已修复）。\n"
+            f"禁止对合格项提出新的修改要求。\n"
+        )
+
+    chapter_hint = f"\n检验的分片文档：{chapter_label}\n" if chapter_label else ""
+    chapter_field = f'  "chapter": "{chapter_label}",\n' if chapter_label else ""
     return (
-        "你是一个严格的 JSON-only API，你的回复必须是一个合法的 JSON 对象，不能包含任何其他文字。\n\n"
+        "你是一个严格的 JSON-only API。只输出 JSON，禁止任何其他文字。\n\n"
         "角色：专业的设计方案 QA 检验员（后荣 / HouRong）\n\n"
-        f"=== 检验项目 ===\n"
-        f"{dim_label}（{dim_desc}）\n\n"
-        f"=== 文档路径 ===\n"
-        f"{doc_path}\n\n"
-        f"任务：读取该文档文件，严格逐项对照检验标准进行检验。\n\n"
-        f"=== 检验标准与权重 ===\n"
-        f"{std_items}\n\n"
-        f"=== 评分规则（每项1-5分）===\n"
-        f"  5 = 完全符合，4 = 良好，3 = 合格，2 = 不足，1 = 严重不达标\n\n"
-        f"=== 判定规则 ===\n"
-        f"- 存在任意 critical 项评分 < 3 → passed = false\n"
-        f"- 存在 2 项及以上 major 项评分 < 3 → passed = false\n"
-        f"- 其余情况 → passed = true\n\n"
-        f"=== 强制输出格式 ===\n"
-        f"必须输出且仅输出以下 JSON 对象（不要加 markdown 代码块标记）：\n"
-        f"{{\n"
+        f"检验项目：{dim_label}（{dim_desc}）\n"
+        f"文档路径：{doc_path}\n"
+        f"{chapter_hint}"
+        f"任务：读取该文档文件，严格逐项对照以下标准检验。\n\n"
+        f"检验标准：\n{std_items}\n\n"
+        "评分规则：满分100分，扣分制。score≥90 则 passed=true。\n\n"
+        "输出格式（严格 JSON 对象）：\n"
+        "{\n"
         f'  "key": "{dim_key}",\n'
-        f'  "passed": true 或 false,\n'
-        f'  "detail": "完整的格式化检验报告（见下方要求）"\n'
-        f"}}\n\n"
-        f"=== detail 字段要求（这是最重要的字段，绝不能为空）===\n"
-        f"如果 passed = false，detail 中必须逐条列出每个不合格标准的具体问题。\n"
-        f"格式如下：\n"
-        f"【检验报告】{dim_label}\n"
-        f"【逐项评分】\n"
-        f"1. [标准名称] — 评分: X/5 — 问题: 具体问题描述\n"
-        f"2. [标准名称] — 评分: X/5 — 问题: 具体问题描述\n"
-        f"【问题清单】\n"
-        f"- [严重程度] 具体问题 — 需要修改的方向\n"
-        f"【改进建议】\n"
-        f"1. 具体修改建议\n"
-        f"2. 具体修改建议\n\n"
-        f"=== 收敛性要求 ===\n"
-        f"检验报告必须聚焦于不合格项，明确指出每个不合格项的具体问题及修改方向。\n"
-        f"后续工程师将严格根据你的检验报告只修改不合格项，禁止扩大修改范围。\n"
-        f"已合格的项目不得要求修改。\n\n"
-        f"=== 关键规则 ===\n"
-        f"1. 只输出 JSON 对象，不能有任何其他文字\n"
-        f"2. 不要用 ```json 代码块包裹\n"
-        f"3. 不要包含推理、分析、思考过程\n"
-        f"4. 所有字符串使用双引号\n"
-        f"5. passed = false 时，detail 字段必须详细说明不合格原因和修改方向\n"
-        f"6. 必须直接读取文件进行检验\n"
-        f"{retry_pressure}"
-        f"现在输出 JSON 对象："
+        f'{chapter_field}'
+        '  "score": <0-100>,\n'
+        '  "passed": <true/false>,\n'
+        '  "detail": "<简要说明不合格项及修改方向，passed=true可留空>"\n'
+        "}\n\n"
+        f"{converge_hint}"
+        "规则：\n"
+        "1. 只输出 JSON 对象本身，不要 markdown 代码块，不要任何其他文字\n"
+        "2. 不要思考、分析、推理\n"
+        "3. passed=false 时 detail 必须说明问题和修改方向\n"
+        "4. detail 保持简洁，每条不合格项用1-2句话\n"
+        "5. 已合格项不要提修改要求\n"
+        "JSON："
     )
 
 
@@ -151,179 +142,184 @@ async def _inspect_doc(
     project_id: str, doc_path: str, dim: dict,
     project_name: str = "", project_description: str = "",
     core_goal: str = "", agent_label: str = "",
-    max_retries: int = 3, standards: list = None,
+    standards: list = None, prev_feedback: str = "",
+    chapter_label: str = "",
 ) -> dict:
-    """调用 hourong-{doc_type} 对单份文档进行 QA 检验（项目会话隔离）
+    """调用 hourong-{doc_type} 对单份文档进行单次 QA 检验（项目会话隔离）。
     将文档路径告知 hourong 让 Agent 自行读取文件，避免在大文档上 context 溢出。
-    若 hourong 未返回有效检验报告（空响应/无法解析），自动重试最多 max_retries 次，
-    禁止将 hourong 的异常直接当作"检验不通过"传给 houwang 重新生成。
+    单次尝试，不重试——失败立即返回原始响应供前端查看。
+    prev_feedback: 上一轮检验意见，用于收敛检测。
     """
-    import json as _json, re as _re, asyncio as _asyncio
+    import json as _json, re as _re
     from app.services.gateway_client import GatewayClient
     from app.api.ws.step4_progress import broadcast
 
     dim_key = dim["key"]
     dim_label = dim["label"]
 
-    for attempt in range(1, max_retries + 1):
-        if attempt > 1:
-            await _asyncio.sleep(2)
-            await broadcast(project_id, {
-                "type": "stage",
-                "message": f"🔄 hourong 正在第{attempt}次重新检验{dim_label}...",
-                "subflow": dim_key,
-            })
+    insp_prompt = _build_inspect_prompt(
+        doc_path=doc_path, dim=dim, standards=standards or [],
+        dim_key=dim_key, prev_feedback=prev_feedback,
+        chapter_label=chapter_label,
+    )
+    qa_cli = GatewayClient(profile_name="hourong", timeout=180)
+    qa_chunks = []
+    async for chunk in qa_cli.chat_isolated(
+        messages=[{"role": "user", "content": insp_prompt}],
+        project_id=project_id,
+        project_name=project_name,
+        project_description=project_description,
+        core_goal=core_goal,
+        agent_name=agent_label or f"后荣-{dim_key} QA检验员",
+        stream=True, max_tokens=8192,
+    ):
+        qa_chunks.append(chunk)
+    qa_r = "".join(qa_chunks).strip()
 
-        # 重试时追加纠正信息
-        retry_pressure = ""
-        if attempt > 1:
-            retry_pressure = (
-                f"\n\n⚠️ 你上一次输出不合法：要么不是合法 JSON，要么 passed=false 时缺少详细检验意见。\n"
-                f"本次必须严格遵守以下要求：\n"
-                f"1. 输出合法的 JSON 对象（不要任何其他文字、推理、分析）\n"
-                f"2. passed=false 时，detail 字段必须详细说明每个不合格项的具体问题及修改方向（至少50字）\n"
-                f"3. 不要用 markdown 代码块包裹 JSON\n"
-            )
+    if not qa_r:
+        return {"key": dim_key, "passed": False, "detail": "后荣未返回检验结果（空响应）"}
 
-        insp_prompt = _build_inspect_prompt(
-            doc_path=doc_path, dim=dim, standards=standards or [],
-            dim_key=dim_key, retry_pressure=retry_pressure,
-        )
-        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-        qa_chunks = []
-        async for chunk in qa_cli.chat_isolated(
-            messages=[{"role": "user", "content": insp_prompt}],
-            project_id=project_id,
-            project_name=project_name,
-            project_description=project_description,
-            core_goal=core_goal,
-            agent_name=agent_label or f"后荣-{dim_key} QA检验员",
-            stream=True, max_tokens=8192,
-        ):
-            qa_chunks.append(chunk)
-        qa_r = "".join(qa_chunks).strip()
+    # Extract JSON from LLM response — multi-strategy extraction
+    single = {}
 
-        if not qa_r:
-            if attempt < max_retries:
-                await broadcast(project_id, {
-                    "type": "stage",
-                    "message": f"⚠️ hourong 未返回{dim_label}的检验结果（空响应），正在重试（第{attempt}次）",
-                    "subflow": dim_key,
-                })
-                continue
-            return {"key": dim_key, "passed": False, "detail": f"后荣{max_retries}次均未返回检验结果（空响应）"}
+    # Strip thinking/analysis tags
+    _lt, _gt = chr(60), chr(62)
+    _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
+    _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
+    qa_r = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
 
-        # Extract JSON from LLM response — robust multi-strategy extraction
-        _re = __import__('re')
-        single = {}
+    candidates = []
 
-        # Strategy 0: Strip thinking/analysis tags (various formats)
-        _lt, _gt = chr(60), chr(62)
-        _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
-        _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
-        qa_r = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
+    # Strategy: code fences
+    fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', qa_r, _re.DOTALL)
+    for fc in fenced:
+        stripped = fc.strip()
+        if stripped:
+            candidates.append(stripped)
 
-        # Collect candidates for parsing
-        candidates = []
+    # Strategy: brace extraction
+    brace_start = qa_r.find('{')
+    brace_end = qa_r.rfind('}')
+    if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+        candidates.append(qa_r[brace_start:brace_end + 1])
 
-        # Strategy 1: Strip markdown code fences
-        fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', qa_r, _re.DOTALL)
-        for fc in fenced:
-            stripped = fc.strip()
-            if stripped:
-                candidates.append(stripped)
+    # Strategy: JSON-like regex
+    json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', qa_r)
+    for jl in json_like:
+        if len(jl) > 10:
+            candidates.append(jl)
 
-        # Strategy 2: Brace extraction (first { to last })
-        brace_start = qa_r.find('{')
-        brace_end = qa_r.rfind('}')
-        if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-            brace_extracted = qa_r[brace_start:brace_end + 1]
-            candidates.append(brace_extracted)
+    # Strategy: strip non-JSON prefix/suffix
+    stripped = qa_r.strip()
+    bs2 = stripped.find('{')
+    if bs2 > 0:
+        candidates.append(stripped[bs2:])
+    be2 = stripped.rfind('}')
+    if be2 >= 0 and be2 < len(stripped) - 1:
+        candidates.append(stripped[:be2 + 1])
 
-        # Strategy 3: Find JSON-like pattern via regex
-        json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', qa_r)
-        for jl in json_like:
-            if len(jl) > 10:
-                candidates.append(jl)
+    candidates.append(qa_r)
 
-        # Strategy 4: Strip non-JSON prefix/suffix
-        stripped = qa_r.strip()
-        bs2 = stripped.find('{')
-        if bs2 > 0:
-            candidates.append(stripped[bs2:])
-        stripped2 = qa_r.strip()
-        be2 = stripped2.rfind('}')
-        if be2 >= 0 and be2 < len(stripped2) - 1:
-            candidates.append(stripped2[:be2 + 1])
+    def _repair_json(text):
+        t = text.strip()
+        t = _re.sub(r',\s*([}\]])', r'\1', t)
+        try:
+            return _json.loads(t)
+        except Exception:
+            pass
+        core = t.lstrip('\n\r\t ')
+        while core and core[0] not in '{[":':
+            core = core[1:]
+        while core and core[-1] not in '}]\n\r\t ':
+            core = core[:-1]
+        try:
+            return _json.loads(core.strip())
+        except Exception:
+            pass
+        return None
 
-        # Strategy 5: Full string (for pure JSON responses)
-        candidates.append(qa_r)
-
-        def _repair_json(text):
-            """Fix common JSON formatting issues in LLM output."""
-            t = text.strip()
-            t = _re.sub(r',\s*([}\]])', r'\1', t)
-            try:
-                return _json.loads(t)
-            except Exception:
-                pass
-            core = t.lstrip('\n\r\t ')
-            while core and core[0] not in '{[":':
-                core = core[1:]
-            while core and core[-1] not in '}]\n\r\t ':
-                core = core[:-1]
-            try:
-                return _json.loads(core.strip())
-            except Exception:
-                pass
-            return None
-
-        for candidate in candidates:
-            try:
-                parsed = _json.loads(candidate)
-                if isinstance(parsed, dict) and parsed:
-                    single = parsed
-                    break
-            except Exception:
-                pass
-            repaired = _repair_json(candidate)
-            if repaired and isinstance(repaired, dict) and repaired:
-                single = repaired
+    for candidate in candidates:
+        try:
+            parsed = _json.loads(candidate)
+            if isinstance(parsed, dict) and parsed:
+                single = parsed
                 break
+        except Exception:
+            pass
+        repaired = _repair_json(candidate)
+        if repaired and isinstance(repaired, dict) and repaired:
+            single = repaired
+            break
 
-        if not single:
-            logger.error(f"hourong JSON 解析失败 (attempt {attempt}/{max_retries}): {qa_r[:500]}")
-            if attempt < max_retries:
-                await broadcast(project_id, {
-                    "type": "stage",
-                    "message": f"⚠️ hourong 返回了{dim_label}无法解析的检验报告，正在重试（第{attempt}次）",
-                    "subflow": dim_key,
-                })
-                continue
-            logger.warning(f"hourong 返回无法解析 (已重试{max_retries}次): {qa_r[:300]}")
-            return {"key": dim_key, "passed": False, "detail": "后荣返回了无法解析的检验报告"}
+    if not single:
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"❌ hourong 返回了{dim_label}无法解析的检验报告。原始返回内容：\n\n{qa_r[:3000]}",
+            "subflow": dim_key,
+        })
+        return {"key": dim_key, "passed": False, "detail": f"后荣返回了无法解析的检验报告\n\n原始返回：\n{qa_r[:1000]}", "raw_response": qa_r}
 
-        overall_passed = bool(single.get("passed", False))
-        detail_text = single.get("detail", "").strip()
+    overall_passed = int(single.get("score", 0)) > 90 or bool(single.get("passed", False))
+    detail_text = single.get("detail", "").strip()
 
-        # 未通过时必须返回详细理由
-        if not overall_passed and (not detail_text or len(detail_text) < 20):
-            if attempt < max_retries:
-                await broadcast(project_id, {
-                    "type": "stage",
-                    "message": f"⚠️ hourong 判定{dim_label}未通过但未说明理由，要求重新出具详细检验报告（第{attempt}次）",
-                    "subflow": dim_key,
-                })
-                continue
-            detail_text = "后荣判定不合格但未返回详细检验意见"
+    if not overall_passed and (not detail_text or len(detail_text) < 20):
+        detail_text = "后荣判定不合格但未返回详细检验意见"
 
-        return {
-            "key": dim_key,
-            "passed": overall_passed,
-            "detail": detail_text or "检验完成",
-        }
+    score = int(single.get("score", 100))
+    return {
+        "key": dim_key,
+        "score": score,
+        "passed": overall_passed,
+        "detail": detail_text or "检验完成",
+    }
 
-    return {"key": dim_key, "passed": False, "detail": "后荣检验失败"}
+
+# ── 文档分片支持 ──
+CHAPTER_MARKER_START = "<!-- CHAPTER:"
+CHAPTER_MARKER_END = "-->"
+
+
+def _split_chapters(full_text: str) -> dict:
+    import re
+    chapters = {}
+    pattern = re.compile(
+        rf'{re.escape(CHAPTER_MARKER_START)}\s*(\w+)\s*{re.escape(CHAPTER_MARKER_END)}'
+        r'([\s\S]*?)(?='
+        rf'{re.escape(CHAPTER_MARKER_START)}|\Z)'
+    )
+    for m in pattern.finditer(full_text):
+        key = m.group(1)
+        content = m.group(2).strip()
+        if content:
+            chapters[key] = content
+    return chapters
+
+
+def _build_chapter_prompt(doc_type, label, gen_instruction, requirement, docs_dir, slug):
+    from app.services.doc_sharder import get_shard_config, get_chapter_filename
+    configs = get_shard_config(doc_type)
+    lines = [
+        f"你是资深软件架构师后旺（HouWang），专门负责{label}。\n",
+        "请根据需求文档，按章节输出完整文档。\n",
+        f"=== 需求文档 ===\n{requirement[:5000]}\n\n",
+        f"=== 章节要求 ===\n",
+    ]
+    for ch in configs:
+        fpath = get_chapter_filename(doc_type, ch["key"], docs_dir, slug)
+        lines.append(
+            f"{CHAPTER_MARKER_START} {ch['key']} {CHAPTER_MARKER_END}\n"
+            f"章节：{ch['title']}\n"
+            f"内容要求：{ch['instruction']}\n"
+            f"保存到：{fpath}\n"
+        )
+    lines.append(
+        "\n要求：\n"
+        "1. 每个章节用 <!-- CHAPTER: key --> 标记包裹\n"
+        "2. 每个章节保存到指定的文件路径\n"
+        "3. 章节内容必须是独立的 Markdown 片段\n"
+        "4. 不要输出推理过程\n"
+    )
+    return "\n".join(lines)
 
 
 async def _run_doc_sub_flow(
@@ -429,25 +425,33 @@ async def _run_doc_sub_flow(
             # 基于已有文档 + hourong 反馈进行修复
             houwang_role = f"houwang-{doc_type}"
             fix_detail = convergence_log[-1]["detail"] if convergence_log else "需整体改进"
+            # 将完整检验报告序列化给 houwang，确保它看到结构化结果
+            last_result = convergence_log[-1] if convergence_log else {}
+            last_result_json = _json.dumps(last_result, ensure_ascii=False, indent=2) if last_result else "{}"
             change_hint = ""
             if len(convergence_log) >= 2:
                 prev_detail = convergence_log[-2]["detail"]
-                if len(fix_detail) < len(prev_detail) * 0.5:
+                if prev_detail and len(fix_detail or "") < len(prev_detail) * 0.5:
                     change_hint = "（较上一轮检验意见长度减少超50%，收敛趋势良好，继续改进即可）"
-                elif fix_detail == prev_detail:
+                elif prev_detail and fix_detail == prev_detail:
                     change_hint = "（本轮与上轮检验意见相同——请确保已实际修复所有指出的问题，不要遗漏）"
             prompt = (
                 f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
-                f"后荣（HouRong）检验发现以下问题需要修改：\n\n"
+                f"后荣（HouRong）的完整检验报告：\n"
+                f"```json\n{last_result_json}\n```\n\n"
                 f"=== 当前已有文档 ===\n{current_content[:5000]}\n\n"
-                f"=== 后荣最新检验意见 ===\n{fix_detail}\n\n"
+                f"=== 后荣详细检验意见 ===\n{fix_detail}\n\n"
                 f"{change_hint}\n"
                 f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
-                f"请根据后荣的意见严格修正文档，并将修正后的完整文档保存到：{gen_path}\n"
+                "⚠️ 收敛性要求（极其重要）：\n"
+                "1. **只**修改后荣报告中指出的不合格项，其他部分一律不变\n"
+                "2. 如果后荣说某标准已通过，绝对不要修改相关内容\n"
+                "3. 禁止添加新功能、新需求\n"
+                "4. 每个修改必须对应一个后荣指出的具体问题\n\n"
+                f"将修正后的完整文档保存到：{gen_path}\n"
                 "要求：\n"
-                "1. 只针对后荣指出的不合格项修改，禁止扩大修改范围，禁止添加新功能\n"
-                "2. 文档必须是独立完整的 Markdown 文件\n"
-                "3. 不要包含推理过程\n"
+                "1. 文档必须是独立完整的 Markdown 文件\n"
+                "2. 不要包含推理过程\n"
             )
             await broadcast(project_id, {
                 "type": "stage",
@@ -521,17 +525,19 @@ async def _run_doc_sub_flow(
             })
             continue
 
-        # ── hourong 检验 ──
+        # ── hourong 检验（带上轮反馈做收敛） ──
         await broadcast(project_id, {
             "type": "stage",
             "message": f"🔍 hourong-{doc_type} 正在检验{label}...（文件：{current_path}）",
             "subflow": dim["key"],
         })
+        prev_fb = convergence_log[-1]["detail"] if convergence_log else ""
         result = await _inspect_doc(
             project_id, current_path or "", dim,
             project_name=project_name, project_description=project_description,
             core_goal=core_goal, agent_label=hourong_label,
             standards=cfg.get("standards", []),
+            prev_feedback=prev_fb,
         )
 
         convergence_log.append({"round": fix_round, "detail": result.get("detail", ""), "passed": result["passed"]})
@@ -751,6 +757,7 @@ async def _fix_doc_from_consistency_feedback(
 
     content = current_content
     path = None
+    convergence_log = []
 
     for attempt in range(1, max_attempts + 1):
         nv = max_ver + attempt
@@ -766,14 +773,16 @@ async def _fix_doc_from_consistency_feedback(
             f"你是资深软件架构师后旺（HouWang），代号 houwang-{doc_type}，专门负责{label}。\n\n"
             f"跨文档一致性检验发现以下一致性问题需要修正：\n\n"
             f"{consistency_feedback}\n\n"
-            f"=== 当前文档 ===\n{content[:5000]}\n\n"
+            f"=== 当前文档（{label}） ===\n{content[:5000]}\n\n"
             f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
-            f"请根据一致性检验意见严格修正文档，确保与其他设计文档对应一致，"
+            f"请根据一致性检验意见严格修正当前文档（{label}），"
+            f"确保与其他设计文档对应一致，"
             f"并将修正后的完整文档保存到：{gen_path}\n"
-            "要求：\n"
-            "1. 只针对一致性问题修改，禁止扩大修改范围\n"
-            "2. 文档必须是独立完整的 Markdown 文件\n"
-            "3. 不要包含推理过程"
+            "⚠️ 严格限制：\n"
+            "1. **只**修改当前文档（{label}）本身，禁止修改其他子步骤的文档\n"
+            "2. 只针对一致性问题修改，禁止扩大修改范围\n"
+            "3. 文档必须是独立完整的 Markdown 文件\n"
+            "4. 不要包含推理过程"
         )
 
         houwang_cli = GatewayClient(profile_name="houwang", timeout=1200)
@@ -817,18 +826,21 @@ async def _fix_doc_from_consistency_feedback(
             })
             continue
 
-        # hourong 个体检验
+        # hourong 个体检验（带上轮反馈做收敛）
         await broadcast(project_id, {
             "type": "stage",
             "message": f"🔍 hourong-{doc_type} 正在重新检验{label}的一致性修复...（文件：{path}）",
             "subflow": dim["key"],
         })
+        prev_fb = convergence_log[-1]["detail"] if convergence_log else ""
         result = await _inspect_doc(
             project_id, path or "", dim,
             project_name=project_name, project_description=project_description,
             core_goal=core_goal, agent_label=hourong_label,
             standards=cfg.get("standards", []),
+            prev_feedback=prev_fb,
         )
+        convergence_log.append({"round": attempt, "detail": result.get("detail", ""), "passed": result["passed"]})
         if result["passed"]:
             await broadcast(project_id, {
                 "type": "stage",
@@ -977,13 +989,24 @@ async def execute_step4(project_id: str,
                         db: Session = Depends(get_db),
                         current_user=Depends(get_current_user),
                         resume: bool = False):
-    """异步启动第4步——协调4个子步骤串行执行，聚合设计文档后推进至第5步"""
+    """异步启动第4步——协调4个子步骤串行执行，聚合设计文档后推进至第5步。
+    支持断点续做：自动从数据库读取已有进度，跳过已完成子步骤，从未完成的子步骤继续。
+    """
     import asyncio as _asyncio
 
     try:
         engine = _get_engine(project_id, db)
-        if resume:
-            existing = engine.get_step4_artifacts() or {}
+        existing_artifacts = engine.get_step4_artifacts() or {}
+        has_progress = any(
+            existing_artifacts.get(k) and existing_artifacts[k].get("passed")
+            for k in ["step4_1_result", "step4_2_result", "step4_3_result", "step4_4_result"]
+        )
+        if resume or has_progress:
+            # 断点续做：保留已有成果
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": "♻️ 检测到已有进度，断点续做模式",
+            })
         else:
             step4_row = engine._get_step_row(4)
             if step4_row and step4_row.status == "in_progress":
@@ -991,7 +1014,7 @@ async def execute_step4(project_id: str,
                 engine = WorkflowEngine(project_id=project_id, db=db)
                 _wf_engines[project_id] = engine
             engine.advance_step(4)
-            existing = {}
+            existing_artifacts = {}
     except Exception as e:
         return APIResponse(code=1, message=f"无法开始步骤4: {str(e)[:200]}")
 
@@ -999,13 +1022,12 @@ async def execute_step4(project_id: str,
     requirement = (step3.get("doc_content") or step3.get("content") or
                    step3.get("requirement") or step3.get("srs") or "")
     if not requirement:
-        if not resume:
+        if not resume and not has_progress:
             engine.reset_step(4)
         return APIResponse(code=1, message="未找到 Step3 需求文档，请先完成需求分析")
 
-    _existing_artifacts = engine.get_step4_artifacts() or {}
     engine.save_step4_artifacts({
-        **_existing_artifacts,
+        **existing_artifacts,
         "status": "generating",
         "message": "🚀 step4 orchestration: step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库",
     })
@@ -1035,7 +1057,7 @@ async def execute_step4(project_id: str,
 
             bg_db = SessionLocal()
             try:
-                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db, auto_supervise=False)
                 proj = bg_db.query(_Project).filter(_Project.id == project_id).first()
                 if not proj:
                     raise Exception("项目不存在")
@@ -1070,21 +1092,53 @@ async def execute_step4(project_id: str,
                         })
                         continue
 
+                    # ⚠️ 严格串行：启动前确认前一个子步骤已完成
+                    if sub["step"] > 1:
+                        prev_key = SUB_STEP_ORDER[sub["step"] - 2]["key"]
+                        prev_artifact = bg_engine.get_step4_artifacts().get(prev_key) or {}
+                        prev_content_key = f"{prev_key}_content"
+                        prev_content = bg_engine.get_step4_artifacts().get(prev_content_key, "")
+                        if not prev_artifact.get("passed"):
+                            err_msg = f"❌ {step_label}: 前序子步骤 {SUB_STEP_ORDER[sub['step'] - 2]['label']} 未通过，禁止启动"
+                            await broadcast(project_id, {"type": "error", "message": err_msg, "subflow": sub["dim_key"]})
+                            all_passed = False
+                            break
+                        if not prev_artifact.get("path") and not prev_content:
+                            err_msg = f"❌ {step_label}: 前序子步骤的文档成果未保存，禁止启动"
+                            await broadcast(project_id, {"type": "error", "message": err_msg, "subflow": sub["dim_key"]})
+                            all_passed = False
+                            break
+
+                    # 保存当前执行进度到数据库（断点续做用）
+                    bg_engine.save_step4_artifacts({
+                        "current_step": sub["step"],
+                        "current_key": sub["key"],
+                        "current_label": sub["label"],
+                    })
+
                     await broadcast(project_id, {
                         "type": "stage",
                         "message": f"🚀 {step_label}: 启动{sub['label']}子步骤...",
                         "subflow": sub["dim_key"],
                     })
 
-                    # 构造前序文档映射
+                    # 构造前序文档映射（从已有成果中读取 content/path）
                     prev_docs_map = {}
                     if sub["step"] >= 2:
                         for prev_sub in SUB_STEP_ORDER[:sub["step"] - 1]:
+                            prev_content_key = f"{prev_sub['key']}_content"
+                            prev_content = bg_engine.get_step4_artifacts().get(prev_content_key, "")
                             prev_result = artifacts.get(prev_sub["key"]) or all_results.get(prev_sub["key"]) or {}
                             if prev_result.get("path"):
                                 prev_docs_map[prev_sub["dim_key"]] = prev_result["path"]
+                            elif prev_content:
+                                # 如有 content 但无 path，临时写文件
+                                fallback_path = os.path.join(docs_dir, f"{slug}_{prev_sub['dim_key']}_V1.md")
+                                with open(fallback_path, "w", encoding="utf-8") as f:
+                                    f.write(prev_content)
+                                prev_docs_map[prev_sub["dim_key"]] = fallback_path
 
-                    # 动态导入并运行子步骤
+                    # 动态导入并运行子步骤（await = 串行阻塞）
                     import importlib as _il
                     mod = _il.import_module(sub["module"])
                     run_fn = getattr(mod, sub["run_name"])
@@ -1104,13 +1158,19 @@ async def execute_step4(project_id: str,
                         )
 
                     all_results[sub["key"]] = result
+                    # 保存完整子步骤成果（含 content/detail/score，供后续子步骤读取）
+                    save_data = {
+                        "key": result["key"], "label": result.get("label", ""),
+                        "path": result.get("path", ""), "passed": result["passed"],
+                        "rounds": result.get("rounds", 0),
+                        "content": result.get("content", ""),
+                        "detail": result.get("detail", ""),
+                        "score": result.get("score", 0),
+                        "convergence": result.get("convergence", []),
+                    }
                     bg_engine.save_step4_artifacts({
-                        sub["key"]: {
-                            "key": result["key"], "label": result.get("label", ""),
-                            "path": result.get("path", ""), "passed": result["passed"],
-                            "rounds": result.get("rounds", 0),
-                            "convergence": result.get("convergence", []),
-                        },
+                        sub["key"]: save_data,
+                        f"{sub['key']}_content": result.get("content", ""),
                         "message": f"{step_label}: {sub['label']} {'通过' if result['passed'] else '未通过'}",
                     })
 
@@ -1161,8 +1221,7 @@ async def execute_step4(project_id: str,
 
                     if all_passed:
                         bg_engine.save_step4_artifacts({**artifacts, "qa_passed": True, "qa_checked": True})
-                        bg_engine.complete_step(4)
-                        bg_engine.pass_qa(4)
+                        bg_engine.complete_step(4, artifacts={**artifacts, "qa_passed": True})
                         await broadcast(project_id, {
                             "type": "done",
                             "message": "✅ 全部4个子步骤通过hourong QA检验与一致性检验，已推进至第5步",
@@ -1219,7 +1278,10 @@ class Step4ChatRequest(BaseModel):
 async def step4_chat(project_id: str, body: Step4ChatRequest,
                      db: Session = Depends(get_db),
                      current_user=Depends(get_current_user)):
-    """与后旺（HouWang）架构师对话 - 使用项目隔离模式"""
+    """与后旺（HouWang）架构师对话 - 使用项目隔离模式
+    每次对话后自动持久化消息历史到 DB。
+    """
+    from datetime import datetime, timezone
     logger.info(f"Step4 chat: project_id={project_id}, message={body.message[:50]}")
     from app.services.gateway_client import GatewayClient
     from app.models.project import Project
@@ -1229,18 +1291,23 @@ async def step4_chat(project_id: str, body: Step4ChatRequest,
         step4 = engine.get_step4_artifacts()
         design_context = (step4 or {}).get("design_doc", "")
 
-        # 加载项目信息
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        # 加载核心目标（步骤2产物）
         step2 = engine.get_step2_artifacts()
         core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
 
         messages = body.messages + [{"role": "user", "content": body.message}]
 
-        # 使用项目隔离模式
+        # 持久化：保存对话进度到 DB
+        saved_msgs = step4.get("chat_messages", [])
+        saved_msgs.append({"role": "user", "content": body.message, "saved_at": datetime.now(timezone.utc).isoformat()})
+        engine.save_step4_artifacts({
+            "chat_messages": saved_msgs,
+            "last_activity_at": datetime.now(timezone.utc).isoformat(),
+        })
+
         client = GatewayClient(profile_name="houwang", timeout=1200)
         reply_chunks = []
         async for chunk in client.chat_isolated(
@@ -1256,6 +1323,13 @@ async def step4_chat(project_id: str, body: Step4ChatRequest,
         reply = "".join(reply_chunks)
         if not reply or len(reply.strip()) < 5:
             return APIResponse(code=1, message="后旺未生成有效回复", data=None)
+
+        saved_msgs.append({"role": "assistant", "content": reply, "saved_at": datetime.now(timezone.utc).isoformat()})
+        engine.save_step4_artifacts({
+            "chat_messages": saved_msgs,
+            "last_reply": reply,
+            "last_reply_at": datetime.now(timezone.utc).isoformat(),
+        })
         return APIResponse(code=0, message="success", data={"reply": reply})
     except HTTPException:
         raise
@@ -1467,14 +1541,26 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
         matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
         results.append({
             "key": dim["key"], "label": dim["label"], "description": dim["description"],
-            "passed": bool(matched.get("passed", False)) if matched else False,
-            "score": matched.get("score", None) if matched else None,
+            "passed": int(matched.get("score", 100)) >= 90 if matched else False,
+            "score": int(matched.get("score", 100)) if matched else 0,
             "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果",
         })
 
-    all_passed = all(r["passed"] for r in results)
+    from datetime import datetime, timezone
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
+    all_passed = avg_score > 90
+    # 持久化：保存检验结果到 DB
+    engine = _get_engine(project_id, db)
+    engine.save_step4_artifacts({
+        "inspect_result": {
+            "passed": all_passed, "avg_score": avg_score, "dimensions": results,
+            "inspected_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "qa_checked": True, "qa_passed": all_passed,
+    })
     return APIResponse(code=0, data={
         "passed": all_passed,
+        "score": avg_score,
         "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过",
         "dimensions": results,
     })
@@ -1484,11 +1570,15 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
 def qa_step4(project_id: str, body: QAResultRequest,
              db: Session = Depends(get_db),
              current_user=Depends(get_current_user)):
+    from datetime import datetime, timezone
     engine = _get_engine(project_id, db)
+    now_iso = datetime.now(timezone.utc).isoformat()
     if body.result == "passed":
         result = engine.pass_qa(4)
+        engine.save_step4_artifacts({"qa_passed": True, "qa_status": "passed", "qa_checked_at": now_iso})
     else:
         result = engine.fail_qa(4, reason=body.reason or "", suggestions=body.suggestions)
+        engine.save_step4_artifacts({"qa_passed": False, "qa_status": "failed", "qa_checked_at": now_iso, "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
     return APIResponse(code=0, data={"message": f"第四步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
 
 

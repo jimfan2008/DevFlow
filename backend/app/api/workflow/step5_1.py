@@ -49,13 +49,15 @@ async def _inspect_env_config(
     project_id: str, doc_path: str,
     project_name: str = "", project_description: str = "",
     core_goal: str = "", agent_label: str = "", max_retries: int = 3,
+    failed_keys: list = None,
 ) -> dict:
     import json as _json, re as _re, asyncio as _asyncio
     from app.services.gateway_client import GatewayClient
     from app.api.ws.step5_progress import broadcast
-    dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in ENV_SETUP_DIMENSIONS])
-    dim_keys = [d["key"] for d in ENV_SETUP_DIMENSIONS]
-    dim_template = ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in ENV_SETUP_DIMENSIONS)
+    active_dims = [d for d in ENV_SETUP_DIMENSIONS if not failed_keys or d["key"] in failed_keys]
+    dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in active_dims])
+    dim_keys = [d["key"] for d in active_dims]
+    dim_template = ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims)
     for attempt in range(1, max_retries + 1):
         if attempt > 1:
             await _asyncio.sleep(2)
@@ -67,22 +69,29 @@ async def _inspect_env_config(
                 f"你必须输出一个合法的 JSON 数组，不能再包含其他文字、推理、分析、"
                 f"文件内容、工具调用结果或任何解释性说明！\n"
             )
+        focus_hint_str = f"\n⚠️ FOCUS: This round ONLY re-inspects the following {len(active_dims)} items that failed previously: {[d['label'] for d in active_dims]}\nDo NOT inspect any other items. Scope expansion is strictly prohibited.\n" if failed_keys else ""
         insp_prompt = (
             f"You are a JSON-only API. Your entire response MUST be a single, "
             f"valid JSON array — nothing else.\n\n"
             f"Role: 专业的环境配置文件 QA 检验员（后荣）\n\n"
             f"=== 检验项目与标准 ===\n{dims_json}\n\n"
             f"=== 文档路径 ===\n{doc_path}\n\n"
-            f"Task: 读取该文档文件，严格逐项检验是否满足上述标准。\n"
-            f"注意：文档文件位于上述路径，请直接读取文件进行完整检验。\n\n"
+             f"Task: 读取该文档文件，严格逐项检验是否满足上述标准。\n"
+             f"注意：文档文件位于上述路径，请直接读取文件进行完整检验。\n\n"
+             f"SCORING RULE: Each dimension starts at 100 points. Deduct points for defects "
+             f"(minor: 5-10, moderate: 15-20, severe: 25-30). "
+             f"Dimension passes if score >= 90. Overall pass requires average score > 90.\n\n"
             f"=== OUTPUT FORMAT (STRICT) ===\n"
-            f"Output ONLY a JSON array with exactly {len(ENV_SETUP_DIMENSIONS)} objects. "
-            f"Each object has 3 fields:\n"
-            f"  key: string (must be one of: {', '.join(dim_keys)})\n"
-            f"  passed: boolean (true or false)\n"
-            f"  detail: string (your inspection comments)\n\n"
+            f"Output ONLY a JSON array with exactly {len(active_dims)} objects. "
+             f"Each object has 5 fields:\n"
+             f"  key: string (must be one of: {', '.join(dim_keys)})\n"
+             f"  score: integer (0-100, start from 100, deduct points for defects)\n"
+             f"  deduction: string (reason for point deduction)\n"
+             f"  passed: boolean (true if score >= 90)\n"
+             f"  detail: string (your inspection comments)\n\n"
             f"Template:\n[\n"
             f"{dim_template}\n]\n\n"
+             f"{focus_hint_str}"
              f"CONVERGENCE RULE:\n"
              f"The inspection report MUST focus ONLY on non-conforming items. "
              f"Clearly indicate what specific issues need to be fixed and the direction of modification. "
@@ -96,7 +105,7 @@ async def _inspect_env_config(
             f"4. Do NOT include thinking, reasoning, analysis, or explanation.\n"
             f"5. Do NOT include file content, tool calls, or tool results.\n"
             f"6. Do NOT include greetings, apologies, or any conversational text.\n"
-            f"7. The array must contain exactly {len(ENV_SETUP_DIMENSIONS)} objects, one per dimension.\n"
+             f"7. The array must contain exactly {len(active_dims)} objects, one per dimension.\n"
             f"8. Ensure all string values use double quotes and are properly escaped.\n"
             f"9. The JSON must parse successfully without any modifications.\n"
             f"10. After generating the JSON, verify it is valid before outputting.\n"
@@ -155,9 +164,10 @@ async def _inspect_env_config(
                     pass
 
         if parsed:
-            all_passed = all(bool(r.get("passed")) for r in parsed)
-            failed_details = [r.get("detail", "") for r in parsed if not r.get("passed")]
-            return {"passed": all_passed, "detail": "", "failed_details": failed_details, "results": parsed}
+            scores = [int(r.get("score", 100)) for r in parsed]
+            avg_score = sum(scores) / len(scores)
+            failed_details = [r.get("detail", "") for r in parsed if int(r.get("score", 100)) < 90]
+            return {"passed": avg_score > 90, "score": avg_score, "total_score": sum(scores), "max_score": len(scores) * 100, "detail": "", "failed_details": failed_details, "results": parsed}
 
         logger.error(f"hourong 检验 JSON 解析失败 (attempt {attempt}/{max_retries}): {qa_r[:500]}")
         if attempt < max_retries:
@@ -425,13 +435,18 @@ async def execute_step5_1_async(project_id: str, db: Session = Depends(get_db), 
                     })
                     await broadcast(project_id, {"type": "progress", "message": f"🔍 hourong 正在检验环境配置文件（文件：{gen_path}）"})
 
+                    failed_keys = []
+                    if fix_round > 1 and convergence_log:
+                        last_results = convergence_log[-1].get("results", [])
+                        if last_results:
+                            failed_keys = [r.get("key", "") for r in last_results if int(r.get("score", 100)) < 90]
                     t_val_start = _time.time()
-                    qa_result = await _inspect_env_config(project_id, gen_path, project_name=proj_name, project_description=proj_desc, core_goal=core_goal)
+                    qa_result = await _inspect_env_config(project_id, gen_path, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, failed_keys=failed_keys if failed_keys else None)
                     t_val_end = _time.time()
                     validation_time = round(t_val_end - t_val_start, 2)
 
                     # ── 持久化：检验完成，记录结果 ──
-                    convergence_log.append({"round": fix_round, "detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", [])})
+                    convergence_log.append({"round": fix_round, "detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", []), "results": qa_result.get("results", [])})
 
                     # ── 计时统计 ──
                     total_time = round(doc_read_time + llm_prefill_time + llm_decode_time + io_write_time + validation_time, 2)

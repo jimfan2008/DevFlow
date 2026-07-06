@@ -72,7 +72,7 @@ async def step4_progress_ws(websocket: WebSocket, project_id: str,
 
 
 async def _run_step4(project_id: str, db):
-    """调用houwang Agent生成4份设计文档"""
+    """调用houwang+hourong 4份设计文档生成 + 逐轮收敛检验"""
     from app.services.workflow_engine import WorkflowEngine
     from app.models.project import Project
     from app.config import settings
@@ -101,6 +101,7 @@ async def _run_step4(project_id: str, db):
 
     sub_flows = [
         {"doc_type": "ARCHITECTURE", "label": "架构设计文档", "prefix": "arch",
+         "dim_key": "arch_reasonableness",
          "instruction": (
              "你是资深架构师后旺（HouWang），负责设计系统架构。\n"
              f"项目：{proj_name}\n核心目标：{core_goal}\n"
@@ -109,6 +110,7 @@ async def _run_step4(project_id: str, db):
              "不要输出推理过程。"
          )},
         {"doc_type": "FRONTEND", "label": "前端设计文档", "prefix": "frontend",
+         "dim_key": "frontend_feasibility",
          "instruction": (
              "你是资深前端架构师后旺（HouWang），负责设计前端架构。\n"
              f"项目：{proj_name}\n核心目标：{core_goal}\n"
@@ -117,6 +119,7 @@ async def _run_step4(project_id: str, db):
              "不要输出推理过程。"
          )},
         {"doc_type": "BACKEND", "label": "后端设计文档", "prefix": "backend",
+         "dim_key": "backend_feasibility",
          "instruction": (
              "你是资深后端架构师后旺（HouWang），负责设计后端架构。\n"
              f"项目：{proj_name}\n核心目标：{core_goal}\n"
@@ -125,6 +128,7 @@ async def _run_step4(project_id: str, db):
              "不要输出推理过程。"
          )},
         {"doc_type": "DATABASE", "label": "数据库设计脚本", "prefix": "db",
+         "dim_key": "database_design",
          "instruction": (
              "你是资深数据库架构师后旺（HouWang），负责设计数据库。\n"
              f"项目：{proj_name}\n核心目标：{core_goal}\n"
@@ -134,57 +138,207 @@ async def _run_step4(project_id: str, db):
          )},
     ]
 
-    async def run_one(cfg):
+    merged = {}
+    convergence_log = []
+
+    for cfg in sub_flows:
         doc_type = cfg["doc_type"]
         label = cfg["label"]
         prefix = cfg["prefix"]
+        dim_key = cfg["dim_key"]
         instruction = cfg["instruction"]
 
         await broadcast(project_id, {
-            "type": "stage", "message": f"📝 {label}：houwang Agent处理中...",
+            "type": "stage",
+            "message": f"📝 {label}：houwang 开始生成（第1轮）...",
             "subflow": doc_type,
         })
 
-        client = GatewayClient(profile_name="houwang", timeout=1200)
-        chunks = []
-        async for chunk in client.chat_isolated(
-            messages=[{"role": "user", "content": instruction}],
-            project_id=project_id, project_name=proj_name,
-            project_description=proj_desc, core_goal=core_goal,
-            agent_name=f"后旺-{doc_type}设计师",
-            stream=True, max_tokens=64000,
-        ):
-            if chunk.strip():
-                chunks.append(chunk)
+        content = ""
+        final_path = ""
+        failed_dim_keys = None
+
+        for fix_round in range(1, 11):
+            nv = fix_round
+            gen_path = os.path.join(docs_dir, f"{slug}_{prefix}_V{nv}.md")
+
+            if fix_round == 1:
+                client = GatewayClient(profile_name="houwang", timeout=1200)
+                chunks = []
+                async for chunk in client.chat_isolated(
+                    messages=[{"role": "user", "content": instruction}],
+                    project_id=project_id, project_name=proj_name,
+                    project_description=proj_desc, core_goal=core_goal,
+                    agent_name=f"后旺-{doc_type}设计师",
+                    stream=True, max_tokens=64000,
+                ):
+                    if chunk.strip():
+                        chunks.append(chunk)
+                        await broadcast(project_id, {
+                            "type": "progress", "content": chunk,
+                            "subflow": doc_type,
+                        })
+                content = "".join(chunks).strip()
+            else:
+                feedback_lines = []
+                for cr in convergence_log:
+                    if cr.get("dim_key") == dim_key:
+                        for r in cr.get("results", []):
+                            if not r.get("passed", True) and r.get("detail"):
+                                feedback_lines.append(f"- {r.get('detail', '')}")
+                feedback = "\n".join(feedback_lines) if feedback_lines else "请优化设计文档质量"
+                prev_ver = fix_round - 1
+                prev_path = os.path.join(docs_dir, f"{slug}_{prefix}_V{prev_ver}.md")
+
+                fix_instruction = (
+                    f"你是资深架构师后旺（HouWang）。\n"
+                    f"项目：{proj_name}\n核心目标：{core_goal}\n"
+                    f"需求文档：{requirement[:3000]}\n"
+                    f"请根据以下检验反馈，修改设计文档（{prev_path}）。\n"
+                    "⚠️ 收敛性要求：仅修复以下不合格项，禁止扩大修改范围，已合格项目不得改动。\n\n"
+                    f"=== 需要修复的问题 ===\n{feedback}\n"
+                    "不要输出推理过程。"
+                )
                 await broadcast(project_id, {
-                    "type": "progress", "content": chunk,
+                    "type": "stage",
+                    "message": f"🔄 {label}：houwang 根据hourong反馈修复（第{fix_round}轮）...",
                     "subflow": doc_type,
                 })
+                client = GatewayClient(profile_name="houwang", timeout=1200)
+                chunks = []
+                async for chunk in client.chat_isolated(
+                    messages=[{"role": "user", "content": fix_instruction}],
+                    project_id=project_id, project_name=proj_name,
+                    project_description=proj_desc, core_goal=core_goal,
+                    agent_name=f"后旺-{doc_type}设计师",
+                    stream=True, max_tokens=64000,
+                ):
+                    if chunk.strip():
+                        chunks.append(chunk)
+                        await broadcast(project_id, {
+                            "type": "progress", "content": chunk,
+                            "subflow": doc_type,
+                        })
+                content = "".join(chunks).strip()
 
-        content = "".join(chunks).strip()
-        gen_path = os.path.join(docs_dir, f"{slug}_{prefix}_V1.md")
-        with open(gen_path, "w", encoding="utf-8") as f:
-            f.write(content)
+            with open(gen_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            final_path = gen_path
 
-        await broadcast(project_id, {
-            "type": "stage", "message": f"✅ {label}：houwang完成",
-            "subflow": doc_type,
-        })
-        return {"doc_type": doc_type, "content": content, "path": gen_path}
+            if not content.strip():
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {label}：houwang未生成有效内容，重试",
+                    "subflow": doc_type,
+                })
+                continue
 
-    tasks = [run_one(cfg) for cfg in sub_flows]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+            # hourong 检验
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🔍 {label}：hourong 正在检验（第{fix_round}轮）...",
+                "subflow": doc_type,
+            })
 
-    errors = [r for r in results if isinstance(r, Exception)]
-    if errors:
-        await broadcast(project_id, {"type": "error", "message": f"❌ 文档生成失败: {errors[0]}"})
-        engine.reset_step(4)
-        return
+            focus_hint = ""
+            if failed_dim_keys:
+                focus_hint = f"\n⚠️ 本次只检验不合格维度：{failed_dim_keys}，禁止扩大范围。"
+            convergence_hint = (
+                "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。"
+                "后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
+            )
+            scoring_hint = (
+                "\n评分规则：整体评分1-5分，≥4分为合格。"
+                "每个维度起始100分，每发现一个缺陷扣减相应分数（轻微扣5-10，一般扣15-20，严重扣25-30）。"
+                "维度得分≥90则该维度passed为true。"
+            )
 
-    merged = {}
-    for r in results:
-        if isinstance(r, dict):
-            merged[f"design_doc_{r['doc_type'].lower()}"] = r["content"]
+            insp_prompt = (
+                "你是一个专业的设计方案QA检验员（后荣）。请严格检验以下设计文档。\n\n"
+                f"=== {label} ===\n{content}\n\n"
+                f"{focus_hint}{convergence_hint}{scoring_hint}\n\n"
+                "只输出 JSON 数组，不要其他文字：\n"
+                f'[{{"key": "{dim_key}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}]'
+            )
+
+            qa_cli = GatewayClient(profile_name="hourong", timeout=180)
+            qa_chunks = []
+            async for chunk in qa_cli.chat_isolated(
+                messages=[{"role": "user", "content": insp_prompt}],
+                project_id=project_id, project_name=proj_name,
+                project_description=proj_desc, core_goal=core_goal,
+                agent_name="后荣-设计方案QA检验员",
+                stream=True, max_tokens=8192,
+            ):
+                qa_chunks.append(chunk)
+            qa_r = "".join(qa_chunks).strip()
+
+            brace_s, brace_e = qa_r.find('['), qa_r.rfind(']') + 1
+            if brace_s != -1 and brace_e > brace_s:
+                qa_r = qa_r[brace_s:brace_e]
+            try:
+                parsed = _json.loads(qa_r) if qa_r else None
+            except Exception:
+                parsed = None
+
+            if not parsed or not isinstance(parsed, list):
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {label}：hourong返回格式异常，跳过本轮检验",
+                    "subflow": doc_type,
+                })
+                continue
+
+            dim_passed = True
+            dim_results = []
+            for r in parsed:
+                score = int(r.get("score", 100))
+                passed = r.get("passed", score >= 90)
+                if isinstance(passed, str):
+                    passed = passed.lower() == "true"
+                case_passed = passed and score >= 90
+                if not case_passed:
+                    dim_passed = False
+                dim_results.append({
+                    "key": r.get("key", dim_key),
+                    "score": score,
+                    "passed": case_passed,
+                    "detail": r.get("detail", ""),
+                })
+
+            convergence_log.append({
+                "dim_key": dim_key,
+                "round": fix_round,
+                "passed": dim_passed,
+                "results": dim_results,
+            })
+
+            if dim_passed:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"✅ {label}：已通过 hourong 检验（共{fix_round}轮）",
+                    "subflow": doc_type,
+                })
+                merged[f"design_doc_{doc_type.lower()}"] = content
+                merged[f"{prefix}_path"] = final_path
+                break
+            else:
+                failed_dim_keys = [r.get("key", dim_key) for r in dim_results if not r["passed"]]
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {label}：未通过检验，houwang 正在针对不合格项修复（第{fix_round}轮）",
+                    "subflow": doc_type,
+                })
+        else:
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"❌ {label}：经10轮仍未通过检验",
+                "subflow": doc_type,
+            })
+            merged[f"design_doc_{doc_type.lower()}"] = content
+            merged[f"{prefix}_path"] = final_path
+
     merged["status"] = "done"
+    merged["convergence_log"] = convergence_log
     engine.save_step4_artifacts(merged)
     engine.complete_step(4)

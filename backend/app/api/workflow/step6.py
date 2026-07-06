@@ -97,7 +97,8 @@ async def inspect_step6_tdd_plan(project_id: str, body: Step3InspectRequest, db:
     dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
     focus_hint = f"\n⚠️ 本次只检验：{[d['label'] for d in active_dims]}" if focus_items else ""
     convergence_hint = "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
-    prompt = f"你是一个专业的测试计划QA检验员（后荣）。请严格检验以下TDD测试用例编写计划。\n\n=== TDD计划 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
+    scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
+    prompt = f"你是一个专业的测试计划QA检验员（后荣）。请严格检验以下TDD测试用例编写计划。\n\n=== TDD计划 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
         client = GatewayClient(profile_name="hourong", timeout=120)
         chunks = []
@@ -112,15 +113,60 @@ async def inspect_step6_tdd_plan(project_id: str, body: Step3InspectRequest, db:
     results = []
     for dim in active_dims:
         m = next((r for r in parsed if r.get("key") == dim["key"]), None)
-        results.append({"key": dim["key"], "label": dim["label"], "passed": bool(m.get("passed", False)) if m else False, "detail": m.get("detail", "") if m else ""})
-    return APIResponse(code=0, data={"passed": all(r["passed"] for r in results), "dimensions": results})
+        dim_score = int(m.get("score", 100)) if m else 0
+        results.append({"key": dim["key"], "label": dim["label"], "score": dim_score, "passed": dim_score >= 90, "detail": m.get("detail", "") if m else ""})
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
+    all_passed = avg_score > 90
+    _engine = _get_engine(project_id, db)
+    _engine.save_step6_artifacts({
+        "inspect_result": {"passed": all_passed, "avg_score": avg_score, "dimensions": results, "inspected_at": __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()},
+        "qa_passed": all_passed, "qa_checked": True,
+    })
+    return APIResponse(code=0, data={"passed": avg_score > 90, "score": avg_score, "dimensions": results})
+
+
+@router.get("/{project_id}/step6/test-cases")
+def list_tdd_test_cases(project_id: str, round_number: int = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from app.models.tdd_test_case import TDDTestCase
+    q = db.query(TDDTestCase).filter(TDDTestCase.project_id == project_id)
+    if round_number:
+        q = q.filter(TDDTestCase.round_number == round_number)
+    cases = q.order_by(TDDTestCase.round_number.desc(), TDDTestCase.case_index).all()
+    return APIResponse(code=0, data={"test_cases": [c.to_dict() for c in cases]})
+
+
+@router.get("/{project_id}/step6/test-cases/summary")
+def list_tdd_test_cases_summary(project_id: str, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from app.models.tdd_test_case import TDDTestCase
+    from sqlalchemy import func
+    rows = db.query(
+        TDDTestCase.round_number,
+        func.count(TDDTestCase.id).label("total"),
+        func.sum(TDDTestCase.qa_status == "passed").label("passed"),
+        func.sum(TDDTestCase.qa_status == "failed").label("failed"),
+    ).filter(
+        TDDTestCase.project_id == project_id
+    ).group_by(TDDTestCase.round_number).order_by(TDDTestCase.round_number.desc()).all()
+    result = []
+    for r in rows:
+        result.append({
+            "round_number": r.round_number,
+            "total": r.total,
+            "passed": r.passed or 0,
+            "failed": r.failed or 0,
+        })
+    return APIResponse(code=0, data={"rounds": result})
 
 
 @router.post("/{project_id}/step6/qa")
 def qa_step6(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from datetime import datetime, timezone
     engine = _get_engine(project_id, db)
+    now_iso = datetime.now(timezone.utc).isoformat()
     if body.result == "passed":
         result = engine.pass_qa(6)
+        engine.save_step6_artifacts({"qa_passed": True, "qa_status": "passed", "qa_checked_at": now_iso})
     else:
         result = engine.fail_qa(6, reason=body.reason or "", suggestions=body.suggestions)
+        engine.save_step6_artifacts({"qa_passed": False, "qa_status": "failed", "qa_checked_at": now_iso, "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
     return APIResponse(code=0, data={"message": f"第六步QA{'通过' if body.result == 'passed' else '未通过'}", "qa": result})

@@ -282,19 +282,15 @@ class GatewayClient:
         agent_name: str = "",
         stream: bool = False,
         max_tokens: int = 2000,
+        cacheable_system_parts: List[str] = None,
     ) -> AsyncGenerator[str, None]:
         """项目隔离的对话模式
         
-        核心问题：Hermes gateway 在每次请求时加载 profile 的 memory.md/user.md，
-        导致 A 项目的上下文会泄漏到 B 项目。
-        
-        解决方案：
-        1. 构建强力的项目隔离系统消息，明确指定当前项目
-        2. 指示 LLM 忽略记忆中其他项目的信息
-        3. 使用 HTTP API 模式（无状态请求）
+        支持 cache_control：将稳定不变的上下文片段（如项目规则、文档分片摘要）标记
+        为缓存，避免重复编辑/检验时重复传输相同内容，大幅减少输入 Token。
         """
-        # 构建项目隔离的系统消息
         system_content_parts = []
+        system_cache_parts = []
         
         if agent_name:
             system_content_parts.append(
@@ -321,8 +317,25 @@ class GatewayClient:
             "4. 所有回答、分析、设计都只针对当前项目\n"
             "5. 不得将其他项目的数据、需求、设计带入当前项目"
         )
-        
-        system_message = {"role": "system", "content": "\n".join(system_content_parts)}
+
+        # 不变的缓存片段（如文档分片摘要、项目规则等）
+        if cacheable_system_parts:
+            for part in cacheable_system_parts:
+                system_cache_parts.append(part)
+
+        # 构建支持 cache_control 的 system message
+        full_content_parts = []
+        base_text = "\n".join(system_content_parts)
+        full_content_parts.append({"type": "text", "text": base_text})
+
+        for cp in system_cache_parts:
+            full_content_parts.append({
+                "type": "text",
+                "text": cp,
+                "cache_control": {"type": "ephemeral"},
+            })
+
+        system_message = {"role": "system", "content": full_content_parts}
         
         # 将系统消息作为第一条消息
         isolated_messages = [system_message]

@@ -22,6 +22,7 @@ from app.models.qa_record import QARecord
 from app.models.swarm import Swarm, SwarmTask
 from app.models.security_audit import SecurityAudit
 from app.models.doc_version import DocVersion
+from app.models.tdd_test_case import TDDTestCase
 
 __all__ = [
     "User", "Project", "ProjectMember", "Board", "BoardColumn",
@@ -32,6 +33,6 @@ __all__ = [
     "Group", "GroupMessage", "MeetingOutcome", "GroupTask",
     "Repo", "RepoBranch", "PullRequest", "Commit", "TaskCommit",
     "HermesSession", "HermesMessage",
-    "WorkflowStep", "QARecord",
+    "WorkflowStep", "QARecord", "TDDTestCase",
     "Swarm", "SwarmTask", "SecurityAudit", "DocVersion",
 ]

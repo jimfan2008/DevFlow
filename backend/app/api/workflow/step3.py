@@ -44,11 +44,14 @@ def execute_step3(project_id: str, body: Optional[dict] = None,
 def qa_step3(project_id: str, body: QAResultRequest,
              db: Session = Depends(get_db),
              current_user=Depends(get_current_user)):
+    from datetime import datetime, timezone
     engine = _get_engine(project_id, db)
     if body.result == "passed":
         result = engine.pass_qa(3)
+        engine.save_step3_artifacts({"qa_passed": True, "current_phase": "qa_passed", "qa_passed_at": datetime.now(timezone.utc).isoformat()})
     else:
         result = engine.fail_qa(3, reason=body.reason or "", suggestions=body.suggestions)
+        engine.save_step3_artifacts({"qa_passed": False, "current_phase": "qa_failed", "qa_failed_at": datetime.now(timezone.utc).isoformat(), "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
     return APIResponse(code=0, data={"message": f"第三步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
 
 
@@ -61,7 +64,10 @@ class Step3ChatRequest(BaseModel):
 async def step3_chat(project_id: str, body: Step3ChatRequest,
                      db: Session = Depends(get_db),
                      current_user=Depends(get_current_user)):
-    """HouXing 需求分析对话 - 使用项目隔离模式"""
+    """HouXing 需求分析对话 - 使用项目隔离模式
+    每次对话后自动保存消息历史和当前进度到 DB。
+    """
+    from datetime import datetime, timezone
     logger.info(f"Step3 chat: project_id={project_id}, message={body.message[:50]}")
 
     from app.services.gateway_client import GatewayClient
@@ -72,7 +78,6 @@ async def step3_chat(project_id: str, body: Step3ChatRequest,
         step2 = engine.get_step2_artifacts()
         core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
 
-        # 加载项目信息
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
@@ -80,7 +85,16 @@ async def step3_chat(project_id: str, body: Step3ChatRequest,
         user_message = body.message or "你好，我们来讨论一下项目的需求。"
         messages = body.messages + [{"role": "user", "content": user_message}]
 
-        # 使用项目隔离模式
+        # 持久化：保存本轮对话到 DB
+        artifacts = engine.get_step3_artifacts() or {}
+        saved_messages = artifacts.get("chat_messages", [])
+        saved_messages.append({"role": "user", "content": user_message, "saved_at": datetime.now(timezone.utc).isoformat()})
+        engine.save_step3_artifacts({
+            "chat_messages": saved_messages,
+            "current_phase": "chatting",
+            "last_activity_at": datetime.now(timezone.utc).isoformat(),
+        })
+
         client = GatewayClient(profile_name="houxing", timeout=1200)
         reply_chunks = []
         async for chunk in client.chat_isolated(
@@ -96,6 +110,14 @@ async def step3_chat(project_id: str, body: Step3ChatRequest,
         reply = "".join(reply_chunks)
         if not reply or len(reply.strip()) < 5:
             return APIResponse(code=1, message="后兴未生成有效回复", data=None)
+
+        # 持久化：保存后兴回复到 DB
+        saved_messages.append({"role": "assistant", "content": reply, "saved_at": datetime.now(timezone.utc).isoformat()})
+        engine.save_step3_artifacts({
+            "chat_messages": saved_messages,
+            "last_reply": reply,
+            "last_reply_at": datetime.now(timezone.utc).isoformat(),
+        })
         return APIResponse(code=0, message="success", data={"reply": reply})
     except HTTPException:
         raise
@@ -125,11 +147,14 @@ def save_step3_doc(project_id: str, body: Step3InspectRequest,
 
     # 同时保存到 WorkflowEngine 产物（供后续步骤读取）
     engine = WorkflowEngine(project_id=project_id, db=db)
+    now_iso = datetime.now().isoformat()
     engine.save_step3_artifacts({
         "doc_content": body.content,
         "filename": body.filename or local_filename,
         "local_path": local_path,
-        "saved_at": datetime.now().isoformat(),
+        "saved_at": now_iso,
+        "current_phase": "doc_saved",
+        "doc_saved_at": now_iso,
     })
     engine.complete_step(3)
 
@@ -218,10 +243,11 @@ async def inspect_step3_srs(project_id: str, body: Step3InspectRequest,
         "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。"
         "后续Agent将只根据你的检验报告修改不合格项，禁止扩大修改范围。"
         "已合格维度不得提出修改要求。\n"
+        "评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。\n"
         "直接输出 JSON 数组，不要包含其他说明文字：\n"
         "[\n"
         + ",\n".join(
-            f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}'
+            f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}'
             for d in active_dims
         ) + "\n]"
     )
@@ -281,21 +307,171 @@ async def inspect_step3_srs(project_id: str, body: Step3InspectRequest,
             dim_passed = False
             dim_detail = "后荣未返回该维度的检验结果"
 
+        dim_score = int(matched.get("score", 100)) if matched else 0
         results.append({
             "key": dim["key"],
             "label": dim["label"],
             "description": dim["description"],
-            "passed": dim_passed,
+            "score": dim_score,
+            "passed": dim_score >= 90,
             "detail": dim_detail,
         })
 
-    all_passed = all(r["passed"] for r in results)
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
+    all_passed = avg_score > 90
+
+    # 持久化：保存本次检验结果到 DB
+    from datetime import datetime, timezone
+    engine = _get_engine(project_id, db)
+    engine.save_step3_artifacts({
+        "qa_result": {
+            "passed": all_passed,
+            "avg_score": avg_score,
+            "dimensions": results,
+            "inspected_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "current_phase": "qa_inspected",
+        "qa_passed": all_passed,
+    })
 
     return APIResponse(code=0, data={
         "passed": all_passed,
         "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过，请修改后重新检验",
         "dimensions": results,
     })
+
+
+@router.post("/{project_id}/step3/shard-index")
+def get_shard_index(project_id: str, body: dict = Body(...),
+                    db: Session = Depends(get_db),
+                    current_user=Depends(get_current_user)):
+    """获取SRS分片索引表"""
+    from app.models.project import Project
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project_slug = project.slug if project.slug else project_id
+    docs_dir = body.get("docs_path") or os.path.join(settings.PROJECTS_BASE_DIR, project_slug, "docs")
+
+    from app.services.doc_sharder import load_all_chapters
+    all_ch = load_all_chapters("SRS", docs_dir, project_slug)
+    index_lines = [
+        "# SRS 分片索引表",
+        "",
+        "| 分片名 | 文件路径 | 内容摘要 |",
+        "|--------|---------|---------|",
+    ]
+    shards = []
+    for key, data in all_ch.items():
+        summary = data["content"][:80].replace("\n", " ") + "..." if data.get("content") else ""
+        index_lines.append(f"| {key} | {data['path']} | {summary} |")
+        shards.append({
+            "key": key,
+            "title": data.get("title", key),
+            "path": data["path"],
+            "summary": summary,
+            "has_content": bool(data.get("content")),
+        })
+    index_path = os.path.join(docs_dir, f"{project_slug}_SRS_INDEX.md")
+    os.makedirs(docs_dir, exist_ok=True)
+    with open(index_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(index_lines))
+    return APIResponse(code=0, data={
+        "shards": shards,
+        "index_path": index_path,
+        "index_content": "\n".join(index_lines),
+        "total_shards": len(shards),
+        "docs_dir": docs_dir,
+    })
+
+
+@router.post("/{project_id}/step3/upload-ref")
+def upload_step3_ref(project_id: str, body: dict = Body(...),
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    """上传SRS参考文档（base64编码）"""
+    from app.models.project import Project
+    import base64, time as _time
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project_slug = project.slug if project.slug else project_id
+    refs_dir = os.path.join(settings.PROJECTS_BASE_DIR, project_slug, "docs", "refs")
+    os.makedirs(refs_dir, exist_ok=True)
+
+    name = body.get("name", f"ref_{int(_time.time())}.txt")
+    content_b64 = body.get("content", "")
+    if not content_b64:
+        return APIResponse(code=1, message="文件内容为空")
+
+    content = base64.b64decode(content_b64)
+    safe_name = f"{int(_time.time())}_{name}"
+    filepath = os.path.join(refs_dir, safe_name)
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    preview = ""
+    try:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as fh:
+            preview = fh.read()[:500]
+    except Exception:
+        pass
+
+    return APIResponse(code=0, data={
+        "name": safe_name, "path": filepath, "size": len(content), "preview": preview,
+    })
+
+
+@router.post("/{project_id}/step3/list-refs")
+def list_step3_refs(project_id: str,
+                    db: Session = Depends(get_db),
+                    current_user=Depends(get_current_user)):
+    """列出已上传的参考文档"""
+    from app.models.project import Project
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    project_slug = project.slug if project.slug else project_id
+    refs_dir = os.path.join(settings.PROJECTS_BASE_DIR, project_slug, "docs", "refs")
+    if not os.path.isdir(refs_dir):
+        return APIResponse(code=0, data={"refs": []})
+
+    refs = []
+    for fname in sorted(os.listdir(refs_dir)):
+        fpath = os.path.join(refs_dir, fname)
+        if os.path.isfile(fpath):
+            preview = ""
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
+                    preview = fh.read()[:500]
+            except Exception:
+                pass
+            refs.append({
+                "name": fname,
+                "path": fpath,
+                "size": os.path.getsize(fpath),
+                "preview": preview,
+            })
+    return APIResponse(code=0, data={"refs": refs})
+
+
+@router.post("/{project_id}/step3/read-file")
+def read_step3_file(project_id: str, body: dict = Body(...),
+                    current_user=Depends(get_current_user)):
+    """读取指定文件的内容"""
+    file_path = body.get("path", "")
+    if not file_path or not os.path.isfile(file_path):
+        return APIResponse(code=1, message="文件不存在")
+    try:
+        with open(file_path, "r", encoding="utf-8") as fh:
+            content = fh.read()
+        return APIResponse(code=0, data={
+            "path": file_path,
+            "name": os.path.basename(file_path),
+            "content": content,
+        })
+    except Exception as e:
+        return APIResponse(code=1, message=f"读取文件失败: {str(e)}")
 
 
 @router.post("/{project_id}/step3/list-docs")

@@ -6,9 +6,10 @@ GBM AI Agent HR 后端设计文档 V29 → V30 修改脚本
 
 import os
 import re
-
-V29_PATH = "/home/jim/DevFlow/projects/gbm-ai-agent-hr/docs/gbm-ai-agent-hr_BACKEND_V29.md"
-V30_PATH = "/home/jim/DevFlow/projects/gbm-ai-agent-hr/docs/gbm-ai-agent-hr_BACKEND_V30.md"
+import os
+PROJECTS_DIR = os.environ.get("PROJECTS_BASE_DIR", "/home/jim/projects")
+V29_PATH = os.path.join(PROJECTS_DIR, "gbm-ai-agent-hr/docs/gbm-ai-agent-hr_BACKEND_V29.md")
+V30_PATH = os.path.join(PROJECTS_DIR, "gbm-ai-agent-hr/docs/gbm-ai-agent-hr_BACKEND_V30.md")
 
 with open(V29_PATH, 'r', encoding='utf-8') as f:
     content = f.read()

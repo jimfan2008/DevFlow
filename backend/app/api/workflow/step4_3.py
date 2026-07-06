@@ -183,8 +183,12 @@ async def execute_step4_3(project_id: str,
                         "key": result["key"], "label": result.get("label", ""),
                         "path": result.get("path", ""), "passed": result["passed"],
                         "rounds": result.get("rounds", 0),
+                        "content": result.get("content", ""),
+                        "detail": result.get("detail", ""),
+                        "score": result.get("score", 0),
                         "convergence": result.get("convergence", []),
                     },
+                    "step4_3_result_content": result.get("content", ""),
                     "message": f"step4_3: {result.get('label', '')} {'通过' if result['passed'] else '未通过'} hourong检验",
                 })
                 await broadcast(project_id, {

@@ -487,7 +487,18 @@ onMounted(async () => {
       else if (step.status === 'in_progress') {
         stepStatus.value = 'executing'
         if (!s4.design_doc && !s4.status) {
-          stuckWarning.value = '⚠️ 检测到第四步处于中断状态（无后台任务），请重新执行'
+          // 自动续跑：后端支持断点续做，跳过已完成子步骤
+          streamStatus.value = '♻️ 检测到中断，自动续跑中...'
+          try {
+            const resumeRes = await workflowApi.startStep4(props.projectId, true) as any
+            if (resumeRes?.code === 0) {
+              stageLog.value.push({ type: 'stage', message: '♻️ 自动续跑成功，跳过已完成子步骤继续执行...' })
+            } else {
+              backendError.value = '自动续跑失败: ' + (resumeRes?.message || '后端返回错误') + '，请手动点击"强制重新执行"'
+            }
+          } catch (e: any) {
+            backendError.value = '自动续跑失败: ' + (e?.message || '无法连接后端') + '，请手动点击"强制重新执行"'
+          }
         }
         connectProgressWs()
         startPolling()

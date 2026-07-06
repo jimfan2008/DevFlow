@@ -68,11 +68,23 @@
         <div class="step7-view__main">
           <!-- No tasks yet -->
           <div v-if="taskStatesArray.length === 0" class="step7-view__empty-agents">
-            <p>⏳ 等待后发解析TDD计划并创建子任务...</p>
+            <p>{{ streamStatus || '⏳ 等待后发解析TDD计划并创建子任务...' }}</p>
             <el-progress :percentage="100" :stroke-width="4" status="warning" indeterminate style="max-width:300px; margin:12px auto" />
           </div>
 
-          <div v-else class="step7-view__agents">
+          <!-- Connected Agents Panel (always visible when agents are connected) -->
+          <div v-if="connectedAgents.length > 0" class="step7-view__connected-agents">
+            <h4>🐝 已连接Agent</h4>
+            <div class="step7-view__agent-chips">
+              <div v-for="a in connectedAgents" :key="a.name" class="step7-view__agent-chip" :class="'role-' + a.role">
+                <span class="step7-view__agent-chip-icon">{{ a.role === 'writer' ? '✍️' : '🔍' }}</span>
+                <span class="step7-view__agent-chip-name">{{ a.name }}</span>
+                <el-tag size="small" :type="a.role === 'writer' ? 'warning' : 'primary'">{{ a.agentType }}</el-tag>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="taskStatesArray.length > 0" class="step7-view__agents">
             <div
               v-for="task in taskStatesArray"
               :key="task.index"
@@ -88,21 +100,51 @@
                   effect="dark"
                 >{{ agentStatusLabel[task.status] }}</el-tag>
               </div>
+
+              <!-- Writer agent info -->
               <div class="step7-view__agent-body">
                 <div class="step7-view__agent-line">
-                  <span class="step7-view__agent-label">✍️ 编写</span>
-                  <span class="step7-view__agent-value">{{ task.writerAgent || '—' }}</span>
+                  <span class="step7-view__agent-label">✍️ 编写Agent</span>
+                  <span class="step7-view__agent-value">{{ task.writerAgent || '等待分配...' }}</span>
+                  <el-button v-if="task.writerPrompt" text size="small" class="step7-view__prompt-toggle" @click="task.showWriterPrompt = !task.showWriterPrompt">
+                    {{ task.showWriterPrompt ? '收起' : '提示词' }}
+                  </el-button>
+                </div>
+                <div v-if="task.showWriterPrompt && task.writerPrompt" class="step7-view__prompt-box">
+                  <pre>{{ task.writerPrompt }}</pre>
                 </div>
                 <div class="step7-view__agent-line">
-                  <span class="step7-view__agent-label">🔍 测试</span>
-                  <span class="step7-view__agent-value">{{ task.testerAgent || '—' }}</span>
+                  <span class="step7-view__agent-label">🔍 测试Agent</span>
+                  <span class="step7-view__agent-value">{{ task.testerAgent || '等待分配...' }}</span>
+                  <el-button v-if="task.testerPrompt" text size="small" class="step7-view__prompt-toggle" @click="task.showTesterPrompt = !task.showTesterPrompt">
+                    {{ task.showTesterPrompt ? '收起' : '提示词' }}
+                  </el-button>
+                </div>
+                <div v-if="task.showTesterPrompt && task.testerPrompt" class="step7-view__prompt-box">
+                  <pre>{{ task.testerPrompt }}</pre>
+                </div>
+                <div class="step7-view__agent-line" v-if="task.writerResponse">
+                  <el-button text size="small" @click="task.showWriterResponse = !task.showWriterResponse">
+                    {{ task.showWriterResponse ? '收起' : '📄 编写响应' }}
+                  </el-button>
+                </div>
+                <div v-if="task.showWriterResponse && task.writerResponse" class="step7-view__response-box">
+                  <pre>{{ task.writerResponse }}</pre>
+                </div>
+                <div class="step7-view__agent-line" v-if="task.testerResponse">
+                  <el-button text size="small" @click="task.showTesterResponse = !task.showTesterResponse">
+                    {{ task.showTesterResponse ? '收起' : '📄 测试响应' }}
+                  </el-button>
+                </div>
+                <div v-if="task.showTesterResponse && task.testerResponse" class="step7-view__response-box">
+                  <pre>{{ task.testerResponse }}</pre>
                 </div>
                 <div class="step7-view__agent-line" v-if="task.attempts > 0">
                   <span class="step7-view__agent-label">🔄 轮次</span>
                   <span class="step7-view__agent-value">{{ task.attempts }}/5</span>
                 </div>
               </div>
-              <div v-if="task.message" class="step7-view__agent-msg">{{ task.message }}</div>
+              <div v-if="task.message && !task.writerPrompt && !task.testerPrompt" class="step7-view__agent-msg">{{ task.message }}</div>
               <div class="step7-view__agent-bar">
                 <el-progress
                   v-if="task.status === 'writing' || task.status === 'testing'"
@@ -159,7 +201,7 @@
                 <span class="step7-view__task-name">{{ task.name }}</span>
                 <span v-if="task.attempts > 0" class="step7-view__task-attempt">{{ task.attempts }}/5</span>
               </div>
-              <div v-if="taskStatesArray.length === 0" class="step7-view__task-empty">暂无子任务...</div>
+              <div v-if="taskStatesArray.length === 0" class="step7-view__task-empty">{{ streamStatus || '暂无子任务' }}</div>
             </div>
           </div>
         </div>
@@ -245,7 +287,7 @@
 
       <div v-if="stepStatus === 'error'" class="step7-view__resume-section">
         <el-divider />
-        <p class="step7-view__error-hint">部分子任务执行失败，请根据需要重新执行</p>
+        <p class="step7-view__error-hint">{{ backendError || '部分子任务执行失败' }}</p>
         <div class="step7-view__actions">
           <el-button size="large" @click="goBack">返回项目</el-button>
           <el-button type="danger" size="large" :loading="executing" @click="handleExecute">🔄 强制重新执行</el-button>
@@ -299,12 +341,24 @@ interface TaskState {
   status: TaskStatus
   attempts: number
   message: string
+  writerPrompt: string
+  testerPrompt: string
+  showWriterPrompt: boolean
+  showTesterPrompt: boolean
+  writerResponse: string
+  testerResponse: string
+  showWriterResponse: boolean
+  showTesterResponse: boolean
 }
 
 const taskStates = ref<Record<number, TaskState>>({})
 const taskStatesArray = computed(() =>
   Object.values(taskStates.value).sort((a, b) => a.index - b.index)
 )
+
+const connectedAgents = ref<{name: string; role: string; agentType: string}[]>([])
+const writerAgentsList = computed(() => connectedAgents.value.filter(a => a.role === 'writer'))
+const testerAgentsList = computed(() => connectedAgents.value.filter(a => a.role === 'tester'))
 
 const totalTasks = computed(() => taskStatesArray.value.length)
 const passedCount = computed(() => taskStatesArray.value.filter(t => t.status === 'passed').length)
@@ -378,21 +432,41 @@ function extractBracketName(msg: string): string | null {
   return m ? m[1] : null
 }
 
-function parseStep7Message(msg: { type: string; message?: string; content?: string }) {
+function parseStep7Message(msg: { type: string; message?: string; content?: string; prompt?: string; agent?: string; subtask?: string; role?: string; response?: string; subtask_names?: string[] }) {
+  // ── Agent响应消息（无txt） ──
+  if (msg.type === 'agent_response' && msg.subtask && msg.role) {
+    const task = Object.values(taskStates.value).find(t => t.name === msg.subtask)
+    if (task) {
+      if (msg.role === 'writer') task.writerResponse = msg.response || ''
+      else if (msg.role === 'tester') task.testerResponse = msg.response || ''
+    }
+    return
+  }
+
   const txt = msg.message || ''
   if (!txt) return
+
+  // Update the main status display with every broadcast
+  streamStatus.value = txt
 
   // Also push to stage log
   stageLog.value.push({ type: 'progress', message: txt })
 
-  // ── 解析TDD计划完成，总任务数 ──
-  const taskCountMatch = txt.match(/TDD计划已拆分为 (\d+) 个原子测试用例/)
-  if (taskCountMatch) {
-    const count = parseInt(taskCountMatch[1])
-    // Pre-populate task slots
-    for (let i = 1; i <= count; i++) {
-      if (!taskStates.value[i]) {
-        taskStates.value[i] = { index: i, name: `用例${i}`, writerAgent: '', testerAgent: '', status: 'pending', attempts: 0, message: '' }
+  // ── 解析TDD计划完成，预创建子任务 ──
+  if (msg.subtask_names && Array.isArray(msg.subtask_names)) {
+    for (const name of msg.subtask_names) {
+      const existing = Object.values(taskStates.value).find(t => t.name === name)
+      if (!existing) {
+        const idx = Object.keys(taskStates.value).length + 1
+        taskStates.value[idx] = {
+          index: idx, name,
+          writerAgent: '', testerAgent: '', status: 'pending',
+          attempts: 0, message: '',
+          writerPrompt: '', testerPrompt: '',
+          showWriterPrompt: false, showTesterPrompt: false,
+          writerResponse: '', testerResponse: '',
+          showWriterResponse: false, showTesterResponse: false,
+        }
       }
     }
     return
@@ -407,11 +481,24 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   if (!task) {
     // Create on first sight
     const idx = Object.keys(taskStates.value).length + 1
-    task = { index: idx, name: sname, writerAgent: '', testerAgent: '', status: 'pending', attempts: 0, message: '' }
+    task = { index: idx, name: sname, writerAgent: '', testerAgent: '', status: 'pending', attempts: 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false, writerResponse: '', testerResponse: '', showWriterResponse: false, showTesterResponse: false }
     taskStates.value[idx] = task
   }
 
   task.message = txt
+
+  // ── 提示词 ──
+  if (msg.prompt && msg.agent) {
+    // If writerAgent is already assigned and msg.agent is a different one → tester prompt
+    if (task.writerAgent && task.writerAgent !== msg.agent) {
+      task.testerAgent = msg.agent
+      task.testerPrompt = msg.prompt
+    } else {
+      task.writerAgent = msg.agent
+      task.writerPrompt = msg.prompt
+    }
+    return
+  }
 
   // ── 正在编写 ──
   const writerMatch = txt.match(/✍️.*?编写（第(\d+)轮）/)
@@ -477,10 +564,16 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   }
 }
 
+let wsReadyResolve: (() => void) | null = null
+
 function connectWs() {
   if (ws) { ws.onclose = null; ws.close(); ws = null }
+  wsReadyResolve = null
   try {
     ws = new WebSocket(getWsUrl())
+    ws.onopen = () => {
+      if (wsReadyResolve) { wsReadyResolve(); wsReadyResolve = null }
+    }
     ws.onmessage = (event) => {
       try {
         resetStuckTimer()
@@ -488,6 +581,12 @@ function connectWs() {
         const msg = JSON.parse(event.data)
         if (msg.type === 'step7' || msg.type === 'stage' || msg.type === 'progress') {
           if (msg.message) parseStep7Message(msg)
+        } else if (msg.type === 'agent_online') {
+          if (msg.name && !connectedAgents.value.find(a => a.name === msg.name)) {
+            connectedAgents.value.push({name: msg.name, role: msg.role, agentType: msg.agent_type})
+          }
+        } else if (msg.type === 'agent_response') {
+          parseStep7Message(msg)
         } else if (msg.type === 'content') {
           // handle content
         } else if (msg.type === 'done') {
@@ -516,9 +615,16 @@ function connectWs() {
         }
       } catch {}
     }
-    ws.onclose = () => { ws = null }
-    ws.onerror = () => { ws = null }
+    ws.onclose = () => { ws = null; wsReadyResolve = null }
+    ws.onerror = () => { ws = null; wsReadyResolve = null }
   } catch {}
+}
+
+async function waitForWs(): Promise<void> {
+  if (ws && ws.readyState === WebSocket.OPEN) return
+  return new Promise((resolve) => {
+    wsReadyResolve = resolve
+  })
 }
 
 function startPolling() {
@@ -625,7 +731,8 @@ async function loadStatus() {
             index: idx, name: sr.name,
             writerAgent: sr.writer || '', testerAgent: sr.tester || '',
             status: sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending',
-            attempts: sr.attempts || 0, message: '',
+            attempts: sr.attempts || 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false,
+            writerResponse: '', testerResponse: '', showWriterResponse: false, showTesterResponse: false,
           }
         }
       }
@@ -647,6 +754,12 @@ async function loadStatus() {
       connectWs()
       startPolling()
       resetStuckTimer()
+      // haimei may have advanced step to in_progress without starting actual execution
+      const hasArtifacts = s7.status || s7.tdd_cases || Object.keys(taskStates.value).length > 0
+      if (!hasArtifacts) {
+        stageLog.value.push({ type: 'stage', message: '🚀 检测到步骤7已就绪但未启动，正在自动触发执行...' })
+        setTimeout(() => handleExecute(), 500)
+      }
     }
 
     if (stepStatus.value === 'completed' && !tddCases.value) {
@@ -671,11 +784,13 @@ async function handleExecute() {
   streamStatus.value = '🐝 正在启动后发蜂群...'
   stepStatus.value = 'in_progress'
   taskStates.value = {}
+  connectedAgents.value = []
   spotCheckTotal.value = 0
   spotCheckFailures.value = 0
   clearAllTimers()
 
   connectWs()
+  await waitForWs()
   startPolling()
   resetStuckTimer()
 
@@ -683,7 +798,7 @@ async function handleExecute() {
     const res = await workflowApi.executeStep(props.projectId, 7) as any
     if (res?.code === 0) {
       streamStatus.value = '🐝 后发蜂群已启动，等待执行...'
-      stageLog.value.push({ type: 'stage', message: '📡 已连接后发蜂群 WebSocket，等待子任务创建...' })
+      stageLog.value.push({ type: 'stage', message: '📡 WebSocket已连接，后端子任务创建中...' })
     } else {
       error.value = res?.message || '启动失败'
       stepStatus.value = 'pending'
@@ -710,7 +825,9 @@ async function handleRestart() {
   streamStatus.value = '♻️ 强制重新执行...'
   stageLog.value = [{ type: 'stage', message: '♻️ 强制重新执行 step7...' }]
   taskStates.value = {}
+  connectedAgents.value = []
   connectWs()
+  await waitForWs()
   startPolling()
   resetStuckTimer()
   try {
@@ -782,6 +899,20 @@ onUnmounted(() => {
     p { font-size: 15px; margin: 0; }
   }
 
+  &__connected-agents {
+    margin-bottom: 12px; padding: 10px 12px; background: #f5f7fa; border-radius: 8px;
+    h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+  }
+  &__agent-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  &__agent-chip {
+    display: flex; align-items: center; gap: 4px; padding: 4px 10px;
+    border-radius: 16px; font-size: 12px; border: 1px solid #e4e7ed; background: #fff;
+    &.role-writer { border-color: #e6a23c; background: #fffbe6; }
+    &.role-tester { border-color: #409eff; background: #ecf5ff; }
+    &-icon { font-size: 14px; }
+    &-name { font-weight: 500; }
+  }
+
   &__agents {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -849,6 +980,24 @@ onUnmounted(() => {
   &__task-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   &__task-attempt { font-size: 10px; color: #909399; }
   &__task-empty { text-align: center; color: #c0c4cc; padding: 20px 0; font-size: 13px; }
+
+  &__prompt-toggle { font-size: 11px; color: #409eff; padding: 0 4px; }
+  &__prompt-box {
+    grid-column: 1 / -1; margin: 4px 0 8px 0;
+    pre {
+      background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px;
+      padding: 8px; font-size: 11px; line-height: 1.4; max-height: 200px;
+      overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
+    }
+  }
+  &__response-box {
+    grid-column: 1 / -1; margin: 4px 0 8px 0;
+    pre {
+      background: #f0f9eb; border: 1px solid #b3e19d; border-radius: 4px;
+      padding: 8px; font-size: 11px; line-height: 1.4; max-height: 300px;
+      overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
+    }
+  }
 
   &__executing-actions { display: flex; justify-content: center; gap: 12px; margin-top: 16px; }
   &__stage-collapse { margin-top: 12px; :deep(.el-collapse-item__header) { font-size: 13px; } }

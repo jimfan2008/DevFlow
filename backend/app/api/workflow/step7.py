@@ -4,13 +4,14 @@ from app.api.workflow.core import (
     BaseModel, Optional, asyncio, os, settings, Step3InspectRequest, QAResultRequest,
     TDD_TESTCASE_DIMENSIONS, Step7ChatRequest, _wf_engines, WorkflowEngine,
 )
+from app.services.gateway_client import GatewayClient
+from app.api.ws.step7_progress import broadcast
 
 
 @router.post("/{project_id}/step7/chat")
 async def step7_chat(project_id: str, body: Step7ChatRequest,
                      db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """后发（HouFa）对话 - 项目隔离"""
-    from app.services.gateway_client import GatewayClient
     from app.models.project import Project
     try:
         engine = _get_engine(project_id, db)
@@ -37,14 +38,12 @@ async def step7_chat(project_id: str, body: Step7ChatRequest,
 
 async def _inspect_tdd_cases(project_id: str, doc_path: str, project_name: str = "", project_description: str = "", core_goal: str = "", agent_label: str = "", max_retries: int = 3) -> dict:
     import json as _json, asyncio as _asyncio
-    from app.services.gateway_client import GatewayClient
-    from app.api.ws.step4_progress import broadcast
     dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in TDD_TESTCASE_DIMENSIONS])
     for attempt in range(1, max_retries + 1):
         if attempt > 1:
             await _asyncio.sleep(2)
             await broadcast(project_id, {"type": "step7", "message": f"🔄 hourong 第{attempt}次重新检验TDD用例..."})
-        insp_prompt = f"你是一个专业的TDD测试用例QA检验员（后荣）。请严格检验以下测试用例。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n只输出 JSON 数组，不要有其他文字:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in TDD_TESTCASE_DIMENSIONS)
+        insp_prompt = f"你是一个专业的TDD测试用例QA检验员（后荣）。请严格检验以下测试用例。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n评分规则：每个检验维起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。\n只输出 JSON 数组，不要有其他文字:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in TDD_TESTCASE_DIMENSIONS)
         qa_cli = GatewayClient(profile_name="hourong", timeout=180)
         qa_chunks = []
         async for chunk in qa_cli.chat_isolated(messages=[{"role": "user", "content": insp_prompt}], project_id=project_id, project_name=project_name, project_description=project_description, core_goal=core_goal, agent_name=agent_label or "后荣-TDD用例QA检验员", stream=True, max_tokens=8192):
@@ -66,12 +65,56 @@ async def _inspect_tdd_cases(project_id: str, doc_path: str, project_name: str =
                 continue
             return {"detail": "后荣未返回检验结果"}
         if isinstance(parsed, list) and parsed:
-            return {"passed": all(bool(r.get("passed")) for r in parsed), "detail": "", "failed_details": [r.get("detail", "") for r in parsed if not r.get("passed")], "results": parsed}
+            scores = [int(r.get("score", 100)) for r in parsed]
+            avg_score = sum(scores) / len(scores)
+            return {"passed": avg_score > 90, "score": avg_score, "total_score": sum(scores), "max_score": len(scores) * 100, "detail": "", "failed_details": [r.get("detail", "") for r in parsed if int(r.get("score", 100)) < 90], "results": parsed}
         if attempt < max_retries:
             await broadcast(project_id, {"type": "step7", "message": f"⚠️ hourong 格式异常，重试（第{attempt}次）"})
             continue
         return {"detail": "后荣未返回检验结果"}
     return {"detail": "后荣检验失败"}
+
+
+def _load_tdd_cases_from_db(bg_db, project_id: str) -> tuple[list[dict], str]:
+    from app.models.tdd_test_case import TDDTestCase
+    from sqlalchemy import func
+    latest_round = bg_db.query(
+        func.max(TDDTestCase.round_number)
+    ).filter(
+        TDDTestCase.project_id == project_id,
+        TDDTestCase.qa_status == "passed",
+    ).scalar()
+    if not latest_round:
+        latest_round = bg_db.query(
+            func.max(TDDTestCase.round_number)
+        ).filter(
+            TDDTestCase.project_id == project_id,
+        ).scalar()
+    if latest_round:
+        cases = bg_db.query(TDDTestCase).filter(
+            TDDTestCase.project_id == project_id,
+            TDDTestCase.round_number == latest_round,
+        ).order_by(TDDTestCase.case_index).all()
+        cases_data = [c.to_dict() for c in cases]
+        import json as _j
+        cases_json = _j.dumps(cases_data, ensure_ascii=False, indent=2)
+        return cases_data, cases_json
+    return [], ""
+
+
+def _parse_priority(p: str) -> int:
+    if not p:
+        return 2
+    p = p.upper().strip()
+    if "P0" in p:
+        return 0
+    if "P1" in p:
+        return 1
+    if "P2" in p:
+        return 2
+    if "P3" in p:
+        return 3
+    return 2
 
 
 async def run_step7_swarm(
@@ -87,7 +130,6 @@ async def run_step7_swarm(
 ):
     """蜂群并行TDD测试用例生成（共享内部逻辑，同时供HTTP端点和海梅调度使用）"""
     import random, json, re, httpx
-    from app.api.ws.step4_progress import broadcast
     from app.services.swarm_service import SwarmService
     from app.database import SessionLocal
     from app.models.project import Project
@@ -110,57 +152,79 @@ async def run_step7_swarm(
             await broadcast(project_id, {"type": "done", "message": "✅ TDD用例已生成（续跑）"})
             return
 
-        # ── Step 1: 后发解析TDD计划 → 原子测试用例任务清单 ──
-        await broadcast(project_id, {"type": "step7", "message": "🧠 后发正在解析TDD计划，拆分为原子测试用例任务..."})
-        parse_prompt = (
-            "你是资深程序员后发（HouFa），负责将TDD测试用例计划拆分为原子测试用例任务。\n\n"
-            f"=== 需求文档 ===\n{requirement}\n\n=== 架构设计 ===\n{design_doc}\n\n"
-            f"=== TDD计划 ===\n{tdd_plan}\n\n"
-            "请将上述TDD计划拆分为多个独立的原子测试用例任务。\n"
-            "每个测试用例必须：1.最小原子化（只测一个功能点）2.有明确可量化的验收标准\n"
-            "3.包含测试用例名称、描述、验收标准、所属模块\n"
-            '只输出 JSON 数组，不要其他文字：\n'
-            '[\n  {"name": "...", "description": "...", "acceptance_criteria": "...", "priority": 1, "module": "..."}\n]'
-        )
-        parse_client = GatewayClient(profile_name="houfa", timeout=300)
-        parse_chunks = []
-        async for chunk in parse_client.chat_isolated(
-            messages=[{"role": "user", "content": parse_prompt}],
-            project_id=project_id, project_name=proj_name, project_description=proj_desc,
-            core_goal=core_goal, agent_name="后发-TDD任务解析", stream=False, max_tokens=16000,
-        ):
-            parse_chunks.append(chunk)
-        parse_raw = "".join(parse_chunks).strip()
-        bs = parse_raw.find('[')
-        be = parse_raw.rfind(']') + 1
-        if bs != -1 and be > bs:
-            parse_raw = parse_raw[bs:be]
-        try:
-            subtasks = json.loads(parse_raw)
-            if not isinstance(subtasks, list) or len(subtasks) == 0:
-                raise ValueError
-        except Exception:
-            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ TDD计划解析失败"})
-            await broadcast(project_id, {"type": "error", "message": "❌ 后发解析TDD计划失败"})
-            return
+        # ── 补全前置步骤（如缺失） ──
+        if not design_doc and requirement:
+            await broadcast(project_id, {"type": "step7", "message": "📄 架构设计缺失，正在自动生成..."})
+            try:
+                dd_client = GatewayClient(profile_name="houfa", timeout=300)
+                dd_prompt = f"你是资深架构师后旺（HouWang）。基于以下需求，输出一份简洁的架构设计文档。\n\n=== 需求 ===\n{requirement}\n\n输出设计文档，包含：1.整体架构 2.模块划分 3.数据流 4.关键技术选型"
+                dd_chunks = []
+                async for chunk in dd_client.chat_isolated(messages=[{"role": "user", "content": dd_prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="后旺-架构设计自动补全", stream=False, max_tokens=8000):
+                    dd_chunks.append(chunk)
+                design_doc = "".join(dd_chunks).strip()
+                bg_engine.save_step4_artifacts({"design_doc": design_doc, "auto_generated": True})
+                await broadcast(project_id, {"type": "step7", "message": "📄 架构设计已自动生成"})
+            except Exception as e:
+                logger.warning(f"Auto-generate design_doc failed: {e}")
+                design_doc = f"基于需求的架构设计\n\n需求: {requirement[:500]}"
 
-        await broadcast(project_id, {"type": "step7", "message": f"📋 TDD计划已拆分为 {len(subtasks)} 个原子测试用例"})
+        # 从数据库读取 TDD 测试用例（取代直接读取 TDD PLAN 文档）
+        tdd_cases_data, tdd_cases_json = _load_tdd_cases_from_db(bg_db, project_id)
+        if not tdd_cases_data and not tdd_plan and requirement:
+            await broadcast(project_id, {"type": "step7", "message": "📋 数据库无测试用例且TDD计划缺失，正在自动生成..."})
+            try:
+                tp_client = GatewayClient(profile_name="houfa", timeout=300)
+                tp_prompt = f"你是资深测试工程师海梅（HaiMei）。基于以下需求和架构设计，输出一份TDD测试用例计划。\n\n=== 需求 ===\n{requirement}\n\n=== 架构 ===\n{design_doc}\n\n输出TDD计划，列出需要编写的测试用例类型和覆盖范围。"
+                tp_chunks = []
+                async for chunk in tp_client.chat_isolated(messages=[{"role": "user", "content": tp_prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="海梅-TDD计划自动补全", stream=False, max_tokens=8000):
+                    tp_chunks.append(chunk)
+                tdd_plan = "".join(tp_chunks).strip()
+                bg_engine.save_step6_artifacts({"tdd_plan": tdd_plan, "auto_generated": True})
+                await broadcast(project_id, {"type": "step7", "message": "📋 TDD计划已自动生成"})
+            except Exception as e:
+                logger.warning(f"Auto-generate tdd_plan failed: {e}")
+                tdd_plan = f"基于需求的TDD计划\n支持: {requirement[:500]}"
 
-        # ── Step 2: 从DB获取在线Agent ──
+        # ── Step 1: 直接从数据库读取TDD测试用例作为TODO LIST ──
+        if tdd_cases_data:
+            subtasks = []
+            for c in tdd_cases_data:
+                subtasks.append({
+                    "name": f"[{c.get('case_id','')}] {c.get('title','')}",
+                    "description": c.get("description") or c.get("test_steps", ""),
+                    "acceptance_criteria": c.get("expected_result", ""),
+                    "priority": _parse_priority(c.get("priority", "P2")),
+                    "module": c.get("category", ""),
+                })
+        elif tdd_plan:
+            import re as _re
+            lines = [l.strip() for l in tdd_plan.split('\n') if l.strip()]
+            subtasks = [{"name": l[:80], "description": l[:200], "acceptance_criteria": "", "priority": 2, "module": ""} for i, l in enumerate(lines) if l and not l.startswith(('#', '-', '*', '>', '|'))][:50]
+        else:
+            subtasks = [{"name": "默认测试用例", "description": requirement[:500], "acceptance_criteria": "功能正常", "priority": 1, "module": ""}]
+
+        subtask_names = [st.get("name", f"用例{i+1}") for i, st in enumerate(subtasks)]
+        await broadcast(project_id, {"type": "step7", "subtask_names": subtask_names, "message": f"📋 从数据库加载 {len(subtasks)} 个TDD测试用例作为TODO LIST"})
+
+        # ── Step 2: 从DB获取在线编程Agent（opencode/claude_code/cursor/codex等） ──
         writer_agents = SwarmService.get_online_writer_agents(bg_db)
         tester_agents = SwarmService.get_online_tester_agents(bg_db)
         if not writer_agents:
-            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent"})
-            await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的编写Agent"})
+            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent（请注册opencode/claude_code等编程Agent）"})
+            await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的编写Agent（请注册opencode/claude_code等编程Agent）"})
             return
         if not tester_agents:
             bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的测试Agent"})
             await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的测试Agent"})
             return
 
+        for wa in writer_agents:
+            await broadcast(project_id, {"type": "agent_online", "name": wa.name, "role": "writer", "agent_type": wa.agent_type})
+        for ta in tester_agents:
+            await broadcast(project_id, {"type": "agent_online", "name": ta.name, "role": "tester", "agent_type": ta.agent_type})
         await broadcast(project_id, {"type": "step7", "message": f"🐝 蜂群就绪：{len(writer_agents)}个编写Agent + {len(tester_agents)}个测试Agent, {len(subtasks)}个子任务"})
 
-        # ── Step 3: 创建蜂群 ──
+        # ── Step 3: 创建蜂群（仅对真实Agent，降级Agent跳过） ──
         swarm_svc = SwarmService()
         swarm = swarm_svc.create_swarm(
             project_id=project_id,
@@ -181,7 +245,43 @@ async def run_step7_swarm(
             api_key = cfg.get("api_key") or cfg.get("apiKey")
             model = cfg.get("model") or "default"
 
-            # 路径1: 直接通过 OpenAI 兼容 API 调用（支持 Claude Code / Codex / Pi / Opencode / Reasonix 等）
+            # 路径0: CLI 子进程调用（独立编程 Agent：opencode / pi / reasonix 等）
+            cli_cmd = cfg.get("cli_command") or agent.api_endpoint
+            if cli_cmd and not cli_cmd.startswith("http"):
+                import shlex
+                prompt_quoted = shlex.quote(prompt_text)
+                if "{prompt}" in cli_cmd:
+                    full_cmd = cli_cmd.replace("{prompt}", prompt_quoted)
+                else:
+                    full_cmd = f"{cli_cmd} {prompt_quoted}"
+                cmd_parts = shlex.split(full_cmd)
+                for attempt in range(1, 4):
+                    try:
+                        proc = await asyncio.create_subprocess_exec(
+                            *cmd_parts,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE,
+                        )
+                        out_bytes, err_bytes = await asyncio.wait_for(
+                            proc.communicate(), timeout=timeout,
+                        )
+                        if proc.returncode == 0:
+                            text = out_bytes.decode().strip() if out_bytes else ""
+                            if text:
+                                logger.info(f"Step7 agent {agent.name} responded via CLI: {cli_cmd}")
+                                return text
+                        else:
+                            err = (err_bytes.decode().strip() if err_bytes else "")[:500]
+                            logger.warning(f"Step7 agent {agent.name} CLI exit {proc.returncode} (attempt {attempt}/3): {err}")
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Step7 agent {agent.name} CLI timeout (attempt {attempt}/3)")
+                    except Exception as e:
+                        logger.warning(f"Step7 agent {agent.name} CLI error (attempt {attempt}/3): {e}")
+                    await asyncio.sleep(2 ** attempt)
+                logger.error(f"Step7 agent {agent.name} CLI all attempts failed")
+                return ""
+
+            # 路径1: 直接通过 OpenAI 兼容 API 调用
             if agent.api_endpoint:
                 ep = agent.api_endpoint.rstrip("/")
                 headers = {"Content-Type": "application/json"}
@@ -226,8 +326,8 @@ async def run_step7_swarm(
                 if last_err:
                     logger.info(f"Step7 agent {agent.name} direct API failed after 3 attempts, falling back to GatewayClient")
 
-            # 路径2: 通过 Hermes Gateway 调用（使用 role_name 或 agent_type 作为 profile）
-            profile = agent.role_name or agent.agent_type
+            # 路径2: 通过 Hermes Gateway 调用（role_name → 真实 Hermes profile 名）
+            profile = agent.role_name or agent.name or agent.agent_type
             try:
                 gc = GatewayClient(profile_name=profile, timeout=timeout)
                 gc_chunks = []
@@ -256,6 +356,25 @@ async def run_step7_swarm(
         all_results = []
         rlock = asyncio.Lock()
 
+        # 增量保存单个子任务结果到 DB（断点续跑用）
+        async def _save_subtask_result(result: dict):
+            try:
+                cur = bg_engine.get_step7_artifacts() or {}
+                saved_results = cur.get("subtask_results", [])
+                # 替换或追加
+                found = False
+                for i, sr in enumerate(saved_results):
+                    if sr.get("index") == result.get("index"):
+                        saved_results[i] = result
+                        found = True
+                        break
+                if not found:
+                    saved_results.append(result)
+                cur["subtask_results"] = saved_results
+                bg_engine.save_step7_artifacts(cur)
+            except Exception as e:
+                logger.warning(f"Step7 save subtask result failed: {e}")
+
         async def _run_subtask(st, idx):
             nonlocal writer_idx, tester_idx
             async with sem:
@@ -282,7 +401,10 @@ async def run_step7_swarm(
                             f"=== 测试用例 ===\n名称：{sname}\n描述：{sdesc}\n验收标准：{sacc}\n"
                             f"直接输出完整测试代码（含import）。不要推理过程。{fb}"
                         )
+                        await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {writer.name} 提示词", "prompt": wp, "agent": writer.name, "subtask": sname})
                         code = await _call_agent(writer, wp)
+                        if code.strip():
+                            await broadcast(project_id, {"type": "agent_response", "subtask": sname, "role": "writer", "response": code[:2000]})
                         if not code.strip():
                             continue
 
@@ -302,11 +424,16 @@ async def run_step7_swarm(
                             "严格验证：语法正确性、逻辑是否符合验收标准、边界覆盖、可独立运行。\n"
                             "第一行输出 PASS 或 FAIL，然后详细说明问题。"
                         )
+                        await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {tester.name} 提示词", "prompt": tp, "agent": tester.name, "subtask": sname})
                         tr = await _call_agent(tester, tp)
+                        if tr.strip():
+                            await broadcast(project_id, {"type": "agent_response", "subtask": sname, "role": "tester", "response": tr[:2000]})
 
                         if tr.strip().startswith("PASS"):
                             async with rlock:
-                                all_results.append({"name": sname, "index": idx, "status": "passed", "file_path": file_path, "attempts": attempt, "writer": writer.name, "tester": tester.name})
+                                result = {"name": sname, "index": idx, "status": "passed", "file_path": file_path, "attempts": attempt, "writer": writer.name, "tester": tester.name}
+                                all_results.append(result)
+                            await _save_subtask_result(result)
                             await broadcast(project_id, {"type": "step7", "message": f"✅ [{sname}] 通过（第{attempt}轮）"})
                             return
                         else:
@@ -314,13 +441,32 @@ async def run_step7_swarm(
                             await broadcast(project_id, {"type": "step7", "message": f"⚠️ [{sname}] 未通过（第{attempt}轮）"})
 
                     async with rlock:
-                        all_results.append({"name": sname, "index": idx, "status": "failed", "file_path": file_path, "attempts": 5})
+                        result = {"name": sname, "index": idx, "status": "failed", "file_path": file_path, "attempts": 5}
+                        all_results.append(result)
+                    await _save_subtask_result(result)
                     await broadcast(project_id, {"type": "step7", "message": f"❌ [{sname}] 5轮均未通过"})
                 except Exception as e:
                     logger.error(f"Step7 subtask {idx} ({sname}) exception: {e}")
                     async with rlock:
-                        all_results.append({"name": sname, "index": idx, "status": "failed", "file_path": "", "attempts": 5, "error": str(e)[:200]})
+                        result = {"name": sname, "index": idx, "status": "failed", "file_path": "", "attempts": 5, "error": str(e)[:200]}
+                        all_results.append(result)
+                    await _save_subtask_result(result)
                     await broadcast(project_id, {"type": "step7", "message": f"💥 [{sname}] 执行异常: {str(e)[:100]}"})
+
+        # 断点续跑：从 DB 读取已完成的子任务结果
+        if resume:
+            saved = bg_engine.get_step7_artifacts().get("subtask_results", [])
+            for sr in saved:
+                idx = sr.get("index", 0)
+                if idx > 0 and idx <= len(subtasks):
+                    all_results.append(sr)
+            if saved:
+                await broadcast(project_id, {"type": "step7", "message": f"♻️ 续跑：已加载 {len(saved)} 个已完成子任务结果"})
+                # 过滤掉已完成的子任务
+                completed_indices = {sr.get("index", 0) for sr in saved}
+                subtasks = [st for i, st in enumerate(subtasks) if (i + 1) not in completed_indices]
+                if not subtasks:
+                    await broadcast(project_id, {"type": "step7", "message": "♻️ 续跑：所有子任务已完成，跳过蜂群执行"})
 
         await asyncio.gather(*[_run_subtask(st, i + 1) for i, st in enumerate(subtasks)])
 
@@ -379,9 +525,14 @@ async def run_step7_swarm(
 
     except Exception as e:
         logger.error(f"Step7: {e}")
+        err_msg = str(e)[:200]
+        try:
+            await broadcast(project_id, {"type": "error", "message": f"❌ 蜂群执行异常: {err_msg}"})
+        except Exception:
+            pass
         try:
             bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
-            bg_engine.save_step7_artifacts({"status": "error", "message": f"失败: {str(e)[:200]}"})
+            bg_engine.save_step7_artifacts({"status": "error", "message": f"失败: {err_msg}"})
             bg_engine.reset_step(7)
         except Exception:
             pass
@@ -409,12 +560,17 @@ async def execute_step7_async(project_id: str, db: Session = Depends(get_db), cu
         return APIResponse(code=1, message=f"无法开始步骤7: {str(e)[:200]}")
     step3 = engine.get_step3_artifacts() or {}
     requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
-    step4 = engine.get_step4_artifacts() or {}
-    design_doc = step4.get("design_doc") or ""
-    step6 = engine.get_step6_artifacts() or {}
-    tdd_plan = step6.get("tdd_plan") or step6.get("plan_content") or ""
     step2 = engine.get_step2_artifacts() or {}
     core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+    # If previous steps missing, auto-generate from requirement
+    step4 = engine.get_step4_artifacts() or {}
+    design_doc = step4.get("design_doc") or ""
+    if not design_doc and requirement:
+        design_doc = f"基于需求自动生成架构设计\n需求: {requirement[:500]}"
+    step6 = engine.get_step6_artifacts() or {}
+    tdd_plan = step6.get("tdd_plan") or step6.get("plan_content") or ""
+    if not tdd_plan and requirement:
+        tdd_plan = f"基于需求自动生成TDD计划\n需求: {requirement[:500]}"
     engine.save_step7_artifacts({"status": "generating", "message": "🐝 后发正在组建蜂群并行编写TDD测试用例..."})
 
     async def _generate():
@@ -454,7 +610,6 @@ def save_step7_artifacts_route(project_id: str, body: dict = Body(...), db: Sess
 
 @router.post("/{project_id}/step7/inspect")
 async def inspect_step7(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from app.services.gateway_client import GatewayClient
     import json as _json
     content, focus_items = body.content, body.focus_items
     if not content or len(content.strip()) < 20:
@@ -463,7 +618,8 @@ async def inspect_step7(project_id: str, body: Step3InspectRequest, db: Session 
     dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
     focus_hint = f"\n⚠️ 本次只检验：{[d['label'] for d in active_dims]}" if focus_items else ""
     convergence_hint = "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
-    prompt = f"你是一个专业的TDD测试用例QA检验员（后荣）。\n\n=== TDD用例 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
+    scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
+    prompt = f"你是一个专业的TDD测试用例QA检验员（后荣）。\n\n=== TDD用例 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
         client = GatewayClient(profile_name="hourong", timeout=120)
         chunks = []
@@ -480,15 +636,26 @@ async def inspect_step7(project_id: str, body: Step3InspectRequest, db: Session 
     results = []
     for dim in active_dims:
         m = next((r for r in parsed if r.get("key") == dim["key"]), None)
-        results.append({"key": dim["key"], "label": dim["label"], "passed": bool(m.get("passed", False)) if m else False, "detail": m.get("detail", "") if m else ""})
-    return APIResponse(code=0, data={"passed": all(r["passed"] for r in results), "dimensions": results})
+        results.append({"key": dim["key"], "label": dim["label"], "score": int(m.get("score", 100)) if m else 0, "passed": int(m.get("score", 100)) >= 90 if m else False, "detail": m.get("detail", "") if m else ""})
+    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
+    all_passed = avg_score > 90
+    _engine = _get_engine(project_id, db)
+    _engine.save_step7_artifacts({
+        "inspect_result": {"passed": all_passed, "avg_score": avg_score, "dimensions": results, "inspected_at": __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()},
+        "qa_passed": all_passed, "qa_checked": True,
+    })
+    return APIResponse(code=0, data={"passed": avg_score > 90, "score": avg_score, "dimensions": results})
 
 
 @router.post("/{project_id}/step7/qa")
 def qa_step7(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    from datetime import datetime, timezone
     engine = _get_engine(project_id, db)
+    now_iso = datetime.now(timezone.utc).isoformat()
     if body.result == "passed":
         result = engine.pass_qa(7)
+        engine.save_step7_artifacts({"qa_passed": True, "qa_status": "passed", "qa_checked_at": now_iso})
     else:
         result = engine.fail_qa(7, reason=body.reason or "", suggestions=body.suggestions)
+        engine.save_step7_artifacts({"qa_passed": False, "qa_status": "failed", "qa_checked_at": now_iso, "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
     return APIResponse(code=0, data={"message": f"第七步QA{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
