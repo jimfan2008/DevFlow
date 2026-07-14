@@ -17,18 +17,46 @@
 
     <!-- idle -->
     <div v-if="stepStatus === 'idle'" class="step4-view__card">
-      <div class="step4-view__card-icon">🏗️</div>
-      <h2>准备执行架构设计（4个子步骤串行）</h2>
-      <p>后旺1~4号将根据需求文档串行生成以下设计文档，后荣1~4号逐项检验：<br>step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库</p>
-      <div class="step4-view__doc-list-preview">
-        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🏛️</span><div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">系统整体架构、分层、模块划分、技术栈</div></div></div>
-        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🎨</span><div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">前端技术栈、组件树、路由、状态管理</div></div></div>
-        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">⚙️</span><div><div class="step4-view__doc-type-name">后端设计文档</div><div class="step4-view__doc-type-desc">后端技术栈、API接口、数据流、安全策略</div></div></div>
-        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🗄️</span><div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">完整 SQL DDL、表结构、索引、外键</div></div></div>
-      </div>
-      <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
-        {{ executing ? '串行执行中...' : '开始执行（4子步骤串行）' }}
-      </el-button>
+      <template v-if="step4_1_passed">
+        <div class="step4-view__card-icon">🔄</div>
+        <h2>架构设计(step4_1)已完成，禁止从头开始</h2>
+        <el-alert title="step4_1 已通过 hourong 检验，不能从头开始生成和检验，请续跑未完成的子步骤" type="warning" show-icon class="step4-view__alert" />
+        <div class="step4-view__doc-list-preview">
+          <div class="step4-view__doc-type-item" :class="subFlowStates['arch_reasonableness']?.status === 'passed' ? 'status-passed' : ''">
+            <span class="step4-view__doc-type-icon">🏛️</span>
+            <div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">{{ subFlowStates['arch_reasonableness']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
+          </div>
+          <div class="step4-view__doc-type-item">
+            <span class="step4-view__doc-type-icon">🎨</span>
+            <div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">{{ subFlowStates['frontend_feasibility']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
+          </div>
+          <div class="step4-view__doc-type-item">
+            <span class="step4-view__doc-type-icon">⚙️</span>
+            <div><div class="step4-view__doc-type-name">后端设计文档</div><div class="step4-view__doc-type-desc">{{ subFlowStates['backend_feasibility']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
+          </div>
+          <div class="step4-view__doc-type-item">
+            <span class="step4-view__doc-type-icon">🗄️</span>
+            <div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">{{ subFlowStates['database_design']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
+          </div>
+        </div>
+        <el-button type="primary" size="large" :loading="executing" @click="handleResumeFailed">
+          {{ executing ? '续跑中...' : '🔄 续跑未完成子步骤（跳过已通过项）' }}
+        </el-button>
+      </template>
+      <template v-else>
+        <div class="step4-view__card-icon">🏗️</div>
+        <h2>准备执行架构设计（4个子步骤串行）</h2>
+        <p>后旺1~4号将根据需求文档串行生成以下设计文档，后荣1~4号逐项检验：<br>step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库</p>
+        <div class="step4-view__doc-list-preview">
+          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🏛️</span><div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">系统整体架构、分层、模块划分、技术栈</div></div></div>
+          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🎨</span><div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">前端技术栈、组件树、路由、状态管理</div></div></div>
+          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">⚙️</span><div><div class="step4-view__doc-type-name">后端设计文档</div><div class="step4-view__doc-type-desc">后端技术栈、API接口、数据流、安全策略</div></div></div>
+          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🗄️</span><div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">完整 SQL DDL、表结构、索引、外键</div></div></div>
+        </div>
+        <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
+          {{ executing ? '串行执行中...' : '开始执行（4子步骤串行）' }}
+        </el-button>
+      </template>
     </div>
 
     <!-- executing: 4 sequential sub-steps -->
@@ -267,6 +295,10 @@ const subFlowMap: Record<string, string> = {
   'DATABASE': 'database_design',
 }
 
+const step4_1_passed = computed(() => {
+  return subFlowStates.value['arch_reasonableness']?.status === 'passed'
+})
+
 const subFlowLabelMap: Record<string, string> = {
   '架构': 'arch_reasonableness',
   '前端': 'frontend_feasibility',
@@ -287,6 +319,25 @@ function updateSubFlowState(key: string, patch: Partial<SubFlowState>) {
   }
 }
 
+async function saveSubFlowPassState(sfKey: string) {
+  try {
+    const passedSubFlows: Record<string, any> = {}
+    for (const [key, sf] of Object.entries(subFlowStates.value)) {
+      if (sf.status === 'passed') {
+        passedSubFlows[key] = { key: sf.key, label: sf.label, passed: true, rounds: sf.rounds }
+      }
+    }
+    if (Object.keys(passedSubFlows).length > 0) {
+      await workflowApi.saveStep4Artifacts(props.projectId, {
+        passed_sub_flows: passedSubFlows,
+        saved_at: new Date().toISOString(),
+      })
+    }
+  } catch {
+    // 保存状态失败不影响前端显示
+  }
+}
+
 function parseSubFlowMessage(msg: { type: string; message?: string; content?: string; subflow?: string }) {
   const sfKey = msg.subflow || (msg.message ? inferSubflow(msg.message) : null)
   if (!sfKey || !subFlowStates.value[sfKey]) {
@@ -303,6 +354,7 @@ function parseSubFlowMessage(msg: { type: string; message?: string; content?: st
       updateSubFlowState(sfKey, { status: 'passed', message: txt })
       const roundMatch = txt.match(/(\d+)轮/)
       if (roundMatch) updateSubFlowState(sfKey, { rounds: parseInt(roundMatch[1]) })
+      saveSubFlowPassState(sfKey)  // hourong 通过后立即保存状态，防止下次重头开始
 
     // ── failed: 再匹配未通过类关键词 ──
     } else if (txt.includes('检验未通过') || txt.includes('未通过')) {
@@ -469,14 +521,14 @@ onMounted(async () => {
     const s4 = data?.step4 || {}
     if (s4.design_doc) designDoc.value = s4.design_doc
     // 无论步骤状态如何，先恢复已保存的子流程结果
-    if (s4.sub_flow_results) {
-      for (const sr of s4.sub_flow_results) {
+    // 从后端保存的独立子步骤结果恢复状态（step4_N_result）
+    const stepResultKeys = ['step4_1_result', 'step4_2_result', 'step4_3_result', 'step4_4_result']
+    for (const key of stepResultKeys) {
+      const sr = s4[key]
+      if (sr && sr.key && subFlowStates.value[sr.key]) {
         const sf = subFlowStates.value[sr.key]
-        if (sf) {
-          sf.status = sr.passed ? 'passed' : 'failed'
-          sf.rounds = sr.rounds || 0
-          sf.detail = sr.convergence?.length ? '' : ''
-        }
+        sf.status = sr.passed ? 'passed' : 'failed'
+        sf.rounds = sr.rounds || 0
       }
     }
 
@@ -505,11 +557,12 @@ onMounted(async () => {
         resetStuckTimer()
       }
       else {
-        // 步骤状态不明确：优先根据已保存的子流程结果决定显示状态
-        const results = s4.sub_flow_results || []
-        const hasAnyResult = results.length > 0
-        const hasPassed = results.some((r: any) => r.passed)
-        const allPassed = results.length === 4 && results.every((r: any) => r.passed)
+        // 步骤状态不明确：优先根据已保存的子步骤结果决定显示状态
+        const stepKeys = ['step4_1_result', 'step4_2_result', 'step4_3_result', 'step4_4_result']
+        const resultsWithData = stepKeys.filter(k => s4[k])
+        const passedCount = stepKeys.filter(k => s4[k]?.passed).length
+        const hasAnyResult = resultsWithData.length > 0
+        const allPassed = passedCount === 4
         const hasQaPassed = s4.qa_passed === true
         if (hasQaPassed) {
           stepStatus.value = 'qa_passed'
@@ -542,11 +595,15 @@ function startPolling() {
       const res = await workflowApi.getStatus(props.projectId) as any
       const data = res?.data || res
       const s4 = data?.step4 || {}
-      if (s4.sub_flow_results) {
+      // 轮询时从后端独立子步骤结果恢复状态
+      const pollStepKeys = ['step4_1_result', 'step4_2_result', 'step4_3_result', 'step4_4_result']
+      const hasStepResults = pollStepKeys.some(k => s4[k])
+      if (hasStepResults) {
         emptyCount = 0
-        for (const sr of s4.sub_flow_results) {
-          const sf = subFlowStates.value[sr.key]
-          if (sf) {
+        for (const key of pollStepKeys) {
+          const sr = s4[key]
+          if (sr && sr.key && subFlowStates.value[sr.key]) {
+            const sf = subFlowStates.value[sr.key]
             sf.status = sr.passed ? 'passed' : 'failed'
             sf.rounds = sr.rounds || 0
           }
@@ -744,6 +801,14 @@ async function handleComplete() {
     const res = await workflowApi.qaStep(props.projectId, 4, 'passed') as any
     const data = res?.data || res
     if (res?.code === 0 || data?.qa) {
+      // 保存 QA 通过状态，防止下次刷新重头开始
+      try {
+        await workflowApi.saveStep4Artifacts(props.projectId, {
+          qa_passed: true,
+          qa_checked: true,
+          saved_at: new Date().toISOString(),
+        })
+      } catch { /* 保存状态失败不影响主要流程 */ }
       ElMessage.success('第四步完成！')
       stepStatus.value = 'qa_passed'
       // auto-redirect to step5
@@ -829,6 +894,7 @@ function goToNext() { router.push({ name: 'Step5', params: { projectId: props.pr
   &__doc-list-preview { max-width: 500px; margin: 0 auto 32px; text-align: left; }
   &__doc-type-item {
     display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 8px; background: #f5f7fa; border-radius: 8px;
+    &.status-passed { border-color: #67c23a; background: #f0f9eb; }
     &-icon { font-size: 24px; } &-name { font-weight: 500; font-size: 14px; } &-desc { font-size: 12px; color: #909399; margin-top: 2px; }
   }
 

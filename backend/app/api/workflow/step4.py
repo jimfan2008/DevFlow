@@ -143,135 +143,170 @@ async def _inspect_doc(
     project_name: str = "", project_description: str = "",
     core_goal: str = "", agent_label: str = "",
     standards: list = None, prev_feedback: str = "",
-    chapter_label: str = "",
+    chapter_label: str = "", docs_dir: str = "",
 ) -> dict:
     """调用 hourong-{doc_type} 对单份文档进行单次 QA 检验（项目会话隔离）。
     将文档路径告知 hourong 让 Agent 自行读取文件，避免在大文档上 context 溢出。
-    单次尝试，不重试——失败立即返回原始响应供前端查看。
+    空响应或无法解析时内部重试最多3次。
     prev_feedback: 上一轮检验意见，用于收敛检测。
+    返回 report_path: hourong 原始报告文件的保存路径。
     """
-    import json as _json, re as _re
-    from app.services.gateway_client import GatewayClient
+    import json as _json, re as _re, os as _os
+    from datetime import datetime
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from app.api.ws.step4_progress import broadcast
 
     dim_key = dim["key"]
     dim_label = dim["label"]
+    max_attempts = 3
 
-    insp_prompt = _build_inspect_prompt(
-        doc_path=doc_path, dim=dim, standards=standards or [],
-        dim_key=dim_key, prev_feedback=prev_feedback,
-        chapter_label=chapter_label,
-    )
-    qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-    qa_chunks = []
-    async for chunk in qa_cli.chat_isolated(
-        messages=[{"role": "user", "content": insp_prompt}],
-        project_id=project_id,
-        project_name=project_name,
-        project_description=project_description,
-        core_goal=core_goal,
-        agent_name=agent_label or f"后荣-{dim_key} QA检验员",
-        stream=True, max_tokens=8192,
-    ):
-        qa_chunks.append(chunk)
-    qa_r = "".join(qa_chunks).strip()
+    # 确保 docs_dir 存在
+    if docs_dir:
+        _os.makedirs(docs_dir, exist_ok=True)
 
-    if not qa_r:
-        return {"key": dim_key, "passed": False, "detail": "后荣未返回检验结果（空响应）"}
+    for attempt in range(1, max_attempts + 1):
+        insp_prompt = _build_inspect_prompt(
+            doc_path=doc_path, dim=dim, standards=standards or [],
+            dim_key=dim_key, prev_feedback=prev_feedback,
+            chapter_label=chapter_label,
+        )
 
-    # Extract JSON from LLM response — multi-strategy extraction
-    single = {}
+        if attempt > 1:
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🔄 {dim_label}：hourong 第{attempt}次重试检验...",
+                "subflow": dim_key,
+            })
 
-    # Strip thinking/analysis tags
-    _lt, _gt = chr(60), chr(62)
-    _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
-    _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
-    qa_r = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
+        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=2)
 
-    candidates = []
+        if not qa_r:
+            if attempt < max_attempts:
+                continue
+            return {"key": dim_key, "passed": False, "detail": "后荣未返回检验结果（空响应）", "report_path": ""}
 
-    # Strategy: code fences
-    fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', qa_r, _re.DOTALL)
-    for fc in fenced:
-        stripped = fc.strip()
-        if stripped:
-            candidates.append(stripped)
+        # 保存 hourong 原始报告到文件
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rnd = _os.urandom(2).hex()
+        fname = f"hourong_report_{dim_key}_{ts}_{rnd}.txt"
+        report_save_path = ""
+        if docs_dir:
+            report_save_path = _os.path.join(docs_dir, fname)
+            try:
+                with open(report_save_path, "w", encoding="utf-8") as f:
+                    f.write(qa_r)
+            except Exception:
+                report_save_path = ""
 
-    # Strategy: brace extraction
-    brace_start = qa_r.find('{')
-    brace_end = qa_r.rfind('}')
-    if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-        candidates.append(qa_r[brace_start:brace_end + 1])
+        # Extract JSON from LLM response — multi-strategy extraction
+        single = {}
 
-    # Strategy: JSON-like regex
-    json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', qa_r)
-    for jl in json_like:
-        if len(jl) > 10:
-            candidates.append(jl)
+        # Strip thinking/analysis tags
+        _lt, _gt = chr(60), chr(62)
+        _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
+        _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
+        clean_text = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
 
-    # Strategy: strip non-JSON prefix/suffix
-    stripped = qa_r.strip()
-    bs2 = stripped.find('{')
-    if bs2 > 0:
-        candidates.append(stripped[bs2:])
-    be2 = stripped.rfind('}')
-    if be2 >= 0 and be2 < len(stripped) - 1:
-        candidates.append(stripped[:be2 + 1])
+        candidates = []
 
-    candidates.append(qa_r)
+        # Strategy: code fences
+        fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', clean_text, _re.DOTALL)
+        for fc in fenced:
+            stripped = fc.strip()
+            if stripped:
+                candidates.append(stripped)
 
-    def _repair_json(text):
-        t = text.strip()
-        t = _re.sub(r',\s*([}\]])', r'\1', t)
-        try:
-            return _json.loads(t)
-        except Exception:
-            pass
-        core = t.lstrip('\n\r\t ')
-        while core and core[0] not in '{[":':
-            core = core[1:]
-        while core and core[-1] not in '}]\n\r\t ':
-            core = core[:-1]
-        try:
-            return _json.loads(core.strip())
-        except Exception:
-            pass
-        return None
+        # Strategy: brace extraction
+        brace_start = clean_text.find('{')
+        brace_end = clean_text.rfind('}')
+        if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+            candidates.append(clean_text[brace_start:brace_end + 1])
 
-    for candidate in candidates:
-        try:
-            parsed = _json.loads(candidate)
-            if isinstance(parsed, dict) and parsed:
-                single = parsed
+        # Strategy: JSON-like regex
+        json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_text)
+        for jl in json_like:
+            if len(jl) > 10:
+                candidates.append(jl)
+
+        # Strategy: strip non-JSON prefix/suffix
+        stripped = clean_text.strip()
+        bs2 = stripped.find('{')
+        if bs2 > 0:
+            candidates.append(stripped[bs2:])
+        be2 = stripped.rfind('}')
+        if be2 >= 0 and be2 < len(stripped) - 1:
+            candidates.append(stripped[:be2 + 1])
+
+        candidates.append(clean_text)
+
+        def _repair_json(text):
+            t = text.strip()
+            t = _re.sub(r',\s*([}\]])', r'\1', t)
+            try:
+                return _json.loads(t)
+            except Exception:
+                pass
+            core = t.lstrip('\n\r\t ')
+            while core and core[0] not in '{[":':
+                core = core[1:]
+            while core and core[-1] not in '}]\n\r\t ':
+                core = core[:-1]
+            try:
+                return _json.loads(core.strip())
+            except Exception:
+                pass
+            return None
+
+        for candidate in candidates:
+            try:
+                parsed = _json.loads(candidate)
+                if isinstance(parsed, dict) and parsed:
+                    single = parsed
+                    break
+            except Exception:
+                pass
+            repaired = _repair_json(candidate)
+            if repaired and isinstance(repaired, dict) and repaired:
+                single = repaired
                 break
-        except Exception:
-            pass
-        repaired = _repair_json(candidate)
-        if repaired and isinstance(repaired, dict) and repaired:
-            single = repaired
-            break
 
-    if not single:
-        await broadcast(project_id, {
-            "type": "stage",
-            "message": f"❌ hourong 返回了{dim_label}无法解析的检验报告。原始返回内容：\n\n{qa_r[:3000]}",
-            "subflow": dim_key,
-        })
-        return {"key": dim_key, "passed": False, "detail": f"后荣返回了无法解析的检验报告\n\n原始返回：\n{qa_r[:1000]}", "raw_response": qa_r}
+        if not single:
+            if attempt < max_attempts:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {dim_label}：hourong 返回无法解析的检验报告，第{attempt}次重试",
+                    "subflow": dim_key,
+                })
+                continue
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"❌ hourong 返回了{dim_label}无法解析的检验报告。报告已保存到：{report_save_path}",
+                "subflow": dim_key,
+            })
+            return {
+                "key": dim_key, "passed": False,
+                "detail": f"后荣返回了无法解析的检验报告（{max_attempts}次重试均失败）",
+                "raw_response": qa_r[:1000],
+                "report_path": report_save_path,
+            }
 
-    overall_passed = int(single.get("score", 0)) > 90 or bool(single.get("passed", False))
-    detail_text = single.get("detail", "").strip()
+        overall_passed = int(single.get("score", 0)) > 90 or bool(single.get("passed", False))
+        detail_text = single.get("detail", "").strip()
 
-    if not overall_passed and (not detail_text or len(detail_text) < 20):
-        detail_text = "后荣判定不合格但未返回详细检验意见"
+        if not overall_passed and (not detail_text or len(detail_text) < 20):
+            detail_text = "后荣判定不合格但未返回详细检验意见"
 
-    score = int(single.get("score", 100))
-    return {
-        "key": dim_key,
-        "score": score,
-        "passed": overall_passed,
-        "detail": detail_text or "检验完成",
-    }
+        score = int(single.get("score", 100))
+        return {
+            "key": dim_key,
+            "score": score,
+            "passed": overall_passed,
+            "detail": detail_text or "检验完成",
+            "report_path": report_save_path,
+        }
+
+    # 所有尝试都失败
+    return {"key": dim_key, "passed": False, "detail": "后荣连续3次未返回检验结果", "report_path": ""}
 
 
 # ── 文档分片支持 ──
@@ -363,6 +398,25 @@ async def _run_doc_sub_flow(
     convergence_log = []
     max_attempts = 10
 
+    def _result_is_valid(r: dict) -> bool:
+        """检查 inspect 结果是否有有效的检验意见"""
+        if not r.get("report_path") and not r.get("detail"):
+            return False
+        detail = r.get("detail", "")
+        invalid_phrases = ["未返回检验结果", "无法解析的检验报告", "空响应"]
+        if any(p in detail for p in invalid_phrases):
+            return False
+        return len(detail) >= 10
+
+    def _append_convergence(rnd: int, r: dict):
+        """安全追加收敛日志"""
+        convergence_log.append({
+            "round": rnd,
+            "detail": r.get("detail", ""),
+            "passed": r.get("passed", False),
+            "report_path": r.get("report_path", ""),
+        })
+
     for fix_round in range(1, max_attempts + 1):
         # ── 第一轮：先让 hourong 检验现有文档 ──
         if fix_round == 1 and current_path and os.path.exists(current_path):
@@ -376,6 +430,7 @@ async def _run_doc_sub_flow(
                 project_name=project_name, project_description=project_description,
                 core_goal=core_goal, agent_label=hourong_label,
                 standards=cfg.get("standards", []),
+                docs_dir=docs_dir,
             )
             if result["passed"]:
                 await broadcast(project_id, {
@@ -388,13 +443,21 @@ async def _run_doc_sub_flow(
                     "path": current_path, "content": current_content,
                     "passed": True, "rounds": 0, "convergence": [],
                 }
-            # 现有不合格，houwang 修复
-            await broadcast(project_id, {
-                "type": "stage",
-                "message": f"📝 {label}：现有文档 V{max_ver} 未通过（{result.get('detail','')[:120]}），houwang 基于此版本更新",
-                "subflow": dim["key"],
-            })
-            convergence_log.append({"round": 0, "detail": result["detail"]})
+            # 检查 inspect 结果是否有效
+            if not _result_is_valid(result):
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {label}：hourong 未返回有效检验报告，跳过已有文档检验继续执行",
+                    "subflow": dim["key"],
+                })
+                # 不追加 convergence_log，让流程继续到 houwang 首次生成
+            else:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"📝 {label}：现有文档 V{max_ver} 未通过（{result.get('detail','')[:120]}），houwang 基于此版本更新",
+                    "subflow": dim["key"],
+                })
+                _append_convergence(0, result)
 
         # ── houwang 生成或修复 ──
         nv = max_ver + fix_round
@@ -425,6 +488,12 @@ async def _run_doc_sub_flow(
             # 基于已有文档 + hourong 反馈进行修复
             houwang_role = f"houwang-{doc_type}"
             fix_detail = convergence_log[-1]["detail"] if convergence_log else "需整体改进"
+            report_path_hint = ""
+            if convergence_log and convergence_log[-1].get("report_path"):
+                report_path_hint = (
+                    f"\n后荣完整检验报告文件路径（请读取该文件获取完整检验意见）：\n"
+                    f"{convergence_log[-1]['report_path']}\n"
+                )
             # 将完整检验报告序列化给 houwang，确保它看到结构化结果
             last_result = convergence_log[-1] if convergence_log else {}
             last_result_json = _json.dumps(last_result, ensure_ascii=False, indent=2) if last_result else "{}"
@@ -439,6 +508,7 @@ async def _run_doc_sub_flow(
                 f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
                 f"后荣（HouRong）的完整检验报告：\n"
                 f"```json\n{last_result_json}\n```\n\n"
+                f"{report_path_hint}"
                 f"=== 当前已有文档 ===\n{current_content[:5000]}\n\n"
                 f"=== 后荣详细检验意见 ===\n{fix_detail}\n\n"
                 f"{change_hint}\n"
@@ -473,6 +543,7 @@ async def _run_doc_sub_flow(
             core_goal=core_goal,
             agent_name=houwang_label,
             stream=True, max_tokens=64000,
+            project_slug=slug,
         ):
             if chunk.strip():
                 houwang_chunks.append(chunk)
@@ -538,9 +609,20 @@ async def _run_doc_sub_flow(
             core_goal=core_goal, agent_label=hourong_label,
             standards=cfg.get("standards", []),
             prev_feedback=prev_fb,
+            docs_dir=docs_dir,
         )
 
-        convergence_log.append({"round": fix_round, "detail": result.get("detail", ""), "passed": result["passed"]})
+        # 检查 inspect 结果是否有效
+        if not _result_is_valid(result):
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"⚠️ {label}：hourong 第{fix_round}轮未返回有效检验报告，跳过本轮收敛，houwang 将基于最新文档内容继续修复",
+                "subflow": dim["key"],
+            })
+            # 不追加无效结果到 convergence_log，继续下一轮
+            continue
+
+        _append_convergence(fix_round, result)
 
         if result["passed"]:
             await broadcast(project_id, {
@@ -599,7 +681,7 @@ async def _cross_check_docs(
     """调用 hourong 对4份文档进行跨文档一致性/对应性检验
     docs_map 的 value 为文档文件路径，hourong Agent 自行读取文件。
     """
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from app.api.ws.step4_progress import broadcast
     import json as _json
 
@@ -662,19 +744,7 @@ async def _cross_check_docs(
         "message": "🔍 hourong 正在对4份设计文档进行跨文档一致性检验（架构-前端、架构-后端、前端-后端、后端-数据库）...",
     })
 
-    cli = GatewayClient(profile_name="hourong", timeout=300)
-    chunks = []
-    async for chunk in cli.chat_isolated(
-        messages=[{"role": "user", "content": prompt}],
-        project_id=project_id,
-        project_name=project_name,
-        project_description=project_description,
-        core_goal=core_goal,
-        agent_name="后荣（HouRong）- 跨文档一致性检验员",
-        stream=True, max_tokens=4096,
-    ):
-        chunks.append(chunk)
-    resp = "".join(chunks).strip()
+    resp = await _inspect_via_subagent(prompt=prompt, max_retries=3)
 
     if not resp:
         return {"passed": False, "pairs": [], "summary": "后荣未返回一致性检验结果（空响应）"}
@@ -795,6 +865,7 @@ async def _fix_doc_from_consistency_feedback(
             core_goal=core_goal,
             agent_name=houwang_label,
             stream=True, max_tokens=64000,
+            project_slug=slug,
         ):
             if chunk.strip():
                 houwang_chunks.append(chunk)
@@ -839,8 +910,9 @@ async def _fix_doc_from_consistency_feedback(
             core_goal=core_goal, agent_label=hourong_label,
             standards=cfg.get("standards", []),
             prev_feedback=prev_fb,
+            docs_dir=docs_dir,
         )
-        convergence_log.append({"round": attempt, "detail": result.get("detail", ""), "passed": result["passed"]})
+        convergence_log.append({"round": attempt, "detail": result.get("detail", ""), "passed": result["passed"], "report_path": result.get("report_path", "")})
         if result["passed"]:
             await broadcast(project_id, {
                 "type": "stage",
@@ -876,7 +948,7 @@ async def _check_consistency_pairs(
     core_goal: str = "",
 ) -> dict:
     """按子步骤增量检验：只检查当前步骤指定的配对"""
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from app.api.ws.step4_progress import broadcast
     import json as _json
 
@@ -893,16 +965,21 @@ async def _check_consistency_pairs(
     for pair in pairs:
         a_label = doc_labels.get(pair["a"], pair["a"])
         b_label = doc_labels.get(pair["b"], pair["b"])
-        pair_descs.append(f"- {pair['name']}：{a_label}与{b_label}之间的关键约定（API接口、数据模型、组件名、字段名等）是否一致\n")
+        pair_descs.append(f"- {pair['name']}：{a_label}与{b_label}之间的关键约定（API接口、数据模型、组件名、字段名等）是否一致" + "\n")
+        _pname = pair["name"]
+        _pa = pair["a"]
+        _pb = pair["b"]
         pair_items.append(
             '    {\n'
-            f'      "name": "{pair["name"]}",\n'
+            f'      "name": "{_pname}",\n'
             '      "passed": true/false,\n'
             '      "issue": "具体不一致的描述（如无问题留空）",\n'
-            f'      "affected_docs": ["{pair["a"]}", "{pair["b"]}"]\n'
+            f'      "affected_docs": ["{_pa}", "{_pb}"]\n'
             '    }'
         )
 
+    _nl = chr(10)
+    _pairs_json = (_nl + ',' ).join(pair_items)
     prompt = (
         "你是一个跨文档一致性检验专家（后荣）。以下设计文档属于同一个项目：\n\n"
         f"{chr(10).join(doc_sections)}\n\n"
@@ -912,7 +989,7 @@ async def _check_consistency_pairs(
         '{\n'
         '  "passed": true/false,\n'
         '  "pairs": [\n'
-        f"{',\n'.join(pair_items)}\n"
+        f"{_pairs_json}\n"
         '  ],\n'
         '  "summary": "一致性检验总结"\n'
         '}'
@@ -923,19 +1000,7 @@ async def _check_consistency_pairs(
         "message": "🔍 hourong 正在对已完成的文档进行增量一致性检验...",
     })
 
-    cli = GatewayClient(profile_name="hourong", timeout=300)
-    chunks = []
-    async for chunk in cli.chat_isolated(
-        messages=[{"role": "user", "content": prompt}],
-        project_id=project_id,
-        project_name=project_name,
-        project_description=project_description,
-        core_goal=core_goal,
-        agent_name="后荣（HouRong）- 跨文档增量一致性检验员",
-        stream=True, max_tokens=4096,
-    ):
-        chunks.append(chunk)
-    resp = "".join(chunks).strip()
+    resp = await _inspect_via_subagent(prompt=prompt, max_retries=3)
 
     if not resp:
         return {"passed": False, "pairs": [], "summary": "后荣未返回一致性检验结果（空响应）"}
@@ -1318,6 +1383,7 @@ async def step4_chat(project_id: str, body: Step4ChatRequest,
             core_goal=core_goal,
             agent_name="后旺（HouWang）架构师",
             stream=False,
+            project_slug=project.slug if project.slug else project_id,
         ):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
@@ -1438,7 +1504,7 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
             ],
         })
 
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     import json as _json
 
     # 从 SUB_FLOW_CONFIGS 中提取检验标准
@@ -1481,14 +1547,7 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
     )
 
     try:
-        client = GatewayClient(profile_name="hourong", timeout=180)
-        chunks = []
-        async for chunk in client.chat_completions(
-            messages=[{"role": "user", "content": prompt}],
-            stream=False, max_tokens=4096,
-        ):
-            chunks.append(chunk)
-        reply = "".join(chunks).strip()
+        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
         if not reply:
             raise ValueError("后荣未返回检验结果")
 

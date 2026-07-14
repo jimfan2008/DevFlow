@@ -180,6 +180,11 @@ else:
             tool_call: Any,
         ) -> RequestPermissionResponse:
             from acp.schema import AllowedOutcome
+            opt_type = getattr(options, "type", "") or (options if isinstance(options, str) else "")
+            if opt_type == "execute_code":
+                logger.info("ACP auto-approved execute_code in session %s: %s", session_id, tool_call)
+            else:
+                logger.debug("ACP auto-approved %s in session %s", opt_type, session_id)
             return RequestPermissionResponse(outcome=AllowedOutcome(type="allowed"))
 
         async def write_text_file(

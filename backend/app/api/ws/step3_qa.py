@@ -59,6 +59,8 @@ def _save_qa_checkpoint(
     results: list = None,
     content: str = "",
     last_save_path: str = "",
+    last_defects_detail: str = "",
+    last_fixed_paths: str = "",
 ) -> bool:
     from app.services.workflow_engine import WorkflowEngine
     cp = {
@@ -67,6 +69,8 @@ def _save_qa_checkpoint(
         "results": results or [],
         "content": content,
         "last_save_path": last_save_path,
+        "last_defects_detail": last_defects_detail,
+        "last_fixed_paths": last_fixed_paths,
     }
     try:
         engine = WorkflowEngine(project_id, db)
@@ -105,8 +109,29 @@ async def step3_qa_ws(websocket: WebSocket, project_id: str, token: str = Query(
             action = payload.get("action", "")
 
             if action == "inspect":
-                content = payload.get("content", "")
                 docs_path = payload.get("docs_path", "")
+
+                # 检查是否全部已通过：禁止重新检验
+                cp = _load_qa_checkpoint(project_id, db)
+                if cp and cp.get("results"):
+                    all_passed = all(r.get("passed", False) for r in cp.get("results", []))
+                    passed_keys = {r["key"] for r in cp["results"] if r.get("passed", False)}
+                    if all_passed and len(passed_keys) >= len(SUB_STEPS):
+                        await websocket.send_json({
+                            "type": "progress",
+                            "content": "\n ⚠️ 全部4个子步骤已检验通过，无需重新检验。正在推进到下一步...\n"
+                        })
+                        await _save_final_and_advance(
+                            websocket, cp.get("content", ""), project_slug,
+                            project_docs_dir, project_id, db, cp["results"]
+                        )
+                        break
+
+                # 以 checkpoint 中保存的内容为准（已通过步骤可能修改了文档）
+                checkpoint_content = cp.get("content", "") if cp else ""
+                content = payload.get("content", "")
+                if checkpoint_content and len(checkpoint_content.strip()) >= 20:
+                    content = checkpoint_content
                 if not content or len(content.strip()) < 20:
                     await websocket.send_json({"type": "error", "message": "文档内容过短"})
                     continue
@@ -237,7 +262,7 @@ def _normalize_inspection_results(parsed: list) -> list:
             "key": first.get("key", first.get("dimension", "")),
             "label": (first.get("label", "") or
                       _DIMENSION_KEY_TO_LABEL.get(first.get("key", ""), first.get("key", ""))),
-            "score": int(first.get("score", first.get("得分", 100))),
+            "score": int(first.get("score", first.get("得分", 0))),
             "passed": bool(first.get("passed", first.get("pass", first.get("合格", True)))),
             "detail": (first.get("detail", "") or first.get("details", "") or first.get("comment", "")),
             "deduction": first.get("deduction", ""),
@@ -345,36 +370,167 @@ HOURONG_SYSTEM_MSG = (
 )
 
 
-async def _call_hourong(websocket, prompt, timeout=180, system_message=None, prev_reply=None, follow_up=None):
-    client = GatewayClient(profile_name="hourong", timeout=timeout)
-    collected = []
-    messages = []
+async def _call_hourong(websocket, prompt, timeout=1800, system_message=None, prev_reply=None, follow_up=None, save_dir=None):
+    from .step3_qa_1 import delegate_task, _fix_json_llm
+    import os, json, tempfile
+
+    if not save_dir:
+        save_dir = tempfile.gettempdir()
+    os.makedirs(save_dir, exist_ok=True)
+
+    report_filename = f"hourong_report_{os.urandom(4).hex()}.json"
+    save_path = os.path.join(save_dir, report_filename)
+
+    combined_prompt = prompt
     if system_message:
-        messages.append({"role": "system", "content": system_message})
-    messages.append({"role": "user", "content": prompt})
+        combined_prompt = f"【角色说明】\n{system_message}\n\n【检验内容】\n{prompt}"
     if prev_reply:
-        messages.append({"role": "assistant", "content": prev_reply})
+        combined_prompt += f"\n\n【上一轮回复】\n{prev_reply}"
     if follow_up:
-        messages.append({"role": "user", "content": follow_up})
-    try:
-        async for chunk in client.chat_completions(
-            messages=messages,
-            stream=True, max_tokens=8192,
-        ):
-            if chunk.strip():
-                collected.append(chunk)
-    except Exception as e:
-        logger.error(f"hourong call failed: {e}")
-        await websocket.send_json({"type": "progress", "content": f"\n⚠️ hourong调用失败: {e}\n"})
+        combined_prompt += f"\n\n【格式要求】\n{follow_up}"
+
+    task = json.dumps({"save_path": save_path, "task": combined_prompt}, ensure_ascii=False)
+
+    logger.info(f"hourong 委托子agent检验，保存路径: {save_path}")
+    results = await delegate_task(
+        tasks=[task],
+        wait_all=True, timeout=timeout,
+        max_concurrent=1, websocket=websocket,
+        profile_name="hourong",
+    )
+
+    result = results[0] if results else ""
+    if result.startswith("[子Agent"):
+        logger.error(f"hourong子agent调用失败: {result}")
+        await websocket.send_json({"type": "progress", "content": f"\n⚠️ hourong子agent调用失败: {result}\n"})
         return ""
-    reply = "".join(collected).strip()
-    logger.info(f"hourong reply (first 500 chars): {reply[:500]}")
-    import tempfile, os
-    filepath = os.path.join(tempfile.gettempdir(), f"hourong_{os.urandom(4).hex()}.json")
-    with open(filepath, "w", encoding="utf-8") as f:
-        f.write(reply)
-    await websocket.send_json({"type": "progress", "content": filepath})
-    return reply
+
+    if result and os.path.exists(result):
+        try:
+            with open(result, "r", encoding="utf-8") as f:
+                report_content = f.read()
+            try:
+                parsed = json.loads(report_content)
+            except json.JSONDecodeError:
+                from .step3_qa_1 import _fix_json_llm
+                fixed = _fix_json_llm(report_content)
+                try:
+                    parsed = json.loads(fixed)
+                    with open(result, "w", encoding="utf-8") as f:
+                        f.write(fixed)
+                    report_content = fixed
+                    logger.info(f"hourong 子agent报告通过JSON修复成功: {result}")
+                except json.JSONDecodeError:
+                    logger.warning(f"hourong 子Agent JSON 修复失败，返回空触发调用方重试: {result}")
+                    await websocket.send_json({"type": "progress", "content": f"\n⚠️ hourong子Agent返回内容无法解析为JSON，要求重新输出\n"})
+                    return ""
+            if not isinstance(parsed, dict) or not any(k in parsed for k in ("维度", "report_type", "判定结果", "评定", "dimension_key", "dimension_label")):
+                logger.warning(f"hourong 子agent返回的报告缺少必要字段: {result}")
+                await websocket.send_json({"type": "progress", "content": f"\n⚠️ hourong 子agent返回的JSON缺少必要字段，要求重新输出\n"})
+                return ""
+            logger.info(f"hourong 子agent检验报告已保存: {result}")
+            await websocket.send_json({"type": "progress", "content": result})
+            return result
+        except (json.JSONDecodeError, Exception) as e:
+            logger.error(f"hourong 子agent返回的报告不是合法JSON: {result}, {e}")
+            snippet = report_content[:300] if isinstance(report_content, str) else str(e)
+            logger.warning(f"hourong 子agent报告内容(前300): {repr(snippet)}")
+            await websocket.send_json({"type": "progress", "content": f"\n⚠️ hourong 子agent返回的报告不是合法JSON，要求重新输出\n"})
+            return ""
+
+    logger.warning(f"hourong 子agent返回路径无效: {result}")
+    return ""
+
+
+def _load_qa_report(report_path: str) -> dict:
+    if not report_path or not os.path.exists(report_path):
+        logger.warning(f"检验报告文件不存在: {report_path}")
+        return {}
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            data = _json.loads(f.read())
+        if isinstance(data, dict):
+            return data
+        if isinstance(data, list):
+            return {"results": data}
+        return {}
+    except Exception as e:
+        logger.warning(f"读取检验报告失败: {report_path}, {e}")
+        return {}
+
+
+def _report_to_result(report: dict, dim_key: str = "", dim_label: str = "") -> dict:
+    if not report:
+        return {}
+    score = report.get("得分") or report.get("score") or 0
+    passed_str = report.get("判定结果") or report.get("passed", True)
+    if isinstance(passed_str, str):
+        passed = passed_str in ("通过", "合格")
+    else:
+        passed = bool(passed_str)
+    return {
+        "key": report.get("dimension_key") or report.get("维度") or dim_key,
+        "label": report.get("dimension_label") or report.get("维度") or dim_label,
+        "score": int(score),
+        "passed": passed,
+        "detail": report.get("summary") or report.get("detail") or "",
+        "deduction": "" if passed else f"得分{score}，满分100，扣{100 - int(score)}分",
+    }
+
+
+async def _inspect_via_subagent(
+    prompt: str,
+    save_dir: str = "",
+    max_retries: int = 3,
+) -> str:
+    """通过 delegate_task 子 agent 调用 hourong 检验，返回原始响应文本。
+
+    所有 workflow 中的 _inspect_* 函数统一使用此接口替代直接 GatewayClient 调用。
+    save_dir 指定检验报告保存目录（应指向项目 qa_reports 目录），
+    子 agent 返回报告文件的完整路径，调用方可通过该路径追踪检验记录。
+    """
+    from .step3_qa_1 import delegate_task
+    import os, json, tempfile, asyncio
+
+    if not save_dir:
+        save_dir = tempfile.gettempdir()
+    os.makedirs(save_dir, exist_ok=True)
+
+    last_result = ""
+    for attempt in range(1, max_retries + 1):
+        report_path = os.path.join(save_dir, f"hourong_subagent_{os.urandom(4).hex()}.json")
+        task = json.dumps({"save_path": report_path, "task": prompt}, ensure_ascii=False)
+
+        results = await delegate_task(
+            tasks=[task],
+            wait_all=True, timeout=180,
+            max_concurrent=1,
+            profile_name="hourong",
+        )
+
+        result = results[0] if results else ""
+        last_result = result
+
+        if result and not result.startswith("[子Agent"):
+            # result 应为报告文件的完整路径，等待文件就绪后读取
+            file_path = result.strip()
+            for _ in range(5):
+                if os.path.exists(file_path):
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            content = f.read().strip()
+                        if content and len(content) > 10:
+                            logger.info(f"hourong检验报告已保存到: {file_path}")
+                            return content
+                    except Exception:
+                        pass
+                await asyncio.sleep(0.5)
+
+        if attempt >= max_retries:
+            logger.error(f"hourong子agent检验失败({max_retries}次): {last_result}")
+            return ""
+
+    return ""
 
 
 SUB_STEPS = [
@@ -464,7 +620,7 @@ async def _save_final_and_advance(
                 for r in all_results:
                     key = r.get("key", "")
                     label = next((s["label"] for s in SUB_STEPS if s["key"] == key), key)
-                    score = r.get("score", 100)
+                    score = r.get("score", 0)
                     detail = (r.get("detail", "") or "")[:200]
                     handover_lines.append(f"- ✅ {label}（得分:{score}）: {detail}")
                 handover_lines.append(
@@ -501,21 +657,12 @@ async def _save_final_and_advance(
                 "handover_path": handover_path,
                 "handover_doc": handover_content,
                 "qa_inspections": all_results,
+                "qa_passed": True,
                 "qa_checked": True,
                 "qa_sub_steps": [s["key"] for s in SUB_STEPS],
             }
             engine.complete_step(3, artifacts=artifacts_payload)
             engine.pass_qa(3)
-            engine.save_step3_artifacts({
-                "doc_content": current_content,
-                "srs": current_content,
-                "doc_path": save_path,
-                "handover_path": handover_path,
-                "handover_doc": handover_content,
-                "qa_passed": True,
-                "qa_checked": True,
-                "qa_sub_steps": [s["key"] for s in SUB_STEPS],
-            })
             await websocket.send_json({
                 "type": "progress",
                 "content": f"\n  全部检验通过！步骤已推进至第4步（后旺架构设计）\n"
@@ -587,16 +734,42 @@ async def _run_qa_loop(
             "content": f"\n ⏩ 检测到断点，从子步骤{resume_step + 1}恢复（已完成{resume_step}个步骤）\n"
         })
 
+    # 根据 all_results 双重保护：已完成且通过的子步骤绝不重跑
+    passed_step_keys = {r["key"] for r in all_results if r.get("passed", False)}
+
+    # 如果全部4个子步骤已通过，禁止重新检验，直接推进
+    if len(passed_step_keys) >= len(SUB_STEPS):
+        await websocket.send_json({
+            "type": "progress",
+            "content": "\n ✅ 全部4个子步骤已通过，跳过重复检验，直接推进到第4步\n"
+        })
+        _clear_qa_checkpoint(project_id, db)
+        await _save_final_and_advance(websocket, current_content, project_slug, project_docs_dir, project_id, db, all_results)
+        await websocket.close()
+        return
+
     for idx, sub_step in enumerate(SUB_STEPS):
         if idx < resume_step:
             continue
 
+        sk = sub_step["key"]
+        if sk in passed_step_keys:
+            await websocket.send_json({
+                "type": "progress",
+                "content": f"\n ⏭️ 子步骤{sub_step['step']}【{sub_step['label']}】已在之前通过，跳过\n"
+            })
+            continue
+
         if project_id and db:
+            # 保存当前进度到断点，但绝不回退 step 值（防止后续 WS 重建覆盖更高进度）
+            check_cp = _load_qa_checkpoint(project_id, db) if project_id and db else {}
+            existing_step = check_cp.get("step", 0)
+            save_step = max(idx, existing_step) if existing_step > idx else idx
             _save_qa_checkpoint(
                 project_id, db,
-                step=idx, attempt=1,
-                results=all_results,
-                content=current_content,
+                step=save_step, attempt=1,
+                results=all_results if all_results else check_cp.get("results", []),
+                content=current_content or check_cp.get("content", ""),
             )
 
         await websocket.send_json({
@@ -627,6 +800,28 @@ async def _run_qa_loop(
             })
             await websocket.close()
             return
+
+        # 通过后立即保存状态，确保不会再回到本子步骤
+        if project_id and db:
+            cp_ok = _save_qa_checkpoint(
+                project_id, db,
+                step=idx + 1, attempt=1,
+                results=all_results,
+                content=current_content,
+            )
+            if not cp_ok:
+                logger.error(f"子步骤{idx+1}【{sub_step['label']}】通过后状态保存失败，流程终止")
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"子步骤{idx+1}【{sub_step['label']}】已通过，但状态保存失败，无法继续推进。请检查数据库状态后重试。"
+                })
+                await websocket.close()
+                return
+            passed_step_keys.add(sk)
+            await websocket.send_json({
+                "type": "progress",
+                "content": f"\n ✅ 子步骤{idx+1}【{sub_step['label']}】已通过，状态已保存，推进到下一步\n"
+            })
 
     _clear_qa_checkpoint(project_id, db)
     await _save_final_and_advance(

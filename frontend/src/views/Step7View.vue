@@ -63,6 +63,15 @@
         @close="backendError = ''"
       />
 
+      <!-- TDD计划预览 -->
+      <div v-if="tddPlan" class="step7-view__tdd-plan">
+        <el-collapse>
+          <el-collapse-item title="📄 TDD计划文档" name="tdd-plan">
+            <pre class="step7-view__tdd-plan-content">{{ tddPlan }}</pre>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+
       <div class="step7-view__body">
         <!-- Left: Agent Grid -->
         <div class="step7-view__main">
@@ -327,6 +336,7 @@ const stuckWarning = ref('')
 const backendError = ref('')
 const restarting = ref(false)
 const tddCases = ref('')
+const tddPlan = ref('')
 const activeDocTab = ref('cases')
 const spotCheckTotal = ref(0)
 const spotCheckFailures = ref(0)
@@ -433,6 +443,16 @@ function extractBracketName(msg: string): string | null {
 }
 
 function parseStep7Message(msg: { type: string; message?: string; content?: string; prompt?: string; agent?: string; subtask?: string; role?: string; response?: string; subtask_names?: string[] }) {
+  // ── TDD计划内容 ──
+  if (msg.type === 'tdd_plan' && msg.content) {
+    tddPlan.value = msg.content
+    if (msg.message) {
+      streamStatus.value = msg.message
+      stageLog.value.push({ type: 'progress', message: msg.message })
+    }
+    return
+  }
+
   // ── Agent响应消息（无txt） ──
   if (msg.type === 'agent_response' && msg.subtask && msg.role) {
     const task = Object.values(taskStates.value).find(t => t.name === msg.subtask)
@@ -885,6 +905,16 @@ onUnmounted(() => {
       h2 { margin: 0; font-size: 18px; font-weight: 600; }
     }
     &-status { font-size: 14px; color: #e6a23c; font-weight: 500; margin: 4px 0 0 !important; }
+  }
+
+  &__tdd-plan {
+    margin-bottom: 16px;
+    .el-collapse { border-radius: 8px; border: 1px solid #e4e7ed; }
+    &-content {
+      font-size: 13px; line-height: 1.6; max-height: 400px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all; background: #fafafa;
+      padding: 12px; border-radius: 4px; margin: 0;
+    }
   }
 
   &__body {

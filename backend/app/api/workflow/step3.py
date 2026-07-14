@@ -95,6 +95,7 @@ async def step3_chat(project_id: str, body: Step3ChatRequest,
             "last_activity_at": datetime.now(timezone.utc).isoformat(),
         })
 
+        project_slug = project.slug if project.slug else project_id
         client = GatewayClient(profile_name="houxing", timeout=1200)
         reply_chunks = []
         async for chunk in client.chat_isolated(
@@ -105,6 +106,7 @@ async def step3_chat(project_id: str, body: Step3ChatRequest,
             core_goal=core_goal,
             agent_name="后兴（HouXing）需求分析师",
             stream=False,
+            project_slug=project_slug,
         ):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
@@ -133,8 +135,12 @@ def save_step3_doc(project_id: str, body: Step3InspectRequest,
     """将需求文档保存到指定文件夹和项目代码库"""
     from datetime import datetime
 
-    # 保存到指定路径
-    local_dir = body.save_path or os.path.join(os.getcwd(), "docs")
+    # 保存到指定路径（默认使用配置文件中的工作文件夹）
+    from app.models.project import Project
+    _proj = db.query(Project).filter(Project.id == project_id).first()
+    _slug = _proj.slug if _proj and _proj.slug else project_id
+    _default_dir = os.path.join(settings.PROJECTS_BASE_DIR, _slug, "docs")
+    local_dir = body.save_path or _default_dir
     os.makedirs(local_dir, exist_ok=True)
     local_filename = body.filename or f"requirements-{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
     local_path = os.path.join(local_dir, local_filename)
@@ -212,7 +218,7 @@ async def inspect_step3_srs(project_id: str, body: Step3InspectRequest,
             ],
         })
 
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     import json as _json
 
     # 确定本次要检验的维度
@@ -252,41 +258,16 @@ async def inspect_step3_srs(project_id: str, body: Step3InspectRequest,
         ) + "\n]"
     )
 
-    INSPECT_TIMEOUT = 120  # 硬限制2分钟
     try:
-        client = GatewayClient(profile_name="hourong", timeout=INSPECT_TIMEOUT)
-
-        async def _collect():
-            chunks = []
-            async for chunk in client.chat_completions(
-                messages=[{"role": "user", "content": prompt}],
-                stream=False,
-                max_tokens=2000,
-            ):
-                chunks.append(chunk)
-            return "".join(chunks).strip()
-
-        reply = await asyncio.wait_for(_collect(), timeout=INSPECT_TIMEOUT)
+        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
 
         if not reply:
             raise ValueError("后荣未返回检验结果（空响应）")
         parsed_list = _json.loads(reply)
         if not isinstance(parsed_list, list):
             raise ValueError("返回结果不是数组")
-    except asyncio.TimeoutError:
-        logger.error(f"后荣检验需求文档超时（{INSPECT_TIMEOUT}s）")
-        return APIResponse(code=0, data={
-            "passed": False,
-            "message": f"检验超时（超过{INSPECT_TIMEOUT//60}分钟），请简化需求文档后重试",
-            "dimensions": [
-                {"key": d["key"], "label": d["label"], "description": d["description"],
-                 "passed": False, "detail": "检验超时，请简化文档后重试"}
-                for d in active_dims
-            ],
-        })
     except Exception as e:
         logger.error(f"后荣检验需求文档失败: {e}")
-        logger.error(f"后荣原始回复: {reply if 'reply' in dir() else 'N/A'}")
         return APIResponse(code=0, data={
             "passed": False,
             "message": "后荣检验过程出错，请重试",

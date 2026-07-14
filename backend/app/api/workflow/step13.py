@@ -23,7 +23,7 @@ async def step13_chat(project_id: str, body: Step13ChatRequest,
         messages = body.messages + [{"role": "user", "content": body.message}]
         client = GatewayClient(profile_name="houfu", timeout=1200)
         reply_chunks = []
-        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name, project_description=project.description or "", core_goal=core_goal, agent_name="后富（HouFu）CI/CD工程师", stream=False):
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name, project_description=project.description or "", core_goal=core_goal, agent_name="后富（HouFu）CI/CD工程师", stream=False, project_slug=project.slug if project.slug else project_id):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
         if not reply or len(reply.strip()) < 5:
@@ -38,7 +38,7 @@ async def step13_chat(project_id: str, body: Step13ChatRequest,
 
 async def _inspect_deploy_prod(project_id: str, doc_path: str, project_name: str = "", project_description: str = "", core_goal: str = "", agent_label: str = "", max_retries: int = 3, failed_keys: list = None) -> dict:
     import json as _json, asyncio as _asyncio
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from app.api.ws.step4_progress import broadcast
     active_dims = [d for d in DEPLOY_PROD_DIMENSIONS if not failed_keys or d["key"] in failed_keys]
     dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in active_dims])
@@ -48,11 +48,7 @@ async def _inspect_deploy_prod(project_id: str, doc_path: str, project_name: str
             await broadcast(project_id, {"type": "step13", "message": f"🔄 hourong 第{attempt}次重新检验生产部署..."})
         focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项（上一轮不合格项）：{[d['label'] for d in active_dims]}\n请只针对这些项目做出通过/不通过判定，禁止扩大检验范围。" if failed_keys else ""
         insp_prompt = f"你是一个专业的部署QA检验员（后荣）。请严格检验以下生产环境部署报告。\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n评分规则：每个检验维起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims)
-        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-        qa_chunks = []
-        async for chunk in qa_cli.chat_isolated(messages=[{"role": "user", "content": insp_prompt}], project_id=project_id, project_name=project_name, project_description=project_description, core_goal=core_goal, agent_name=agent_label or "后荣-生产部署QA检验员", stream=True, max_tokens=8192):
-            qa_chunks.append(chunk)
-        qa_r = "".join(qa_chunks).strip()
+        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=max_retries)
         if not qa_r:
             if attempt < max_retries:
                 await broadcast(project_id, {"type": "step13", "message": f"⚠️ hourong 未返回，重试（第{attempt}次）"})
@@ -160,9 +156,10 @@ async def execute_step13_async(project_id: str, db: Session = Depends(get_db), c
                         + (f"=== 上次检验未通过项 ===\n{feedback}\n只针对不合格项修改，不要扩大修改范围。\n\n" if feedback else "")
                         + f"请将部署报告保存到：{gen_path}\n要求：1.准备生产环境 2.零停机部署策略\n3.配置生产环境变量和数据库 4.灰度发布和验证\n5.输出部署日志和回滚方案\n不要输出推理过程。"
                     )
+                    from app.services.gateway_client import GatewayClient
                     client = GatewayClient(profile_name="houfu", timeout=3600)
                     chunks = []
-                    async for chunk in client.chat_isolated(messages=[{"role": "user", "content": prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="后富（HouFu）-生产环境部署", stream=True, max_tokens=64000):
+                    async for chunk in client.chat_isolated(messages=[{"role": "user", "content": prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="后富（HouFu）-生产环境部署", stream=True, max_tokens=64000, project_slug=slug):
                         if chunk.strip():
                             chunks.append(chunk)
                             await broadcast(project_id, {"type": "step13", "content": chunk})
@@ -234,7 +231,7 @@ def save_step13_artifacts_route(project_id: str, body: dict = Body(...), db: Ses
 
 @router.post("/{project_id}/step13/inspect")
 async def inspect_step13(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     import json as _json
     content, focus_items = body.content, body.focus_items
     if not content or len(content.strip()) < 20:
@@ -246,11 +243,7 @@ async def inspect_step13(project_id: str, body: Step3InspectRequest, db: Session
     scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
     prompt = f"你是一个专业的部署QA检验员（后荣）。\n\n=== 部署报告 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
-        client = GatewayClient(profile_name="hourong", timeout=120)
-        chunks = []
-        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
-            chunks.append(chunk)
-        reply = "".join(chunks).strip()
+        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
         if not reply:
             raise ValueError("后荣未返回")
         parsed = _json.loads(reply)

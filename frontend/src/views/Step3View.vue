@@ -19,7 +19,7 @@
         :key="p.key"
         class="step3-view__progress-step"
         :class="{
-          'step3-view__progress-step--active': p.key === currentPhase,
+          'step3-view__progress-step--active': p.key === innerPhase,
           'step3-view__progress-step--done': phaseIndex > i,
         }"
       >
@@ -31,9 +31,33 @@
       </div>
     </div>
 
+    <!-- 上传文档提示 -->
+    <div v-if="innerPhase === 'upload'" class="step3-view__upload-prompt">
+      <el-alert title="请先上传相关参考文档" type="info" show-icon :closable="false">
+        <template #default>
+          <p style="margin:0 0 12px">开始需求分析前，请先上传项目相关的参考文档（业务说明、技术文档、竞品分析等）。上传完成后点击"开始生成问卷"。</p>
+          <el-upload
+            :show-file-list="false"
+            :before-upload="handleUploadFile"
+            accept=".txt,.md,.pdf,.doc,.docx,.xls,.xlsx,.csv,.json,.xml,.html"
+          >
+            <el-button type="primary" :icon="Upload">上传参考文档</el-button>
+          </el-upload>
+          <div v-if="refFiles.length > 0" style="margin-top:12px">
+            <el-tag v-for="(rf, i) in refFiles" :key="i" closable :disable-transitions size="small" type="info" @close="removeRefFile(i)" style="margin:0 4px 4px 0">
+              📎 {{ rf.name }}
+            </el-tag>
+          </div>
+          <el-button v-if="refFiles.length > 0 && !questionnaireSubmitted" type="primary" style="margin-top:12px" @click="startGenerateQuestionnaire" :disabled="chatLoading">
+            🧠 开始生成问卷
+          </el-button>
+        </template>
+      </el-alert>
+    </div>
+
     <el-alert v-if="store.error" :title="store.error" type="error" show-icon closable class="step3-view__alert" />
 
-    <div v-if="currentPhase === 'discuss'" class="step3-view__chat-section">
+    <div v-if="innerPhase !== 'qa' && innerPhase !== 'upload'" class="step3-view__chat-section">
       <!-- 左侧：对话框（问卷、SRS生成、修改讨论都在这里） -->
       <div class="step3-view__chat-panel">
         <div class="step3-view__panel-header">
@@ -43,25 +67,23 @@
           </h3>
           <div class="step3-view__panel-actions">
             <el-tag v-if="srsGenerating" type="warning" size="small" effect="plain">📄 生成SRS中...</el-tag>
-            <el-tag v-else-if="questionnaireReady && !srsDone" type="primary" size="small" effect="plain">🧠 {{ totalQuestions }} 题</el-tag>
+            <el-tag v-else-if="questionnaireReady && !srsDone" type="primary" size="small" effect="plain">🧠 {{ questions.length || totalQuestions }} 题</el-tag>
             <el-tag v-else-if="srsDone" type="success" size="small" effect="plain">✅ SRS已生成</el-tag>
             <el-tag v-else type="info" size="small" effect="plain">{{ wsStatus }}</el-tag>
-            <el-button v-if="!questionnaireReady && !srsDone && !chatLoading" size="small" type="primary" plain @click="retryQuestionnaire">生成问卷</el-button>
+            <el-button v-if="!questionnaireSubmitted && !questionnaireReady && !srsDone && !chatLoading" size="small" type="primary" plain @click="startGenerateQuestionnaire">生成问卷</el-button>
           </div>
         </div>
 
         <div class="step3-view__chat" ref="chatRef">
           <!-- 加载中 -->
-          <div v-if="chatMessages.length === 0 && !chatLoading && !questionnaireReady && !srsDone" class="step3-view__chat-empty">
-            <div class="step3-view__empty-icon">📋</div>
-            <p>后兴正在为您生成需求调研问卷...</p>
-            <el-progress :percentage="100" :stroke-width="4" :show-text="false" :status="'warning'" indeterminate />
+          <div v-if="questionnaireGenerating && !questionnaireReady" class="step3-view__chat-empty">
+            <div class="step3-view__empty-icon">🧠</div>
+            <p>后兴正在使用头脑风暴法生成需求调研问卷...</p>
+            <el-progress :percentage="100" :stroke-width="6" :show-text="false" status="warning" indeterminate />
           </div>
-          <!-- 超时重试 -->
-          <div v-if="!questionnaireReady && !srsDone && chatLoading && showRetry" class="step3-view__chat-empty">
-            <div class="step3-view__empty-icon">⏱️</div>
-            <p>生成问卷耗时较长，请稍候...</p>
-            <el-button size="small" @click="retryQuestionnaire">重新生成</el-button>
+          <div v-else-if="chatMessages.length === 0 && !chatLoading && !questionnaireReady && !srsDone && docsUploaded" class="step3-view__chat-empty">
+            <div class="step3-view__empty-icon">📋</div>
+            <p>正在准备生成问卷...</p>
           </div>
 
           <!-- 消息列表：问卷 + 对话 -->
@@ -78,8 +100,11 @@
                 <span v-if="msg.started_at">{{ msg.started_at }}</span>
                 <span v-if="msg.started_at && msg.ended_at && msg.started_at !== msg.ended_at"> ~ {{ msg.ended_at }}</span>
               </div>
-              <!-- 如果是问卷消息，直接渲染HTML表单（不经过renderContent） -->
-              <div v-if="msg.isForm" v-html="msg.content" class="step3-view__form-content"></div>
+              <!-- 如果是问卷消息，逐题显示 -->
+              <div v-if="msg.isForm" class="step3-view__form-wrap">
+                <div v-if="questions.length > 1" class="step3-view__question-indicator">{{ currentQIndex + 1 }} / {{ questions.length }}</div>
+                <div v-html="currentQuestionHtml" class="step3-view__form-content"></div>
+              </div>
               <!-- 普通消息 -->
               <div v-else v-html="renderContent(msg.content)"></div>
             </div>
@@ -94,7 +119,7 @@
           <div v-if="chatLoading && !srsGenerating" class="step3-view__chat-msg houxing">
             <div class="step3-view__chat-avatar">📋</div>
             <div class="step3-view__chat-bubble step3-view__chat-thinking">
-              <span class="dot-pulse">后兴正在处理您的请求<span>.</span><span>.</span><span>.</span></span>
+              <span class="dot-pulse">{{ questionnaireGenerating ? '后兴正在使用头脑风暴法生成问卷' : '后兴正在处理您的请求' }}<span>.</span><span>.</span><span>.</span></span>
             </div>
           </div>
           <!-- 错误提示 -->
@@ -102,16 +127,32 @@
             <div class="step3-view__chat-avatar">⚠️</div>
             <div class="step3-view__chat-bubble" style="color:#e6a23c;border-color:#e6a23c;">
               <p>❌ {{ chatError }}</p>
-              <el-button size="small" type="warning" @click="chatError='';retryQuestionnaire()">重试</el-button>
+              <el-button size="small" type="warning" @click="chatError=''; questionnaireSubmitted ? retrySrsGeneration() : retryQuestionnaire()">
+                {{ questionnaireSubmitted ? '重新生成SRS文档' : '重试' }}
+              </el-button>
+            </div>
+          </div>
+
+          <!-- SRS 生成失败重试横幅 -->
+          <div v-if="questionnaireSubmitted && !srsDone && !srsGenerating && !chatError" class="step3-view__chat-msg system">
+            <div class="step3-view__chat-avatar">⚠️</div>
+            <div class="step3-view__chat-bubble" style="color:#e6a23c;border-color:#e6a23c;">
+              <p>❌ SRS 需求文档生成失败</p>
+              <el-button size="small" type="warning" @click="retrySrsGeneration()">重新生成SRS文档</el-button>
             </div>
           </div>
         </div>
 
-        <!-- 问卷提交按钮：显示在问卷消息下方 -->
-        <div v-if="questionnaireReady && !srsGenerating && !srsDone" class="step3-view__questionnaire-actions">
-          <el-button type="primary" size="large" @click="handleSubmitAnswers" :disabled="chatLoading" class="step3-view__action-btn">
-            ✅ 提交答案
-          </el-button>
+        <!-- 问卷导航：逐题作答 -->
+        <div v-if="questionnaireReady && !srsGenerating && !srsDone && questions.length > 0" class="step3-view__questionnaire-actions">
+          <div class="step3-view__question-nav">
+            <el-button v-if="currentQIndex > 0" @click="prevQuestion" :disabled="chatLoading">上一题</el-button>
+            <span class="step3-view__question-counter">{{ currentQIndex + 1 }} / {{ questions.length }}</span>
+            <el-button v-if="currentQIndex < questions.length - 1" type="primary" @click="nextQuestion" :disabled="chatLoading">下一题</el-button>
+            <el-button v-else type="primary" size="large" @click="handleSubmitAnswers" :disabled="chatLoading" class="step3-view__action-btn">
+              ✅ 提交答案
+            </el-button>
+          </div>
         </div>
 
       </div>
@@ -135,23 +176,17 @@
             <div class="step3-view__shard-index-table">
               <div class="step3-view__shard-index-row step3-view__shard-index-row--header">
                 <span class="step3-view__shard-index-col-idx">#</span>
-                <span class="step3-view__shard-index-col-key">分片名</span>
                 <span class="step3-view__shard-index-col-path">文件路径</span>
-                <span class="step3-view__shard-index-col-status">状态</span>
               </div>
               <div
                 v-for="(shard, i) in shardIndex"
                 :key="shard.key"
                 class="step3-view__shard-index-row"
+                style="cursor:pointer"
+                @click="previewShard(shard)"
               >
                 <span class="step3-view__shard-index-col-idx">{{ i + 1 }}</span>
-                <span class="step3-view__shard-index-col-key" @click="previewShard(shard)" style="cursor:pointer;color:var(--el-color-primary);text-decoration:underline;">{{ shard.key }}</span>
-                <span class="step3-view__shard-index-col-path">{{ shard.path }}</span>
-                <span class="step3-view__shard-index-col-status">
-                  <el-tag :type="shard.has_content ? 'success' : 'danger'" size="small">
-                    {{ shard.has_content ? '已生成' : '空' }}
-                  </el-tag>
-                </span>
+                <span class="step3-view__shard-index-col-path step3-view__shard-index-col-path--clickable">{{ shard.path }}</span>
               </div>
             </div>
             <div v-if="shardIndexContent" class="step3-view__shard-index-preview">
@@ -165,20 +200,34 @@
         </div>
         <div class="step3-view__summary-actions">
           <el-button
-            v-if="srsDone"
+            v-if="srsDone && !qaResult"
             type="primary"
             size="large"
-            @click="handleFinishDiscuss"
+            @click="handleRequestQA"
+            :loading="qaInProgress"
             class="step3-view__action-btn"
           >
-            下一步：提交QA检验
+            🔍 提交QA检验
           </el-button>
+          <div v-if="qaResult" class="step3-view__qa-result">
+            <el-alert
+              :title="qaResult.passed ? '✅ QA检验通过' : '❌ QA检验未通过'"
+              :type="qaResult.passed ? 'success' : 'error'"
+              show-icon
+              :closable="false"
+            >
+              <template #default>
+                <p>平均得分: {{ qaResult.avg_score?.toFixed(1) }}</p>
+                <p>{{ qaResult.message }}</p>
+              </template>
+            </el-alert>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- 底部输入框：内联在 chat-section 中，不用 Teleport 避免影响 app-main 布局 -->
-    <div v-if="currentPhase === 'discuss' && !srsGenerating" class="step3-chat-input">
+    <div v-if="innerPhase !== 'qa' && innerPhase !== 'upload' && !srsGenerating" class="step3-chat-input">
       <div class="step3-chat-input__refs" v-if="refFiles.length > 0">
         <el-tag v-for="(rf, i) in refFiles" :key="i" closable :disable-transitions size="small" type="info" @close="removeRefFile(i)">
           📎 {{ rf.name }}
@@ -216,74 +265,48 @@
       </div>
     </div>
 
-    <div v-if="currentPhase === 'submit'" class="step3-view__submit-section">
+    <div v-if="innerPhase === 'qa'" class="step3-view__submit-section">
       <div class="step3-view__submit-card">
         <div class="step3-view__submit-header">
-          <div class="step3-view__submit-icon">📄</div>
-          <h2>提交需求文档</h2>
+          <div class="step3-view__submit-icon">🔍</div>
+          <h2>QA 检验结果</h2>
         </div>
-        <p class="step3-view__submit-subtitle">SRS 已按章节分片保存，确认后提交给后荣审查</p>
+        <p class="step3-view__submit-subtitle">后荣已对 SRS 需求文档完成质量检验</p>
 
-        <div class="step3-view__submit-preview">
-          <!-- 分片索引表 -->
-          <div v-if="shardIndex.length > 0" class="step3-view__shard-index">
-            <div class="step3-view__shard-index-header">
-              <span>📋 SRS 分片索引表（共 {{ shardIndex.length }} 个分片）</span>
-            </div>
-            <div class="step3-view__shard-index-table">
-              <div class="step3-view__shard-index-row step3-view__shard-index-row--header">
-                <span class="step3-view__shard-index-col-idx">#</span>
-                <span class="step3-view__shard-index-col-key">分片名</span>
-                <span class="step3-view__shard-index-col-path">文件路径</span>
-                <span class="step3-view__shard-index-col-status">状态</span>
-              </div>
-              <div
-                v-for="(shard, i) in shardIndex"
-                :key="shard.key"
-                class="step3-view__shard-index-row"
-              >
-                <span class="step3-view__shard-index-col-idx">{{ i + 1 }}</span>
-                <span class="step3-view__shard-index-col-key" @click="previewShard(shard)" style="cursor:pointer;color:var(--el-color-primary);text-decoration:underline;">{{ shard.key }}</span>
-                <span class="step3-view__shard-index-col-path">{{ shard.path }}</span>
-                <span class="step3-view__shard-index-col-status">
-                  <el-tag :type="shard.has_content ? 'success' : 'danger'" size="small">
-                    {{ shard.has_content ? '已生成' : '空' }}
-                  </el-tag>
-                </span>
-              </div>
-            </div>
-            <div v-if="shardIndexContent" class="step3-view__shard-index-preview">
-              <pre>{{ shardIndexContent }}</pre>
-            </div>
-          </div>
-
-          <div v-else class="step3-view__doc-list">
-            <div
-              v-for="doc in extractedDocs"
-              :key="doc.id"
-              class="step3-view__doc-list-item"
-              :class="{ 'step3-view__doc-list-item--selected': doc.selected }"
-              @click="toggleDocSelection(doc.id)"
-            >
-              <el-checkbox :model-value="doc.selected" @click.stop="toggleDocSelection(doc.id)" />
-              <div class="step3-view__doc-list-item-name" @click.stop="previewDoc(doc)">{{ doc.name }}</div>
-              <el-icon><View /></el-icon>
-            </div>
-          </div>
-        </div>
-
-        <div class="step3-view__submit-actions">
-          <el-button
-            size="large"
-            :disabled="workflowStep3Status === 'qa_review' || workflowStep3Status === 'completed'"
-            :title="(workflowStep3Status === 'qa_review' || workflowStep3Status === 'completed') ? '项目已进入QA检验阶段，无法返回修改' : ''"
-            @click="backToDiscuss"
+        <div v-if="qaResult" class="step3-view__qa-detail">
+          <el-alert
+            :title="qaResult.passed ? '✅ QA检验通过' : '❌ QA检验未通过'"
+            :type="qaResult.passed ? 'success' : 'error'"
+            show-icon
+            :closable="false"
           >
-            返回修改
-          </el-button>
-          <el-button type="primary" size="large" :loading="submitting" @click="handleSubmitDocToQA">
-            提交分片索引表给后荣检验
-          </el-button>
+            <template #default>
+              <p style="margin:8px 0">平均得分: {{ qaResult.avg_score?.toFixed(1) }}</p>
+              <p style="margin:8px 0">{{ qaResult.message }}</p>
+            </template>
+          </el-alert>
+
+          <div v-if="qaResult.dimensions" class="step3-view__qa-dimensions" style="margin-top:16px">
+            <h4>各维度评分</h4>
+            <div v-for="dim in qaResult.dimensions" :key="dim.key" class="step3-view__qa-dim-item" style="margin:8px 0;padding:8px;border:1px solid #eee;border-radius:4px">
+              <div style="display:flex;justify-content:space-between">
+                <strong>{{ dim.label }}</strong>
+                <el-tag :type="dim.passed ? 'success' : 'danger'" size="small">{{ dim.score }}分</el-tag>
+              </div>
+              <p style="margin:4px 0 0;font-size:13px;color:#666">{{ dim.detail }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="qaInProgress" style="text-align:center;padding:40px">
+          <el-progress :percentage="100" :stroke-width="6" :show-text="false" :status="'warning'" indeterminate />
+          <p style="margin-top:16px">后荣正在进行QA检验...</p>
+        </div>
+
+        <div class="step3-view__submit-actions" style="margin-top:20px">
+          <el-button size="large" @click="backToDiscuss">返回修改</el-button>
+          <el-button v-if="qaResult?.passed" type="success" size="large" @click="handleComplete">✅ 完成第三步</el-button>
+          <el-button v-else-if="qaResult && !qaResult.passed" type="primary" size="large" @click="handleRequestQA">🔄 重新检验</el-button>
         </div>
       </div>
     </div>
@@ -306,132 +329,7 @@
       </template>
     </el-dialog>
 
-    <div v-if="currentPhase === 'qa'" class="step3-view__qa-section">
-      <div class="step3-view__qa-card">
-        <div class="step3-view__qa-header">
-          <div class="step3-view__qa-icon">🔍</div>
-          <h2>后荣（HouRong）· QA 检验（4子步骤）</h2>
-        </div>
-        <p class="step3-view__qa-subtitle">逐项检验需求文档的4个维度，通过后自动推进到下一步</p>
-
-        <!-- 子步骤进度条 -->
-        <div v-if="qaLoading || qaChecked" class="step3-view__sub-step-progress">
-          <div
-            v-for="(ss, i) in QA_SUB_STEPS"
-            :key="ss.key"
-            class="step3-view__sub-step-item"
-            :class="{
-              'step3-view__sub-step-item--done': i < currentSubStep,
-              'step3-view__sub-step-item--active': i === currentSubStep && qaLoading,
-              'step3-view__sub-step-item--pending': i > currentSubStep,
-            }"
-          >
-            <div class="step3-view__sub-step-indicator">
-              <span v-if="i < currentSubStep">✅</span>
-              <span v-else-if="i === currentSubStep && qaLoading">🔍</span>
-              <span v-else>{{ ss.step }}</span>
-            </div>
-            <div class="step3-view__sub-step-label">{{ ss.label }}</div>
-          </div>
-        </div>
-
-        <div v-if="qaLoading" class="step3-view__qa-loading">
-          <el-progress :percentage="qaProgress" :stroke-width="6" :status="qaProgress >= 100 ? 'success' : 'warning'" />
-          <div class="step3-view__qa-stream">
-            <p v-for="(line, i) in qaStreamLines" :key="i" class="step3-view__qa-stream-line">{{ line }}</p>
-            <p v-if="qaStreamBuffer" class="step3-view__qa-stream-line step3-view__qa-stream-line--active">{{ qaStreamBuffer }}<span class="step3-view__qa-cursor">|</span></p>
-          </div>
-        </div>
-
-        <div v-else-if="qaChecked" class="step3-view__qa-dimensions">
-
-          <!-- 子步骤检验结果清单 -->
-          <div class="step3-view__qa-todolist">
-            <div class="step3-view__qa-todolist-header">
-              <div class="step3-view__qa-todolist-title">
-                <span class="step3-view__qa-todolist-icon">📋</span>
-                <span>4子步骤检验报告</span>
-              </div>
-              <el-tag :type="currentSubStep >= 4 ? 'success' : 'warning'" size="small">
-                {{ currentSubStep }}/4 完成
-              </el-tag>
-            </div>
-
-            <div
-              v-for="(ss, idx) in QA_SUB_STEPS"
-              :key="ss.key"
-              class="step3-view__qa-todoitem"
-              :class="{
-                'step3-view__qa-todoitem--done': subStepResults[idx]?.passed,
-                'step3-view__qa-todoitem--failed': subStepResults[idx] && !subStepResults[idx].passed,
-              }"
-            >
-              <div class="step3-view__qa-todoitem-checkbox">
-                <el-checkbox :model-value="!!subStepResults[idx]?.passed" disabled />
-              </div>
-              <div class="step3-view__qa-todoitem-body">
-                <div class="step3-view__qa-todoitem-label">
-                  子步骤{{ ss.step }}：{{ ss.label }}
-                  <el-tag v-if="subStepResults[idx]" :type="subStepResults[idx].passed ? 'success' : 'danger'" size="small" effect="plain" style="margin-left: 8px;">
-                    得分：{{ subStepResults[idx].score }}
-                  </el-tag>
-                </div>
-                <div class="step3-view__qa-todoitem-detail">
-                  {{ subStepResults[idx]?.detail || (idx < currentSubStep ? '检验通过 ✅' : '待检验') }}
-                </div>
-              </div>
-              <div class="step3-view__qa-todoitem-badge">
-                <el-tag v-if="subStepResults[idx]?.passed" type="success" size="small" effect="dark">✅ 通过</el-tag>
-                <el-tag v-else-if="subStepResults[idx] && !subStepResults[idx].passed" type="danger" size="small" effect="dark">❌ 未通过</el-tag>
-                <el-tag v-else-if="idx < currentSubStep" type="success" size="small" effect="dark">✅ 通过</el-tag>
-                <el-tag v-else type="info" size="small" effect="dark">⏳ 待检验</el-tag>
-              </div>
-            </div>
-          </div>
-
-          <el-divider />
-
-          <!-- 最终结果 -->
-          <div class="step3-view__qa-result-area">
-            <div v-if="qaPassed && currentSubStep >= 4" class="step3-view__qa-result step3-view__qa-result--passed">
-              <el-result icon="success" title="全部4个子步骤通过 ✅" sub-title="需求文档已达到验收标准">
-                <template #extra>
-                  <el-button type="primary" @click="handleComplete">进入下一步 ➜</el-button>
-                </template>
-              </el-result>
-            </div>
-            <div v-else-if="qaChecked && !qaLoading && currentSubStep < 4" class="step3-view__qa-result step3-view__qa-result--failed">
-              <el-result icon="error" title="第{{ currentSubStep + 1 }}步未通过" sub-title="请检查后手动修复">
-                <template #extra>
-                  <el-button type="primary" @click="handleRunQA">重新检验</el-button>
-                </template>
-              </el-result>
-            </div>
-          </div>
-        </div>
-
-        <div v-else class="step3-view__qa-waiting">
-          <p class="step3-view__qa-waiting-text">后荣将逐项检验以下4个维度，通过后自动推进：</p>
-          <div class="step3-view__qa-dimension-list">
-            <div v-for="dim in SRS_DIMENSIONS" :key="dim.key" class="step3-view__qa-dimension-item">
-              <span class="step3-view__qa-dimension-item-label">{{ dim.label }}</span>
-              <span class="step3-view__qa-dimension-item-desc">{{ dim.description }}</span>
-            </div>
-          </div>
-          <div v-if="qaHasCheckpoint" style="margin-top: 12px;">
-            <el-alert title="检测到未完成的QA检验" :description="'已检验 ' + currentSubStep + '/4 个子步骤'" type="warning" show-icon :closable="false" style="margin-bottom: 12px;" />
-            <el-button type="warning" size="large" @click="handleRunQA" :loading="qaLoading">
-              ⏩ 从断点继续（子步骤{{ currentSubStep + 1 }}）
-            </el-button>
-          </div>
-          <el-button v-else type="primary" size="large" @click="handleRunQA" :loading="qaLoading">
-            开始 4子步骤 QA 检验
-          </el-button>
-        </div>
-      </div>
-    </div>
-
-    <div v-if="currentPhase === 'complete'" class="step3-view__complete-section">
+    <div v-if="innerPhase === 'complete'" class="step3-view__complete-section">
       <div class="step3-view__complete-card">
         <div class="step3-view__complete-icon">🎉</div>
         <h2>第三步完成！</h2>
@@ -495,19 +393,31 @@ const questionnaireRef = ref<HTMLElement | null>(null)
 const chatMessages = ref<ChatMessage[]>([])
 const chatRound = ref(0)
 const chatLoading = ref(false)
-const currentPhase = ref<'discuss' | 'submit' | 'qa' | 'complete'>('discuss')
+const currentPhase = ref('discuss')
 const docContent = ref('')
-
-// 后端 workflow step3 状态（用于禁止已进入QA阶段后返回讨论页）
-const workflowStep3Status = ref<string>('pending')
 
 // Questionnaire state
 const questionnaireReady = ref(false)
+const questionnaireSubmitted = ref(false)
+const questionnaireGenerating = ref(false)
 const showRetry = ref(false)
 const wsStatus = ref('连接中...')
 const chatError = ref('')
 const refFiles = ref<{ name: string; path?: string; size?: number }[]>([])
 const totalQuestions = ref(0)
+
+// 逐题显示
+const questions = ref<string[]>([])
+const allQids = ref<string[]>([])
+const currentQIndex = ref(0)
+const answers = ref<Record<string, string>>({})
+const lastSubmittedAnswers = ref<Record<string, string>>({})
+let _wrapperStart = ''
+let _wrapperEnd = ''
+const currentQuestionHtml = computed(() => {
+  if (questions.value.length === 0) return ''
+  return _wrapperStart + questions.value[currentQIndex.value] + _wrapperEnd
+})
 const srsGenerating = ref(false)
 const srsDone = ref(false)
 const srsStreamContent = ref('')
@@ -515,59 +425,16 @@ const srsProgress = ref(0)
 const shardIndex = ref<{ key: string; title: string; path: string; summary: string; has_content: boolean }[]>([])
 const shardIndexPath = ref('')
 const shardIndexContent = ref('')
-interface InspectionDimension {
-  key: string
-  label: string
-  description: string
-  passed: boolean
-  detail: string
-}
 
-const SRS_DIMENSIONS = [
-  { key: 'completeness', label: '完整性', description: '需求文档是否覆盖了所有必要的功能和非功能需求' },
-  { key: 'consistency', label: '一致性', description: '文档内容前后是否一致，术语定义是否统一' },
-  { key: 'verifiability', label: '可验证性', description: '每个需求是否可量化、可测试、可验证' },
-  { key: 'unambiguity', label: '无歧义性', description: '需求描述是否清晰明确，不存在二义性理解' },
-]
-
-// QA 4子步骤
-const QA_SUB_STEPS = [
-  { step: 1, key: 'completeness', label: '完整性', desc: '需求文档是否覆盖了所有必要的功能和非功能需求' },
-  { step: 2, key: 'consistency', label: '一致性', desc: '文档内容前后是否一致，术语定义是否统一' },
-  { step: 3, key: 'verifiability', label: '可验证性', desc: '每个需求是否可量化、可测试、可验证' },
-  { step: 4, key: 'unambiguity', label: '无歧义性', desc: '需求描述是否清晰明确，不存在二义性理解' },
-]
-
+const docsUploaded = ref(false)
+const qaInProgress = ref(false)
+const qaResult = ref<any>(null)
 const submitting = ref(false)
 const savedDocPath = ref('')
-const qaLoading = ref(false)
-const qaProgress = ref(0)
-const qaPassed = ref(false)
-const qaChecked = ref(false)
-const qaAutoAdvance = ref(false)
-const qaMessage = ref('')
-const qaDimensions = ref<InspectionDimension[]>([])
-interface TodoItem {
-  key: string
-  label: string
-  detail: string
-  status: 'pending' | 'fixing' | 'verifying' | 'passed' | 'failed'
-}
-const todoItems = ref<TodoItem[]>([])
 const docPreviewVisible = ref(false)
 const shardPreviewVisible = ref(false)
 const shardPreviewContent = ref('')
 const shardPreviewTitle = ref('')
-
-// QA WebSocket 流式检验
-let qaWs: WebSocket | null = null
-const qaStreamText = ref('')
-const qaStreamBuffer = ref('')
-
-// QA 4子步骤状态
-const currentSubStep = ref(0)
-const subStepResults = ref<{ step: number; key: string; label: string; score: number; detail: string; passed: boolean }[]>([])
-const qaHasCheckpoint = ref(false)
 
 interface ExtractedDoc {
   id: number
@@ -589,37 +456,35 @@ let introSent = false
 let autosaveTimer: ReturnType<typeof setInterval> | null = null
 
 const phases = [
-  { key: 'discuss', label: '需求讨论' },
-  { key: 'submit', label: '提交文档' },
+  { key: 'upload', label: '上传文档' },
+  { key: 'questionnaire', label: '填写问卷' },
+  { key: 'srs_ready', label: 'SRS生成' },
   { key: 'qa', label: 'QA检验' },
-  { key: 'complete', label: '完成' },
 ]
 
+const innerPhase = ref<'upload' | 'questionnaire' | 'srs_ready' | 'qa'>('upload')
+
 const phaseIndex = computed(() => {
-  const idx = phases.findIndex(p => p.key === currentPhase.value)
+  const idx = phases.findIndex(p => p.key === innerPhase.value)
   return idx >= 0 ? idx : 0
 })
 
 const phaseLabel = computed(() => {
-  const p = phases.find(p => p.key === currentPhase.value)
-  return p?.label || currentPhase.value
+  const p = phases.find(p => p.key === innerPhase.value)
+  return p?.label || innerPhase.value
 })
 
 const phaseTagType = computed(() => {
   const map: Record<string, string> = {
-    discuss: 'primary',
-    submit: 'warning',
+    upload: 'info',
+    questionnaire: 'primary',
+    srs_ready: 'success',
     qa: 'warning',
-    complete: 'success',
   }
-  return map[currentPhase.value] || 'info'
+  return map[innerPhase.value] || 'info'
 })
 
 
-
-const qaStreamLines = computed(() =>
-  qaStreamText.value.split('\n').filter(l => l.trim())
-)
 
 function getWsUrl(): string {
   const token = localStorage.getItem('access_token') || ''
@@ -639,16 +504,119 @@ function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
   ws = new WebSocket(getWsUrl())
 
-  ws.onmessage = (event) => {
+  ws.onmessage = async (event) => {
     const msg = JSON.parse(event.data)
+
+    if (msg.type === 'status') {
+      docsUploaded.value = msg.data.docs_uploaded
+      questionnaireReady.value = msg.data.questionnaire_generated
+      srsDone.value = msg.data.srs_generated
+      const answersSubmitted = msg.data.answers_submitted
+      if (msg.data.srs_generated) {
+        innerPhase.value = 'srs_ready'
+        questionnaireSubmitted.value = true
+        chatLoading.value = false
+        await refreshShardIndex()
+      } else if (answersSubmitted) {
+        // 问卷已提交：禁止回到问卷环节，显示错误状态
+        innerPhase.value = 'srs_ready'
+        questionnaireSubmitted.value = true
+        questionnaireGenerating.value = false
+        chatLoading.value = false
+        // 不显示问卷 HTML，只提示用户 SRS 生成失败
+        const hasErr = chatMessages.value.some(m => m.isError)
+        if (!hasErr) {
+          chatMessages.value.push({
+            role: 'system',
+            content: '⚠️ 问卷已提交，但 SRS 文档生成失败。请联系管理员。',
+            isError: true,
+          })
+        }
+      } else if (msg.data.questionnaire_generated && msg.data.questionnaire_html) {
+        innerPhase.value = 'questionnaire'
+        questionnaireReady.value = true
+        questionnaireGenerating.value = false
+        totalQuestions.value = msg.data.question_count || 0
+        chatLoading.value = false
+        const hasForm = chatMessages.value.some(m => m.isForm)
+        if (!hasForm) {
+          parseQuestionnaireHtml(msg.data.questionnaire_html)
+          chatMessages.value.push({ role: 'houxing', content: msg.data.questionnaire_html, started_at: nowStr(), isForm: true })
+        }
+      } else if (msg.data.docs_uploaded && !msg.data.questionnaire_generated) {
+        // 已有上传文档且未生成过问卷 → 自动开始生成问卷
+        innerPhase.value = 'questionnaire'
+        questionnaireGenerating.value = true
+        chatLoading.value = true
+        const payload = JSON.stringify({ action: 'generate_questionnaire' })
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(payload)
+        }
+      } else {
+        innerPhase.value = 'upload'
+        chatLoading.value = false
+      }
+      scrollToBottom()
+      return
+    }
+
+    if (msg.type === 'docs_status') {
+      docsUploaded.value = msg.data.uploaded
+      return
+    }
+
+    if (msg.type === 'qa_result') {
+      qaInProgress.value = false
+      qaResult.value = msg.data
+      chatLoading.value = false
+      // QA完成后刷新分片索引表（此时后端已将完整文档拆分为分片）
+      await refreshShardIndex()
+      if (msg.data.passed) {
+        ElMessage.success('✅ QA检验通过!')
+      } else {
+        ElMessage.warning('QA检验未通过，请根据意见修改后重试')
+      }
+      return
+    }
+
+    if (msg.type === 'enter_qa') {
+      qaInProgress.value = false
+      chatLoading.value = false
+      ElMessage.success('正在进入QA检验阶段...')
+      setTimeout(() => {
+        router.push({ name: 'Step3Qa', params: { projectId: projectId.value } })
+      }, 800)
+      return
+    }
+
+    // 子Agent状态更新（SRS生成进度）
+    if (msg.type === 'subagent_status') {
+      chatMessages.value.push({ role: 'houxing', content: msg.data.message, started_at: nowStr() })
+      scrollToBottom()
+      return
+    }
+
+    if (msg.type === 'subagent_progress') {
+      const last = chatMessages.value[chatMessages.value.length - 1]
+      if (last && last.role === 'houxing' && last.content.includes('子Agent')) {
+        last.content = msg.data.message
+        last.ended_at = nowStr()
+      } else {
+        chatMessages.value.push({ role: 'houxing', content: msg.data.message, started_at: nowStr() })
+      }
+      scrollToBottom()
+      return
+    }
 
     if (msg.type === 'questionnaire') {
       console.log('[Step3] 收到问卷:', msg.question_count, '题, HTML长度:', (msg.content || '').length)
       chatError.value = ''
       srsStreamContent.value = ''
       questionnaireReady.value = true
+      questionnaireGenerating.value = false
       totalQuestions.value = msg.question_count || 0
       chatLoading.value = false
+      parseQuestionnaireHtml(msg.content || '')
       const formMsg: any = { role: 'houxing', content: msg.content || '', started_at: nowStr(), isForm: true }
       chatMessages.value.push(formMsg)
       try { localStorage.setItem(`step3_q_${projectId.value}`, '1') } catch {}
@@ -680,11 +648,11 @@ function connectWebSocket() {
         if (line.startsWith('|') && line.includes('---')) { inTable = true; continue }
         if (!inTable || !line.startsWith('|')) continue
         const cols = line.split('|').map(c => c.trim()).filter(Boolean)
-        if (cols.length >= 3) {
+        if (cols.length >= 2) {
           result.push({
             key: cols[0],
-            path: cols[1],
-            summary: cols[2] || '',
+            path: cols.length >= 2 ? cols[1] : '',
+            summary: cols.length >= 3 ? cols[2] || '' : '',
             title: cols[0],
             has_content: true,
           })
@@ -697,32 +665,73 @@ function connectWebSocket() {
       return Object.entries(files).map(([key, path]) => ({ key, title: key, path, summary: '', has_content: true }))
     }
 
-    if (msg.type === 'shards_saved') {
-      const d = msg.data
-      shardIndexPath.value = d.index_path || ''
-      shardIndexContent.value = d.index_content || ''
-      if (d.index_content) {
-        shardIndex.value = parseIndexToShards(d.index_content)
-      } else {
-        shardIndex.value = buildShardIndexFromFiles(d.saved_files || {})
+    async function refreshShardIndex() {
+      try {
+        const res = await workflowApi.getShardIndex(projectId.value, {}) as any
+        const data = res?.data || res
+        if (data?.shards?.length > 0) {
+          shardIndex.value = data.shards.map((s: any) => ({
+            key: s.key,
+            title: s.title || s.key,
+            path: s.path || '',
+            summary: s.summary || '',
+            has_content: s.has_content ?? true,
+          }))
+        }
+        if (data?.index_content) {
+          shardIndexContent.value = data.index_content
+        }
+        if (data?.index_path) {
+          shardIndexPath.value = data.index_path
+        }
+      } catch {
+        // 静默失败，保持现有 shardIndex
       }
+    }
+
+    if (msg.type === 'srs_generated') {
       srsGenerating.value = false
       srsDone.value = true
       srsProgress.value = 100
       chatLoading.value = false
+      innerPhase.value = 'srs_ready'
+      srsStreamContent.value = ''
+      const lastMsg = chatMessages.value[chatMessages.value.length - 1]
+      if (lastMsg && lastMsg.role === 'houxing' && lastMsg.content.includes('正在生成SRS')) {
+        lastMsg.content = '✅ SRS需求文档已由子Agent生成完毕'
+        lastMsg.ended_at = nowStr()
+      }
+      // QA前只显示单个文档路径，不分片
+      shardIndex.value = [{
+        key: 'full',
+        title: '完整SRS文档',
+        path: msg.data.path,
+        summary: '',
+        has_content: true,
+      }]
+      saveChatSession()
+    }
+
+    // 兼容旧版 shards_saved（过渡期保留）
+    if (msg.type === 'shards_saved') {
+      srsGenerating.value = false
+      srsDone.value = true
+      srsProgress.value = 100
+      chatLoading.value = false
+      innerPhase.value = 'srs_ready'
+      srsStreamContent.value = ''
+      const lastMsg = chatMessages.value[chatMessages.value.length - 1]
+      if (lastMsg && lastMsg.role === 'houxing' && lastMsg.content.includes('正在生成SRS')) {
+        lastMsg.content = '✅ SRS需求文档已由子Agent生成完毕'
+        lastMsg.ended_at = nowStr()
+      }
+      await refreshShardIndex()
       saveChatSession()
     }
 
     if (msg.type === 'shards_updated') {
-      const d = msg.data
-      shardIndexPath.value = d.index_path || ''
-      shardIndexContent.value = d.index_content || ''
-      if (d.index_content) {
-        shardIndex.value = parseIndexToShards(d.index_content)
-      } else {
-        shardIndex.value = buildShardIndexFromFiles(d.saved_files || {})
-      }
       chatLoading.value = false
+      await refreshShardIndex()
       saveChatSession()
       ElMessage.success('SRS文档已更新')
     }
@@ -734,6 +743,9 @@ function connectWebSocket() {
       if (srsGenerating.value) {
         srsProgress.value = 95
       }
+      if (srsDone.value) {
+        innerPhase.value = 'srs_ready'
+      }
       saveChatSession()
     }
 
@@ -742,6 +754,7 @@ function connectWebSocket() {
       ElMessage.error(msg.message || '后兴通信失败')
       chatLoading.value = false
       srsGenerating.value = false
+      questionnaireGenerating.value = false
       chatError.value = msg.message || '后兴无响应，请稍后重试'
     }
   }
@@ -768,6 +781,24 @@ function connectWebSocket() {
   }
 }
 
+async function startGenerateQuestionnaire() {
+  if (questionnaireSubmitted.value) {
+    ElMessage.warning('问卷已提交，不可重新生成')
+    return
+  }
+  chatLoading.value = true
+  questionnaireGenerating.value = true
+  innerPhase.value = 'questionnaire'
+  srsStreamContent.value = ''
+  const payload = JSON.stringify({ action: 'generate_questionnaire' })
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(payload)
+  } else {
+    pendingMessages.push(payload)
+    connectWebSocket()
+  }
+}
+
 function sendWsMessage(message: string) {
   const history = chatMessages.value.map(m => ({
     role: m.role === 'houxing' ? 'assistant' : m.role,
@@ -782,26 +813,15 @@ function sendWsMessage(message: string) {
   ws.send(payload)
 }
 
-function getQaWsUrl(): string {
-  const token = localStorage.getItem('access_token') || ''
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${protocol}//${window.location.host}/api/step3/qa/${projectId.value}?token=${token}`
-}
-
 async function saveChatSession() {
   if (!projectId.value) return
   try {
     await workflowApi.saveStep3Artifacts(projectId.value, {
-      chat_messages: chatMessages.value.map(m => ({ role: m.role, content: m.content })),
+      chat_messages: chatMessages.value.map(m => ({ role: m.role, content: m.content, started_at: m.started_at, ended_at: m.ended_at, isForm: m.isForm })),
       chat_round: chatRound.value,
       doc_content: docContent.value,
-      current_phase: currentPhase.value,
+      current_phase: innerPhase.value,
       saved_doc_path: savedDocPath.value,
-      qa_dimensions: qaDimensions.value,
-      qa_passed: qaPassed.value,
-      qa_checked: qaChecked.value,
-      qa_message: qaMessage.value,
-      todo_items: todoItems.value,
       extracted_docs: extractedDocs.value.map(d => ({ id: d.id, name: d.name, content: d.content, selected: d.selected })),
       doc_save_counter: docSaveCounter,
       questionnaire_ready: questionnaireReady.value,
@@ -810,6 +830,7 @@ async function saveChatSession() {
       shard_index: shardIndex.value,
       shard_index_path: shardIndexPath.value,
       shard_index_content: shardIndexContent.value,
+      uploaded_refs: refFiles.value.map(r => ({ name: r.name, path: r.path, size: r.size })),
     })
   } catch {
     // 静默保存失败
@@ -832,26 +853,22 @@ async function restoreChatSession() {
     if (data.doc_content) {
       docContent.value = data.doc_content
     }
-    if (data.current_phase && ['discuss', 'submit', 'qa', 'complete'].includes(data.current_phase)) {
-      currentPhase.value = data.current_phase
+    // 根据SRS状态设置阶段
+    if (data.srs_done) {
+      innerPhase.value = 'srs_ready'
+    } else if (data.chat_checkpoint?.answers_submitted) {
+      // 问卷已提交但SRS未生成（失败状态），禁止回到问卷环节
+      innerPhase.value = 'srs_ready'
+      questionnaireSubmitted.value = true
+    } else if (data.questionnaire_ready || data.questionnaire_html) {
+      innerPhase.value = 'questionnaire'
+    } else if (data.uploaded_refs?.length > 0) {
+      innerPhase.value = 'questionnaire'
+    } else {
+      innerPhase.value = 'upload'
     }
     if (data.saved_doc_path) {
       savedDocPath.value = data.saved_doc_path
-    }
-    if (data.qa_dimensions) {
-      qaDimensions.value = data.qa_dimensions
-    }
-    if (typeof data.qa_passed === 'boolean') {
-      qaPassed.value = data.qa_passed
-    }
-    if (typeof data.qa_checked === 'boolean') {
-      qaChecked.value = data.qa_checked
-    }
-    if (data.qa_message) {
-      qaMessage.value = data.qa_message
-    }
-    if (data.todo_items) {
-      todoItems.value = data.todo_items
     }
     if (data.extracted_docs) {
       extractedDocs.value = data.extracted_docs
@@ -875,6 +892,7 @@ async function restoreChatSession() {
     }
     if (typeof data.srs_done === 'boolean') {
       srsDone.value = data.srs_done
+      if (data.srs_done) questionnaireSubmitted.value = true
     }
     if (data.shard_index) {
       shardIndex.value = data.shard_index
@@ -885,31 +903,104 @@ async function restoreChatSession() {
     if (data.shard_index_content) {
       shardIndexContent.value = data.shard_index_content
     }
-    // 恢复 QA 断点（从 REST API 而非 WebSocket）
-    const qaCp = data.qa_checkpoint
-    if (qaCp && qaCp.step && qaCp.step > 0 && qaCp.step < 4) {
-      qaHasCheckpoint.value = true
-      currentSubStep.value = Number(qaCp.step)
-      qaProgress.value = (Number(qaCp.step) / 4) * 100
-      const saved = qaCp.results || []
-      saved.forEach((r: any, i: number) => {
-        if (i < 4) {
-          subStepResults.value[i] = {
-            step: i + 1,
-            key: r.key || '',
-            label: r.label || '',
-            score: r.score || 0,
-            detail: r.detail || '',
-            passed: r.passed || false,
-          }
-        }
-      })
-    }
     if (chatMessages.value.length > 0 || questionnaireReady.value) {
       introSent = true
     }
+    // 恢复上传的文件清单
+    if (data.uploaded_refs?.length > 0) {
+      refFiles.value = data.uploaded_refs
+    }
+    // 再从后端同步已上传文件列表（确保完整）
+    try {
+      const refsRes = await workflowApi.listStep3Refs(projectId.value) as any
+      const refsData = refsRes?.data || refsRes
+      if (refsData?.refs?.length > 0) {
+        const serverRefs = refsData.refs.map((r: any) => ({ name: r.name, path: r.path, size: r.size }))
+        // 合并：以后端为准，保留前端已有的
+        const merged = [...serverRefs]
+        for (const rf of refFiles.value) {
+          if (!merged.find(m => m.name === rf.name)) merged.push(rf)
+        }
+        refFiles.value = merged
+      }
+    } catch {}
   } catch {
     // 静默恢复失败
+  }
+}
+
+function parseQuestionnaireHtml(html: string) {
+  const parser = new DOMParser()
+  const doc = parser.parseFromString(html, 'text/html')
+  const wrapper = doc.body.firstElementChild
+  if (!wrapper) { questions.value = [html]; return }
+
+  const brainQs = wrapper.querySelectorAll('.brain-q')
+  if (brainQs.length === 0) { questions.value = [html]; return }
+
+  const innerHtml = wrapper.innerHTML
+  const qHtmls: string[] = []
+  const qids: string[] = []
+  brainQs.forEach((q) => {
+    qHtmls.push((q as HTMLElement).outerHTML)
+    const qid = q.getAttribute('data-qid')
+    if (qid) qids.push(qid)
+  })
+
+  const firstIdx = innerHtml.indexOf(qHtmls[0])
+  _wrapperStart = innerHtml.substring(0, firstIdx)
+
+  const lastQ = qHtmls[qHtmls.length - 1]
+  const lastIdx = innerHtml.indexOf(lastQ) + lastQ.length
+  _wrapperEnd = innerHtml.substring(lastIdx)
+
+  questions.value = qHtmls
+  allQids.value = qids
+  currentQIndex.value = 0
+}
+
+function saveCurrentAnswer() {
+  const qEl = document.querySelector('.step3-view__form-content .brain-q')
+  if (!qEl) return
+  const qid = qEl.getAttribute('data-qid')
+  if (!qid) return
+  const checked = qEl.querySelector('input:checked') as HTMLInputElement
+  const textInput = qEl.querySelector('textarea, input[type="text"]') as HTMLInputElement | HTMLTextAreaElement
+  if (checked) {
+    answers.value[qid] = checked.value
+  } else if (textInput && textInput.value.trim()) {
+    answers.value[qid] = textInput.value.trim()
+  }
+}
+
+function restoreCurrentAnswer() {
+  const qid = allQids.value[currentQIndex.value]
+  if (!qid) return
+  const val = answers.value[qid]
+  if (!val) return
+  nextTick(() => {
+    const qEl = document.querySelector(`.step3-view__form-content .brain-q[data-qid="${qid}"]`)
+    if (!qEl) return
+    const radio = qEl.querySelector(`input[value="${val}"]`) as HTMLInputElement
+    if (radio) { radio.checked = true; return }
+    const textInput = qEl.querySelector('textarea, input[type="text"]') as HTMLInputElement
+    if (textInput) { textInput.value = val }
+  })
+}
+
+function nextQuestion() {
+  saveCurrentAnswer()
+  if (currentQIndex.value < questions.value.length - 1) {
+    currentQIndex.value++
+    restoreCurrentAnswer()
+  }
+}
+
+function prevQuestion() {
+  saveCurrentAnswer()
+  if (currentQIndex.value > 0) {
+    currentQIndex.value--
+    restoreCurrentAnswer()
   }
 }
 
@@ -932,18 +1023,14 @@ async function fetchFileContent(filepath: string): Promise<string> {
 function handleBeforeUnload() {
   if (!projectId.value) return
   const payload = {
-    chat_messages: chatMessages.value.map(m => ({ role: m.role, content: m.content })),
+    chat_messages: chatMessages.value.map(m => ({ role: m.role, content: m.content, started_at: m.started_at, ended_at: m.ended_at, isForm: m.isForm })),
     chat_round: chatRound.value,
     doc_content: docContent.value,
-    current_phase: currentPhase.value,
+    current_phase: innerPhase.value,
     saved_doc_path: savedDocPath.value,
-    qa_dimensions: qaDimensions.value,
-    qa_passed: qaPassed.value,
-    qa_checked: qaChecked.value,
-    qa_message: qaMessage.value,
-    todo_items: todoItems.value,
     extracted_docs: extractedDocs.value.map(d => ({ id: d.id, name: d.name, content: d.content, selected: d.selected })),
     doc_save_counter: docSaveCounter,
+    uploaded_refs: refFiles.value.map(r => ({ name: r.name, path: r.path, size: r.size })),
   }
   navigator.sendBeacon(`/api/v1/workflow/${projectId.value}/step3/artifacts`, JSON.stringify(payload))
 }
@@ -966,13 +1053,6 @@ onMounted(async () => {
   }
 
   await restoreChatSession()
-  // 若检测到 QA 断点，自动从断点继续检验
-  if (currentPhase.value === 'qa' && qaHasCheckpoint.value) {
-    await nextTick()
-    handleRunQA()
-  }
-  // 检查后端 workflow 状态，若已进入 QA/完成 则禁止回到 discuss
-  await checkWorkflowStep3Status()
   connectWebSocket()
   // 30秒后显示重试按钮
   setTimeout(() => {
@@ -996,11 +1076,6 @@ onUnmounted(() => {
     ws.onclose = null
     ws.close()
     ws = null
-  }
-  if (qaWs) {
-    qaWs.onclose = null
-    qaWs.close()
-    qaWs = null
   }
 })
 
@@ -1073,6 +1148,11 @@ async function handleUploadFile(file: File): Promise<boolean> {
     ElMessage.warning('文件大小不能超过10MB')
     return false
   }
+  // 同名文件不重复上传
+  if (refFiles.value.some(r => r.name === file.name)) {
+    ElMessage.info(`"${file.name}" 已上传，跳过`)
+    return false
+  }
   try {
     const reader = new FileReader()
     const contentB64 = await new Promise<string>((resolve, reject) => {
@@ -1084,8 +1164,10 @@ async function handleUploadFile(file: File): Promise<boolean> {
       reader.readAsDataURL(file)
     })
 
-    await workflowApi.uploadStep3Ref(projectId.value, file.name, contentB64) as any
-    refFiles.value.push({ name: file.name, size: file.size })
+    const res = await workflowApi.uploadStep3Ref(projectId.value, file.name, contentB64) as any
+    const uploadData = res?.data || res
+    refFiles.value.push({ name: file.name, path: uploadData?.path || '', size: file.size })
+    saveChatSession()
     ElMessage.success(`已上传参考文档: ${file.name}`)
   } catch (e: any) {
     ElMessage.error('上传文件失败: ' + (e.message || '未知错误'))
@@ -1093,21 +1175,46 @@ async function handleUploadFile(file: File): Promise<boolean> {
   return false
 }
 
-function retryQuestionnaire() {
+async function retryQuestionnaire() {
+  // 先查询后台数据库，确认问卷尚未提交
+  try {
+    const token = localStorage.getItem('access_token') || ''
+    const resp = await fetch('/api/v1/workflow/' + projectId.value + '/step3/status', {
+      headers: { 'Authorization': 'Bearer ' + token },
+    })
+    const json = await resp.json()
+    const d = json && (json.data || json)
+    if (d) {
+      const submitted = d.srs_done || d.questionnaire_submitted || (d.chat_checkpoint && d.chat_checkpoint.answers_submitted) || (d.chat_messages && d.chat_messages.some(function(m) { return m.action === 'submit_answers' }))
+      if (submitted) {
+        questionnaireSubmitted.value = true
+        ElMessage.warning('问卷已提交，不可重新生成')
+        return
+      }
+    }
+  } catch (_) {}
+  if (questionnaireSubmitted.value) {
+    ElMessage.warning('问卷已提交，不可重新生成')
+    return
+  }
   showRetry.value = false
   chatLoading.value = true
+  questionnaireGenerating.value = true
+  innerPhase.value = 'questionnaire'
+  srsStreamContent.value = ''
   chatError.value = ''
   wsStatus.value = '连接中...'
   if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ action: 'start' }))
+    ws.send(JSON.stringify({ action: 'generate_questionnaire' }))
   } else {
-    pendingMessages = [JSON.stringify({ action: 'start' })]
+    pendingMessages = [JSON.stringify({ action: 'generate_questionnaire' })]
     connectWebSocket()
   }
 }
 
 function removeRefFile(index: number) {
   refFiles.value.splice(index, 1)
+  saveChatSession()
 }
 
 function handleSendChat() {
@@ -1131,38 +1238,23 @@ function handleSendChat() {
 }
 
 function handleSubmitAnswers() {
-  // 在对话框的消息中查找问卷表单
-  const msgBubbles = document.querySelectorAll('.step3-view__chat-bubble .step3-view__form-content')
-  let formEl = msgBubbles[msgBubbles.length - 1]
-  if (!formEl) {
-    // 兼容旧定位方式
-    formEl = document.querySelector('.step3-view__questionnaire-form')
-  }
-  if (!formEl) {
-    ElMessage.warning('问卷表单未就绪')
-    return
-  }
-  const qDivs = formEl.querySelectorAll('.brain-q')
-  const uniqueQids = new Set<string>()
-  qDivs.forEach((div: Element) => {
-    const qid = div.getAttribute('data-qid')
-    if (qid) uniqueQids.add(qid)
-  })
-  const answers: Record<string, string> = {}
-  uniqueQids.forEach((qid) => {
-    // 若有重复 qid 的 div，取最后一个被选中的
-    const checked = formEl.querySelector(`input[name="${qid}"]:checked`) as HTMLInputElement
-    if (checked) {
-      answers[qid] = checked.value
-    }
-  })
-  if (Object.keys(answers).length < uniqueQids.size) {
-    ElMessage.warning(`还有 ${uniqueQids.size - Object.keys(answers).length} 题未作答，请全部完成后再提交`)
+  // 保存当前题答案
+  saveCurrentAnswer()
+
+  // 检查是否全部作答
+  const missing = allQids.value.filter(qid => !answers.value[qid])
+  if (missing.length > 0) {
+    ElMessage.warning(`还有 ${missing.length} 题未作答，请全部完成后再提交`)
     return
   }
 
   // 发送答案
-  const payload = JSON.stringify({ action: 'submit_answers', answers })
+  questionnaireSubmitted.value = true
+  lastSubmittedAnswers.value = { ...answers.value }
+  const answerSummary = `📋 已提交 ${Object.keys(answers.value).length} 道问卷答案`
+  chatMessages.value.push({ role: 'user', content: answerSummary, started_at: nowStr() })
+  chatMessages.value.push({ role: 'houxing', content: '🤖 正在通过子Agent生成SRS需求文档，请稍候...', started_at: nowStr() })
+  const payload = JSON.stringify({ action: 'submit_answers', answers: answers.value })
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(payload)
     srsGenerating.value = true
@@ -1179,13 +1271,49 @@ function handleSubmitAnswers() {
   }
 }
 
+function retrySrsGeneration() {
+  const stored = lastSubmittedAnswers.value
+  if (Object.keys(stored).length === 0) {
+    ElMessage.warning('没有已提交的问卷答案，请重新填写问卷')
+    return
+  }
+
+  // 移除旧的错误消息，显示正在重试
+  chatMessages.value = chatMessages.value.filter(m => !m.isError)
+  chatMessages.value.push({ role: 'houxing', content: '🤖 正在重新生成SRS需求文档，请稍候...', started_at: nowStr() })
+  srsGenerating.value = true
+  srsProgress.value = 0
+  srsStreamContent.value = ''
+  chatLoading.value = true
+  chatError.value = ''
+
+  const payload = JSON.stringify({ action: 'submit_answers', answers: stored })
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(payload)
+  } else {
+    pendingMessages.push(payload)
+    connectWebSocket()
+  }
+}
+
+async function handleRequestQA() {
+  qaInProgress.value = true
+  qaResult.value = null
+  const payload = JSON.stringify({ action: 'request_qa' })
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(payload)
+  } else {
+    pendingMessages.push(payload)
+    connectWebSocket()
+  }
+}
+
 async function handleFinishDiscuss() {
   await saveChatSession()
   if (shardIndex.value.length > 0) {
-    currentPhase.value = 'submit'
+    innerPhase.value = 'qa'
     return
   }
-  // 没有分片索引就等待
   ElMessage.info('请先完成问卷并等待SRS生成')
 }
 
@@ -1222,7 +1350,7 @@ async function doSubmit() {
     const ok = await store.submitRequirement(docContent.value)
     if (ok) {
       ElMessage.success('需求文档已提交')
-      currentPhase.value = 'qa'
+      router.push({ name: 'Step3Qa', params: { projectId: projectId.value } })
       await saveChatSession()
     }
   } finally {
@@ -1256,206 +1384,15 @@ async function handleSubmitDoc() {
     const ok = await store.submitRequirement(docContent.value)
     if (ok) {
       ElMessage.success('需求文档已提交')
-      currentPhase.value = 'qa'
+      innerPhase.value = 'qa'
     }
   } finally {
     submitting.value = false
   }
 }
 
-async function handleRunQA() {
-  const content = docContent.value || store.requirement?.content || ''
-  if (!content.trim()) {
-    ElMessage.warning('需求文档内容为空')
-    return
-  }
-
-  qaLoading.value = true
-  qaChecked.value = false
-  qaStreamText.value = ''
-  qaStreamBuffer.value = ''
-
-  if (qaWs) { qaWs.onclose = null; qaWs.close(); qaWs = null }
-
-  // 先查询是否存在断点
-  qaHasCheckpoint.value = false
-  qaProgress.value = 0
-  try {
-    const checkWs = new WebSocket(getQaWsUrl())
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => { checkWs.close(); resolve() }, 5000)
-      checkWs.onmessage = (e: MessageEvent) => {
-        const m = JSON.parse(e.data)
-        if (m.type === 'checkpoint') {
-          const cp = m.data || {}
-          if (cp.step && cp.step > 0 && cp.step < 4) {
-            qaHasCheckpoint.value = true
-            currentSubStep.value = Number(cp.step)
-            const saved = cp.results || []
-            saved.forEach((r: any, i: number) => {
-              if (i < 4) subStepResults.value[i] = { step: i + 1, key: r.key||'', label: r.label||'', score: r.score||0, detail: r.detail||'', passed: r.passed||false }
-            })
-            qaProgress.value = (Number(cp.step) / 4) * 100
-          }
-        }
-      }
-      checkWs.onopen = () => checkWs.send(JSON.stringify({ action: 'checkpoint' }))
-      checkWs.onclose = () => { clearTimeout(timer); resolve() }
-      checkWs.onerror = () => { clearTimeout(timer); resolve() }
-    })
-  } catch { /* 静默 */ }
-
-  if (qaWs) { qaWs.onclose = null; qaWs.close(); qaWs = null }
-
-  try {
-    qaWs = new WebSocket(getQaWsUrl())
-
-    await new Promise<void>((resolve, reject) => {
-      let done = false
-
-      qaWs!.onmessage = (event) => {
-        const msg = JSON.parse(event.data)
-
-        if (msg.type === 'checkpoint') {
-          const cp = msg.data || {}
-          if (cp.step && cp.step > 0 && cp.step < 4) {
-            qaHasCheckpoint.value = true
-            // 恢复已完成步骤的结果
-            const saved = cp.results || []
-            saved.forEach((r: any, i: number) => {
-              if (i < 4) {
-                subStepResults.value[i] = {
-                  step: i + 1,
-                  key: r.key || '',
-                  label: r.label || '',
-                  score: r.score || 0,
-                  detail: r.detail || '',
-                  passed: r.passed || false,
-                }
-              }
-            })
-            currentSubStep.value = Number(cp.step)
-            qaProgress.value = (Number(cp.step) / 4) * 100
-          } else {
-            qaHasCheckpoint.value = false
-          }
-        }
-
-        if (msg.type === 'progress') {
-          if (typeof msg.content === 'string' && msg.content.startsWith('/')) {
-            fetchFileContent(msg.content).then(txt => { qaStreamBuffer.value += txt })
-          } else {
-            qaStreamBuffer.value += msg.content
-          }
-          qaProgress.value = Math.min(qaProgress.value + 2, 85)
-        }
-
-        if (msg.type === 'houxing_chunk') {
-          if (typeof msg.content === 'string' && msg.content.startsWith('/')) {
-            fetchFileContent(msg.content).then(txt => { qaStreamBuffer.value += txt })
-          } else {
-            qaStreamBuffer.value += msg.content
-          }
-        }
-
-        if (msg.type === 'sub_step_start') {
-          const d = msg.data
-          currentSubStep.value = d.step - 1
-          qaProgress.value = ((d.step - 1) / d.total_steps) * 100
-        }
-
-        if (msg.type === 'sub_step_passed') {
-          const d = msg.data
-          const idx = d.step - 1
-          subStepResults.value[idx] = {
-            step: d.step,
-            key: d.key,
-            label: d.label,
-            score: d.score,
-            detail: d.detail || '检验通过',
-            passed: true,
-          }
-          currentSubStep.value = Number(d.step)
-          qaProgress.value = (Number(d.step) / Number(d.total_steps)) * 100
-        }
-
-        if (msg.type === 'sub_step_failed') {
-          const d = msg.data
-          const idx = d.step - 1
-          subStepResults.value[idx] = {
-            step: d.step,
-            key: d.key,
-            label: d.label,
-            score: d.score,
-            detail: d.shard_file_defects || d.detail || '检验未通过',
-            passed: false,
-          }
-          qaChecked.value = true
-          qaProgress.value = 75
-        }
-
-        if (msg.type === 'error') {
-          qaStreamText.value += `\n❌ 错误: ${msg.message}`
-          qaChecked.value = true
-          if (!done) { done = true; reject(new Error(msg.message)) }
-        }
-
-        if (msg.type === 'step_complete') {
-          qaPassed.value = true
-          qaChecked.value = true
-          currentSubStep.value = 4
-          qaAutoAdvance.value = true
-          if (!done) { done = true; resolve() }
-        }
-      }
-
-      // WS 关闭 —— 有 result 即视为正常完成（pass/fail 均由 result 反映）
-      qaWs!.onclose = () => {
-        if (!done) {
-          done = true
-          if (qaChecked.value) resolve()
-          else reject(new Error('QA WebSocket 连接关闭'))
-        }
-      }
-
-      qaWs!.onerror = () => {
-        if (!done) { done = true; reject(new Error('QA WebSocket 连接失败')) }
-      }
-
-      qaWs!.onopen = () => {
-        const qaPayload: Record<string, any> = {
-          action: 'inspect',
-          content,
-          docs_path: docsPath.value || undefined,
-        }
-        if (shardIndexPath.value) {
-          qaPayload.index_path = shardIndexPath.value
-        }
-        qaWs!.send(JSON.stringify(qaPayload))
-      }
-    })
-
-    await saveChatSession()
-    if (qaPassed.value && qaAutoAdvance.value) {
-      ElMessage.success('所有检验项目均通过！即将进入第4步...')
-      await handleComplete()
-    } else if (qaPassed.value) {
-      ElMessage.success('QA 检验通过！')
-    } else {
-      ElMessage.warning('部分项目未能修复')
-    }
-  } catch (e: any) {
-    if (!qaPassed.value) {
-      ElMessage.error('QA 检验失败: ' + (e.message || '未知错误'))
-    }
-  } finally {
-    qaLoading.value = false
-    qaProgress.value = 100
-  }
-}
 
 async function handleSubmitDocToQA() {
-  // 如果有分片索引，从分片加载内容
   if (shardIndex.value.length > 0) {
     docContent.value = shardIndexContent.value || 'SRS分片索引表（详见各分片文件）'
   }
@@ -1464,52 +1401,13 @@ async function handleSubmitDocToQA() {
     return
   }
   await doSaveAndSubmit()
-  if (currentPhase.value === 'qa') {
-    await handleRunQA()
-  }
 }
 
-/**
- * 查询后端 workflow step3 状态并检查是否已进入 QA 阶段
- * 若已进入 qa_review / completed，强制提升 currentPhase 并禁止回到 discuss
- */
-async function checkWorkflowStep3Status() {
-  try {
-    const res = await workflowApi.getStatus(projectId.value) as any
-    const data = res?.data || res
-    const step3Row = data?.steps?.['3']
-    if (!step3Row) return
-    const status: string = step3Row.status || 'pending'
-    workflowStep3Status.value = status
-
-    // 如果后端状态已是 qa_review / completed，但前端 phase 还在 discuss / submit，强制提升
-    if ((status === 'qa_review' || status === 'completed') &&
-        (currentPhase.value === 'discuss' || currentPhase.value === 'submit')) {
-      currentPhase.value = 'qa'
-      ElMessage.warning('项目已进入 QA 检验阶段，无法返回修改页面')
-    }
-  } catch {
-    // 静默失败，不阻塞页面渲染
-  }
-}
-
-function backToDiscuss() {
-  // 已进入 QA 阶段，禁止回到讨论页面
-  if (workflowStep3Status.value === 'qa_review' || workflowStep3Status.value === 'completed') {
-    ElMessage.warning('项目已进入 QA 检验阶段，无法返回修改页面')
-    return
-  }
-  currentPhase.value = 'discuss'
-  qaChecked.value = false
-  qaPassed.value = false
-  qaMessage.value = ''
-  qaDimensions.value = []
-  todoItems.value = []
+async function backToDiscuss() {
+  innerPhase.value = 'srs_ready'
 }
 
 async function handleComplete() {
-  currentPhase.value = 'complete'
-  await saveChatSession()
   ElMessage.success('第三步完成！')
   setTimeout(() => {
     router.push({ name: 'ProjectDetail', params: { projectId: projectId.value } })
@@ -1579,8 +1477,8 @@ function scrollToBottom() {
     &-label { font-size: $caption-size; color: $ink-muted-48; white-space: nowrap; }
   }
 
-  &__chat-section { flex: 1; display: grid; grid-template-columns: 1fr 380px; gap: $spacing-4; min-height: 0; }
-  &__chat-panel { display: flex; flex-direction: column; background: $canvas; border-radius: $radius-lg; border: 1px solid $hairline; overflow: hidden; }
+  &__chat-section { flex: 1; display: grid; grid-template-columns: 1000px 380px; gap: $spacing-4; min-height: 0; min-width: 0; justify-content: center; }
+  &__chat-panel { width: 1000px; display: flex; flex-direction: column; background: $canvas; border-radius: $radius-lg; border: 1px solid $hairline; overflow: hidden; min-width: 0; }
 
   &__panel-header {
     display: flex; justify-content: space-between; align-items: center; padding: $spacing-sm $spacing-4; border-bottom: 1px solid $hairline;
@@ -1598,7 +1496,7 @@ function scrollToBottom() {
       &.system { .step3-view__chat-bubble { background: transparent; color: $ink-muted-48; font-size: $caption-size; border: none; padding: 4px 0; } .step3-view__chat-avatar { opacity: 0.5; } }
     }
     &-avatar { font-size: $spacing-lg; flex-shrink: 0; }
-    &-bubble { max-width: 80%; padding: 10px 14px; border-radius: $radius-sm; font-family: $font-text; font-size: $body-size; line-height: $body-leading; letter-spacing: $body-tracking; white-space: pre-wrap; word-break: break-word; }
+    &-bubble { max-width: 80%; min-width: 0; padding: 10px 14px; border-radius: $radius-sm; font-family: $font-text; font-size: $body-size; line-height: $body-leading; letter-spacing: $body-tracking; white-space: pre-wrap; word-break: break-word; }
     &-thinking { color: $ink-muted-48; }
   }
 
@@ -1623,7 +1521,7 @@ function scrollToBottom() {
   &__action-btn { width: 100%; border-radius: $radius-pill !important; }
   &__empty-icon { font-size: 48px; }
 
-  &__submit-section, &__qa-section, &__complete-section {
+  &__submit-section, &__complete-section {
     flex: 1; display: flex; align-items: center; justify-content: center; padding: $spacing-4;
   }
 
@@ -1649,6 +1547,12 @@ function scrollToBottom() {
   &__qa-loading {
     padding: $spacing-4;
     p { color: $ink-muted-48; margin-top: $spacing-sm; }
+  }
+
+  &__qa-timer {
+    display: flex; gap: $spacing-4; justify-content: center;
+    margin-top: $spacing-sm; font-size: 13px; color: $ink-muted-48;
+    span { white-space: nowrap; }
   }
 
   &__qa-stream {
@@ -1938,21 +1842,24 @@ function scrollToBottom() {
   }
   &__sub-step-label { font-size: $caption-size; white-space: nowrap; }
 
-  // 问卷样式
-  // 表单内容在聊天气泡中
-  &__form-content {
-    word-break: break-word;
-    overflow-wrap: break-word;
-    max-width: 100%;
+  // 问卷样式 - 严格隔离，固定700px，不影响外部布局
+  &__form-wrap {
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    isolation: isolate;
+  }
+  &__form-content {
+    width: 700px;
+    max-width: 100%;
     box-sizing: border-box;
-    overflow-x: hidden;
     :deep(.brain-q) {
       background: $canvas-parchment;
       border: 1px solid $hairline;
       border-radius: $radius-sm;
       padding: $spacing-sm $spacing-4;
       margin-bottom: $spacing-sm;
+      box-sizing: border-box;
 
       .brain-q-title {
         font-size: $body-strong-size;
@@ -1974,6 +1881,7 @@ function scrollToBottom() {
           accent-color: $primary;
           width: 16px;
           height: 16px;
+          flex-shrink: 0;
           cursor: pointer;
         }
 
@@ -1988,6 +1896,29 @@ function scrollToBottom() {
     border-top: 1px solid $hairline;
     text-align: center;
     background: $canvas;
+  }
+
+  &__question-indicator {
+    text-align: center;
+    padding: $spacing-xs 0;
+    font-size: $caption-size;
+    color: $ink-muted-48;
+    border-bottom: 1px solid $hairline;
+    background: $hairline;
+  }
+
+  &__question-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+  }
+
+  &__question-counter {
+    font-size: $body-size;
+    color: $ink-muted-48;
+    min-width: 60px;
+    text-align: center;
   }
 
   &__srs-stream {
@@ -2050,9 +1981,9 @@ function scrollToBottom() {
     }
 
     &-col-idx { width: 32px; flex-shrink: 0; color: $ink-muted-48; }
-    &-col-key { width: 140px; flex-shrink: 0; font-family: monospace; font-weight: 500; }
-    &-col-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $ink-muted-48; font-family: monospace; font-size: $fine-print-size; }
-    &-col-status { width: 72px; text-align: right; flex-shrink: 0; }
+    &-col-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: $fine-print-size;
+      &--clickable { color: var(--el-color-primary); text-decoration: underline; }
+    }
 
     &-preview {
       pre {

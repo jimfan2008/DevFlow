@@ -33,6 +33,7 @@ async def step5_chat(project_id: str, body: Step5ChatRequest,
             messages=messages, project_id=project_id, project_name=project.name,
             project_description=project.description or "", core_goal=core_goal,
             agent_name="后富（HouFu）CI/CD工程师", stream=False,
+            project_slug=project.slug if project.slug else project_id,
         ):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
@@ -55,7 +56,7 @@ async def _inspect_env_doc(
     failed_keys: list = None,
 ) -> dict:
     import json as _json, re as _re, asyncio as _asyncio
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from app.api.ws.step4_progress import broadcast
     active_dims = [d for d in ENV_SETUP_DIMENSIONS if not failed_keys or d["key"] in failed_keys]
     dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in active_dims])
@@ -115,16 +116,7 @@ async def _inspect_env_doc(
             f"{retry_pressure}"
             f"Now output the JSON array:"
         )
-        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-        qa_chunks = []
-        async for chunk in qa_cli.chat_isolated(
-            messages=[{"role": "user", "content": insp_prompt}],
-            project_id=project_id, project_name=project_name, project_description=project_description,
-            core_goal=core_goal, agent_name=agent_label or "后荣-开发环境QA检验员",
-            stream=True, max_tokens=8192,
-        ):
-            qa_chunks.append(chunk)
-        qa_r = "".join(qa_chunks).strip()
+        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=max_retries)
         if not qa_r:
             if attempt < max_retries:
                 await broadcast(project_id, {"type": "step5", "message": f"⚠️ hourong 未返回检验结果，正在重试（第{attempt}次）"})
@@ -318,6 +310,7 @@ async def execute_step5_async(project_id: str, db: Session = Depends(get_db), cu
                             project_id=project_id, project_name=proj_name, project_description=proj_desc,
                             core_goal=core_goal, agent_name="后富（HouFu）CI/CD工程师-环境生成",
                             stream=True, max_tokens=64000,
+                            project_slug=slug,
                         ):
                             if chunk.strip():
                                 chunks.append(chunk)
@@ -382,6 +375,7 @@ async def execute_step5_async(project_id: str, db: Session = Depends(get_db), cu
                                     core_goal=core_goal, agent_name="后富（HouFu）CI/CD工程师-环境修复",
                                     stream=True, max_tokens=32000,
                                     cacheable_system_parts=cacheable_parts,
+                                    project_slug=slug,
                                 ):
                                     if chunk.strip():
                                         ch_chunks.append(chunk)
@@ -527,7 +521,7 @@ def list_step5_docs(project_id: str, body: DocsListRequest, current_user=Depends
 @router.post("/{project_id}/step5/inspect")
 async def inspect_step5_env(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     """后荣（HouRong）对开发环境配置进行QA自动检验"""
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from datetime import datetime, timezone
     import json as _json
     content, focus_items = body.content, body.focus_items
@@ -540,11 +534,7 @@ async def inspect_step5_env(project_id: str, body: Step3InspectRequest, db: Sess
     scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
     prompt = (f"你是一个专业的环境配置QA检验员（后荣）。请严格检验以下开发环境配置。\n\n=== 环境配置 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n直接输出 JSON 数组，不要包含其他说明文字：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + "\n]")
     try:
-        client = GatewayClient(profile_name="hourong", timeout=120)
-        chunks = []
-        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
-            chunks.append(chunk)
-        reply = "".join(chunks).strip()
+        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
         if not reply:
             raise ValueError("后荣未返回检验结果")
         parsed_list = _json.loads(reply)

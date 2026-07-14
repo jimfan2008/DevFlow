@@ -30,6 +30,7 @@ async def step5_1_chat(project_id: str, body: Step5ChatRequest,
             messages=messages, project_id=project_id, project_name=project.name,
             project_description=project.description or "", core_goal=core_goal,
             agent_name="后富（HouFu）CI/CD工程师", stream=False,
+            project_slug=project.slug if project.slug else project_id,
         ):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
@@ -52,7 +53,7 @@ async def _inspect_env_config(
     failed_keys: list = None,
 ) -> dict:
     import json as _json, re as _re, asyncio as _asyncio
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     from app.api.ws.step5_progress import broadcast
     active_dims = [d for d in ENV_SETUP_DIMENSIONS if not failed_keys or d["key"] in failed_keys]
     dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in active_dims])
@@ -112,16 +113,7 @@ async def _inspect_env_config(
             f"{retry_pressure}"
             f"Now output the JSON array:"
         )
-        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-        qa_chunks = []
-        async for chunk in qa_cli.chat_isolated(
-            messages=[{"role": "user", "content": insp_prompt}],
-            project_id=project_id, project_name=project_name, project_description=project_description,
-            core_goal=core_goal, agent_name=agent_label or "后荣-环境配置文件QA检验员",
-            stream=True, max_tokens=8192,
-        ):
-            qa_chunks.append(chunk)
-        qa_r = "".join(qa_chunks).strip()
+        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=max_retries)
         if not qa_r:
             if attempt < max_retries:
                 await broadcast(project_id, {"type": "progress", "message": f"⚠️ hourong 未返回检验结果，正在重试（第{attempt}次）"})
@@ -302,6 +294,13 @@ async def execute_step5_1_async(project_id: str, db: Session = Depends(get_db), 
                         f"核心目标：{core_goal}",
                         "",
                         "你是资深CI/CD工程师后富（HouFu），负责生成环境配置文件。",
+                        "",
+                        f"【文件输出目录规则 - 必须遵守】",
+                        f"你生成的所有文件必须保存到以下指定目录：",
+                        f"  - 文档目录（正式产出物）: {docs_dir}",
+                        f"  - 临时目录（中间产物）: {os.path.join(settings.PROJECTS_BASE_DIR, slug, settings.PROJECT_TMP_SUBDIR)}",
+                        f"当 prompt 中指定了具体文件路径时，必须严格按该路径保存。",
+                        f"不要将文件保存到当前工作目录或其他位置。",
                         "",
                         "读取需求文档：",
                         srs_path,

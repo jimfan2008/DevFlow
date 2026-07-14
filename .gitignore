@@ -112,3 +112,10 @@ tests/run_e2e*
 
 # Backups
 backups/
+*.bak
+
+# Reasonix cache
+.reasonix/
+
+# Windows zone identifiers
+*.Zone.Identifier

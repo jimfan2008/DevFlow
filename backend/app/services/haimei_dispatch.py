@@ -420,6 +420,21 @@ async def dispatch_step5(project_id: str, engine: WorkflowEngine) -> None:
     await broadcast(project_id, {"type": "stage", "message": "📖 后富正在读取需求说明书和设计文档..."})
 
     prompt_lines = ["你是资深CI/CD工程师后富（HouFu），负责建立软件开发环境。\n"]
+
+    # 获取项目 slug 用于构建输出目录
+    from app.models.project import Project as _Project
+    proj = engine._db.query(_Project).filter(_Project.id == project_id).first()
+    _slug = proj.slug if proj else project_id.replace("-", "")
+    _docs_dir = os.path.join(settings.PROJECTS_BASE_DIR, _slug, settings.PROJECT_DOCS_SUBDIR)
+    _tmp_dir = os.path.join(settings.PROJECTS_BASE_DIR, _slug, settings.PROJECT_TMP_SUBDIR)
+    prompt_lines.append(
+        f"【文件输出目录规则 - 必须遵守】\n"
+        f"你生成的所有文件必须保存到以下指定目录：\n"
+        f"  - 文档目录（正式产出物）: {_docs_dir}\n"
+        f"  - 临时目录（中间产物）: {_tmp_dir}\n"
+        f"不要将文件保存到当前工作目录或其他位置。\n\n"
+    )
+
     if requirement:
         prompt_lines.append(f"=== 需求文档（SRS）===\n{requirement[:2000]}\n\n")
     if design_doc:
@@ -590,6 +605,21 @@ async def dispatch_step_n(project_id: str, engine: WorkflowEngine, step_number: 
     # 收集前置产物上下文
     prompt_lines = [prompt_template, "\n"]
 
+    # 获取项目 slug 用于构建输出目录
+    from app.models.project import Project as _Project
+    from sqlalchemy.orm import Session as _Session
+    proj = engine._db.query(_Project).filter(_Project.id == project_id).first()
+    _slug = proj.slug if proj else project_id.replace("-", "")
+    _docs_dir = os.path.join(settings.PROJECTS_BASE_DIR, _slug, settings.PROJECT_DOCS_SUBDIR)
+    _tmp_dir = os.path.join(settings.PROJECTS_BASE_DIR, _slug, settings.PROJECT_TMP_SUBDIR)
+    prompt_lines.append(
+        f"【文件输出目录规则 - 必须遵守】\n"
+        f"你生成的所有文件必须保存到以下指定目录：\n"
+        f"  - 文档目录（正式产出物）: {_docs_dir}\n"
+        f"  - 临时目录（中间产物）: {_tmp_dir}\n"
+        f"不要将文件保存到当前工作目录或其他位置。\n"
+    )
+
     step3 = engine.get_step3_artifacts() or {}
     requirement = (
         step3.get("doc_content") or step3.get("content") or
@@ -664,18 +694,17 @@ async def dispatch_step7(project_id: str, engine) -> None:
     logger.info("Haimei dispatching step7 with swarm parallel flow")
     step3 = engine.get_step3_artifacts() or {}
     requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    requirement_path = step3.get("local_path") or step3.get("filepath") or ""
     step4 = engine.get_step4_artifacts() or {}
     design_doc = step4.get("design_doc") or ""
-    step6 = engine.get_step6_artifacts() or {}
-    tdd_plan = step6.get("tdd_plan") or step6.get("plan_content") or ""
     step2 = engine.get_step2_artifacts() or {}
     core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
     await run_step7_swarm(
         project_id=project_id,
         requirement=requirement,
         design_doc=design_doc,
-        tdd_plan=tdd_plan,
         core_goal=core_goal,
+        requirement_path=requirement_path,
     )
 
 dispatch_step8 = lambda pid, eng: dispatch_generic_step(pid, eng, 8)

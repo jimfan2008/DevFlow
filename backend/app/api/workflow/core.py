@@ -1,6 +1,6 @@
 """v4.0 - 16步流程调度 API（DB持久化）"""
 from fastapi import APIRouter, Depends, HTTPException, Body, Request
-from typing import Optional
+from typing import Optional, Dict
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -15,6 +15,14 @@ import logging
 logger = logging.getLogger("devflow.workflow")
 
 router = APIRouter(redirect_slashes=False)
+
+
+def build_output_dirs(slug: str) -> Dict[str, str]:
+    """构建项目输出目录映射，供 agent system prompt 使用"""
+    return {
+        "docs": os.path.join(settings.PROJECTS_BASE_DIR, slug, settings.PROJECT_DOCS_SUBDIR),
+        "tmp": os.path.join(settings.PROJECTS_BASE_DIR, slug, settings.PROJECT_TMP_SUBDIR),
+    }
 
 
 class CoreGoalRequest(BaseModel):

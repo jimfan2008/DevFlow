@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { Message, MeetingState, MeetingAgendaItem } from '@/types'
 import { apiClient } from '@/api'
+
+const PAGE_SIZE = 30
 
 export const useChatStore = defineStore('chat', () => {
   const messagesMap = ref<Record<string, Message[]>>({})
@@ -9,8 +11,22 @@ export const useChatStore = defineStore('chat', () => {
   const agentStatuses = ref<Record<string, Record<string, string>>>({})
   const meetingStates = ref<Record<string, MeetingState>>({})
 
+  const messageOffsets = ref<Record<string, number>>({})
+  const messageTotals = ref<Record<string, number>>({})
+  const messageLoading = ref<Record<string, boolean>>({})
+
   function getMessages(groupId: string): Message[] {
     return messagesMap.value[groupId] || []
+  }
+
+  function hasMoreMessages(groupId: string): boolean {
+    const loaded = messageOffsets.value[groupId] || 0
+    const total = messageTotals.value[groupId] || 0
+    return loaded < total
+  }
+
+  function isLoadingMessages(groupId: string): boolean {
+    return !!messageLoading.value[groupId]
   }
 
   function addMessage(groupId: string, message: Message) {
@@ -81,6 +97,8 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearMessages(groupId: string) {
     messagesMap.value[groupId] = []
+    messageOffsets.value[groupId] = 0
+    messageTotals.value[groupId] = 0
   }
 
   function getMeetingState(groupId: string): MeetingState | null {
@@ -136,9 +154,14 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function fetchMessages(groupId: string) {
+    messageOffsets.value[groupId] = 0
     try {
-      const response = await apiClient.get(`/groups/${groupId}/ws-messages`)
-      const data = (response as any)?.data?.messages || (response as any)?.messages
+      const response = await apiClient.get(`/groups/${groupId}/ws-messages`, {
+        params: { limit: PAGE_SIZE, offset: 0 }
+      }) as any
+      const data = response?.data?.messages || []
+      messageTotals.value[groupId] = response?.data?.total || data.length
+      messageOffsets.value[groupId] = data.length
       if (Array.isArray(data)) {
         messagesMap.value[groupId] = data
       }
@@ -147,12 +170,41 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  async function loadMoreMessages(groupId: string) {
+    if (messageLoading.value[groupId]) return
+    if (!hasMoreMessages(groupId)) return
+
+    messageLoading.value[groupId] = true
+    const currentOffset = messageOffsets.value[groupId] || 0
+
+    try {
+      const response = await apiClient.get(`/groups/${groupId}/ws-messages`, {
+        params: { limit: PAGE_SIZE, offset: currentOffset }
+      }) as any
+      const data = response?.data?.messages || []
+      messageTotals.value[groupId] = response?.data?.total || 0
+      if (Array.isArray(data) && data.length > 0) {
+        messagesMap.value[groupId] = [...data, ...(messagesMap.value[groupId] || [])]
+        messageOffsets.value[groupId] = currentOffset + data.length
+      }
+    } catch (e) {
+      console.error('Error loading more messages:', e)
+    } finally {
+      messageLoading.value[groupId] = false
+    }
+  }
+
   return {
     messagesMap,
     streamingMessages,
     agentStatuses,
     meetingStates,
+    messageOffsets,
+    messageTotals,
+    messageLoading,
     getMessages,
+    hasMoreMessages,
+    isLoadingMessages,
     addMessage,
     startStreamingMessage,
     updateStreamingMessage,
@@ -170,5 +222,6 @@ export const useChatStore = defineStore('chat', () => {
     endMeetingState,
     clearMeetingState,
     fetchMessages,
+    loadMoreMessages,
   }
 })

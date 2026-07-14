@@ -3,7 +3,7 @@ import json as _json
 import os
 
 from app.services.gateway_client import GatewayClient
-from .step3_qa_1 import delegate_task, houxing_plan_tasks
+from .step3_qa_1 import delegate_task, houxing_plan_tasks, _validate_shard_content, _build_retry_task, _resolve_result
 
 SUB_STEP = {
     "step": 4,
@@ -13,22 +13,51 @@ SUB_STEP = {
 }
 
 HOURONG_SYSTEM_MSG = (
-    "你是后荣（HouRong），DevFlow 平台的软件需求 QA 检验员。\n"
-    "你严格按照 SRS 标准的无歧义性检验需求文档。\n"
-    "须快速且直接输出检验报告，必须输出一个严格合法的 JSON 对象作为最终回答，不要包含任何其他文字。\n"
-    "JSON 中每个元素的 field 名可以是中文（维度、得分、评定、不合格项）或英文（key、score、passed、detail）格式，"
-    "两种格式均支持。推荐使用中文格式以获得更好的可读性。\n"
-    "⚠️ 收敛性规则（必须严格执行）：\n"
+    "你是后荣（HouRong），是软件需求 QA 检验员。\n"
+    "本次你的职责是**只检验「无歧义性」这一个维度**，检验需求描述是否清晰明确，不存在二义性理解。\n"
+    "\n"
+    "===== ⚠️ 强制JSON格式（系统将拒绝任何非JSON输出）=====\n"
+    "你**只能**输出一个严格合法的JSON对象，禁止包含任何其他字符（包括分析过程、思考过程、说明、注释、代码块标记 ```json 等）。\n"
+    "输出内容的第1个字符必须是 {，最后1个字符必须是 }。如果输出包含任何非JSON内容，系统将直接拒绝整个回复。\n"
+    "规则：\n"
+    "- 所有字符串必须使用双引号 \"，禁止单引号\n"
+    "- 禁止末尾逗号（如 \"key\": \"value\", } 中的逗号）\n"
+    "- 禁止注释（// 或 /* */）\n"
+    "- 禁止 ```json、``` 等任何markdown代码块标记\n"
+    "- 布尔值必须使用 true/false（小写），数字不使用引号\n"
+    "- 必须能通过 Python json.loads() 直接解析\n\n"
+    "===== 输出JSON格式（必须严格遵守）=====\n"
+    '{\n'
+    '  "维度": "无歧义性",\n'
+    '  "判定结果": "通过/未通过",\n'
+    '  "得分": <0-100>,\n'
+    '  "不合格章节": [\n'
+    '    {\n'
+    '      "分片文件": "<!-- PATH:... -->中的完整文件路径",\n'
+    '      "不合格项数": <N>,\n'
+    '      "项": [\n'
+    '        {"理由": "不合格的具体原因", "证据": "（必须有 [chapter:key]）", "改善方向": "如何修改"}\n'
+    '      ]\n'
+    '    }\n'
+    '  ]\n'
+    '}\n'
+    "如果没有不合格项，\"不合格章节\" 请设为 []。\n"
+    "每个不合格项的「证据」字段必须以 [chapter:key] 开头，指明该问题所属的分片。\n"
+    "「改善方向」必须明确指导后兴如何修改。\n\n"
+    "===== 收敛性规则（必须严格执行）=====\n"
     "1. 首次检验按标准逐项检查，发现问题如实报告。\n"
     "2. 复检（第2轮起）必须对照上一轮的不合格项清单逐项确认修复情况：\n"
     "   - 已修复且修复质量合格 → 不再列为不合格项，不扣分。\n"
     "   - 未修复或修复不充分 → 继续指出，但已在上一轮扣过的分数不再重复扣。\n"
     "   - 仅本轮新发现的不合格项才是本轮扣分依据。\n"
-    "3. 收敛目标：每轮不合格项应减少，得分应上升。若所有不合格项均已修复，得分必须为100、评定必须为「合格」。\n"
+    "3. 收敛目标：每轮不合格项应减少，得分应上升。若所有不合格项均已修复，得分必须为100、判定结果必须为「通过」。\n"
     "4. 严禁将上一轮已指出的不合格项在本轮重复报告（除非确认确实未修复）。\n"
     "后续Agent将严格根据你的检验报告只修改不合格项，禁止扩大修改范围。\n\n"
     "===== 分片标识要求（重要）=====\n"
-    "需求文档内容中已用 <!-- CHAPTER:key --> 标记划分了各个分片（章节）。\n"
+    "需求文档内容中已用 <!-- CHAPTER:key --> 标记划分了各个分片（章节），\n"
+    "并在每个分片开头标注了 <!-- PATH:完整文件路径 -->。\n"
+    "「不合格章节」中每个条目的「分片文件」字段，必须填写对应分片的 <!-- PATH:... --> 中的完整文件路径，而不是 shard_key。\n"
+    "请严格执行。\n"
     "对于每个不合格项，其「证据」字段中必须包含该不合格项所在分片的 key，"
     "格式为 [chapter:key]，例如 [chapter:overview] 或 [chapter:functional]。\n"
     "如果同一不合格项涉及多个分片，列出所有相关分片key：例如 [chapter:overview][chapter:functional]。\n"
@@ -47,8 +76,9 @@ async def run_unambiguity(
 ) -> tuple:
     from .step3_qa import (
         _load_qa_checkpoint, _save_qa_checkpoint,
-        _build_annotated_content, _call_hourong, _extract_json_result,
-        _normalize_inspection_results, _get_next_version, logger,
+        _build_annotated_content, _call_hourong,
+        _load_qa_report, _report_to_result,
+        _get_next_version, logger,
         SUB_STEPS,
     )
     from app.services.doc_sharder import (
@@ -61,6 +91,17 @@ async def run_unambiguity(
     dim_desc = SUB_STEP["description"]
     content = current_content
     last_save_path = ""
+    project_tmp_dir = os.path.join(os.path.dirname(project_docs_dir), "tmp")
+
+    # 防重入检查：如果 all_results 中已有本维度的通过记录，直接返回
+    if all_results:
+        for r in all_results:
+            if r.get("key") == dim_key and r.get("passed", False):
+                await websocket.send_json({
+                    "type": "progress",
+                    "content": f"\n ⏭️ 子步骤{SUB_STEP['step']}【{dim_label}】已在之前通过，跳过\n"
+                })
+                return True, content, r
 
     resume_attempt = 1
     exhausted_resume = False
@@ -136,7 +177,7 @@ async def run_unambiguity(
                 "2. 已修复且合格 → 不计入本轮不合格项，不扣分。\n"
                 "3. 未修复或修复不充分 → 继续指出，但已在上一轮扣过的分数不再重复扣。\n"
                 "4. 仅本轮新发现的问题才作为新的不合格项扣分。\n"
-                "5. 如果所有不合格项均已修复，得分必须为100，评定为「合格」，不合格项为[]。\n\n"
+                "5. 如果所有不合格项均已修复，得分必须为100，判定结果为「通过」，不合格章节为[]。\n\n"
                 "上一轮不合格项：\n"
                 + last_defects_detail + "\n\n"
                 + "后兴已对以下分片文件进行了修改（重点检验）：\n"
@@ -146,9 +187,9 @@ async def run_unambiguity(
 
         inspect_prompt += (
             "!!! 你必须输出一个合法的 JSON 对象（不是数组），不要包含任何其他文字。!!!\n"
-            + 'JSON格式：{"维度": "' + dim_label + '", "得分": <0-100>, "评定": "合格/不合格",'
-            + ' "不合格项": [{"问题": "...", "修改方向": "...", "证据": "（必须有 [chapter:key]）"}]}\n'
-            + '如果没有不合格项，"不合格项" 请设为 []。\n'
+            + 'JSON格式：{"维度": "' + dim_label + '", "得分": <0-100>, "判定结果": "通过/未通过",'
+            + ' "不合格章节": [{"分片文件": "<分片路径>", "不合格项数": <N>, "项": [{"理由": "...", "证据": "（必须有 [chapter:key]）", "改善方向": "..."}]}]}\n'
+            + '如果没有不合格项，"不合格章节" 请设为 []。\n'
             + '注意：每个不合格项的「证据」字段必须以 [chapter:key] 开头，'
             + '指明该问题所属的分片，例如 [chapter:overview] 或 [chapter:functional]。'
         )
@@ -158,58 +199,89 @@ async def run_unambiguity(
             "content": f"\n 后荣检验【{dim_label}】...\n"
         })
 
-        raw_reply = ""
-        result_data = {}
+        report_path = ""
+        raw_reply_content = ""
         result = None
-        prev_reply = ""
-        json_format = (
-            '{"维度": "' + dim_label + '", "得分": <0-100>, "评定": "合格/不合格",'
-            ' "不合格项": [{"问题": "...", "修改方向": "...", "证据": "（必须有 [chapter:key]）"}]}'
-        )
+        result_data = {}
         for hr_attempt in range(6):
             if hr_attempt == 0:
-                reply = await _call_hourong(websocket, inspect_prompt, system_message=HOURONG_SYSTEM_MSG)
-            else:
-                reply = await _call_hourong(
+                report_path = await _call_hourong(
                     websocket, inspect_prompt,
                     system_message=HOURONG_SYSTEM_MSG,
-                    prev_reply=prev_reply,
-                    follow_up="你刚才返回的内容不包含合法JSON。请只输出JSON格式，不要任何其他文字。检验结果不变，只改格式。格式：\n" + json_format,
+                    save_dir=project_docs_dir,
                 )
-            prev_reply = reply
-            raw_reply = reply
-            parsed = _extract_json_result(reply)
-            normalized = _normalize_inspection_results(parsed)
-            if normalized and normalized[0].get("key"):
-                result = normalized[0]
-                break
-            logger.warning(f"hourong返回格式异常(第{hr_attempt+1}次): {reply[:200]}")
+            else:
+                report_path = await _call_hourong(
+                    websocket, inspect_prompt,
+                    system_message=HOURONG_SYSTEM_MSG,
+                    prev_reply=raw_reply_content,
+                    follow_up="⚠️ 强制JSON格式：必须包含 维度, 得分, 判定结果, 不合格章节 字段。不合格章节中每项必须包含 分片文件, 不合格项数, 项。项中每项必须包含 理由, 证据（以 [chapter:key] 开头）, 改善方向。禁止使用英文field名，必须使用中文field名。",
+                    save_dir=project_docs_dir,
+                )
+
+            if not report_path:
+                logger.warning(f"hourong返回空路径(第{hr_attempt+1}次)")
+                await websocket.send_json({
+                    "type": "progress",
+                    "content": f"\n⚠️ hourong第{hr_attempt+1}次返回空结果，要求重新检验\n"
+                })
+                continue
+
+            try:
+                with open(report_path, "r", encoding="utf-8") as f:
+                    raw_reply_content = f.read()
+            except Exception:
+                raw_reply_content = ""
+
+            report = _load_qa_report(report_path)
+            if report and isinstance(report, dict):
+                has_dim = any(k in report for k in ("维度", "dimension_key", "dimension_label"))
+                has_result = any(k in report for k in ("得分", "score", "判定结果", "评定", "passed", "不合格章节", "不合格项", "defect_chapters"))
+                if has_dim and has_result:
+                    report_dim_label = report.get("维度") or report.get("dimension_label") or ""
+                    if report_dim_label and report_dim_label != dim_label:
+                        await websocket.send_json({
+                            "type": "progress",
+                            "content": f'\n⚠️ hourong返回的维度标签「{report_dim_label}」与当前维度「{dim_label}」不匹配，要求重新检验\n'
+                        })
+                        continue
+                    result = _report_to_result(report, dim_key, dim_label)
+                    if result.get("key"):
+                        break
+            logger.warning(f"hourong返回格式异常(第{hr_attempt+1}次): {raw_reply_content[:200]}")
             await websocket.send_json({
                 "type": "progress",
-                "content": f"\n⚠️ hourong第{hr_attempt+1}次返回格式不合法，要求重输出JSON\n"
+                "content": f"\n⚠️ hourong第{hr_attempt+1}次返回格式不合法，要求重新输出标准JSON\n"
             })
 
         if not result:
-            if result_data:
-                dim_label = (result_data.get("维度") or result_data.get("维 度") or dim_label)
-                score_str = (result_data.get("得分") or result_data.get("分数") or result_data.get("score") or "100")
+            if raw_reply_content:
                 try:
-                    score = int(float(str(score_str)))
-                except (ValueError, TypeError):
-                    score = 100
-                passed_str = str(result_data.get("评定") or result_data.get("结果") or result_data.get("passed") or "合格")
-                passed = passed_str in ("合格", "通过", "true", "True", "pass", "PASS")
-                defects = result_data.get("不合格项") or result_data.get("缺陷") or result_data.get("issues") or []
+                    result_data = json.loads(raw_reply_content)
+                except Exception:
+                    result_data = {}
+            if result_data and isinstance(result_data, dict):
+                dim_label = result_data.get("dimension_label") or result_data.get("维度") or dim_label
+                score = int(result_data.get("score", result_data.get("得分", 0)))
+                passed_raw = str(result_data.get("passed", result_data.get("判定结果", "合格")))
+                passed = passed_raw in ("True", "true", True, "通过", "合格")
+                defects = result_data.get("defect_chapters", result_data.get("不合格章节",
+                         result_data.get("不合格项", [])))
                 detail_parts = []
                 if isinstance(defects, list):
-                    for d in defects:
-                        if isinstance(d, dict):
-                            p = d.get("问题") or d.get("描述") or ""
-                            f = d.get("修改方向") or d.get("建议") or ""
-                            e = d.get("证据") or d.get("位置") or ""
-                            parts = [p, f"修改方向：{f}" if f else "", f"证据：{e}" if e else ""]
-                            detail_parts.append(" ".join(p for p in parts if p))
-                detail = "\n\n".join(detail_parts) if detail_parts else ""
+                    for ch in defects:
+                        if isinstance(ch, dict):
+                            sf = ch.get("shard_file", ch.get("分片文件", ""))
+                            items = ch.get("defects", ch.get("items", ch.get("项", [])))
+                            if isinstance(items, list) and items:
+                                shard_lines = []
+                                for df in items:
+                                    reason = df.get("reason", df.get("问题", df.get("理由", "")))
+                                    evidence = df.get("evidence", df.get("证据", ""))
+                                    fix_dir = df.get("fix_direction", df.get("修改方向", df.get("改善方向", "")))
+                                    shard_lines.append(f"不合格的理由：{reason}；证据：{evidence}；改善方向：{fix_dir}")
+                                detail_parts.append(f"分片文件{sf}：{len(items)}项不合格，{'；'.join(shard_lines)}")
+                detail = "\n\n".join(detail_parts) if detail_parts else result_data.get("summary", "")
                 from .step3_qa import _DIMENSION_LABEL_TO_KEY
                 result = {
                     "key": _DIMENSION_LABEL_TO_KEY.get(dim_label, dim_label),
@@ -219,19 +291,12 @@ async def run_unambiguity(
                     "detail": detail,
                     "deduction": "" if passed else f"得分{score}，满分100，扣{100 - score}分",
                 }
-            else:
+            if not result:
                 await websocket.send_json({
                     "type": "error",
                     "message": f"后荣未能返回 {dim_label} 的合法检验结果，请检查后荣 agent 状态"
                 })
                 return False, content, None
-
-        if not result:
-            await websocket.send_json({
-                "type": "error",
-                "message": f"后荣连续3次未能返回 {dim_label} 的检验结果"
-            })
-            return False, content, None
 
         dim_score = int(result.get("score", 0))
         result_passed = result.get("passed", True)
@@ -305,24 +370,28 @@ async def run_unambiguity(
             if title.lower() in detail_lower or ch_key.lower() in detail_lower:
                 failed_chapter_keys.add(ch_key)
 
+        raw_parsed = {}
         try:
-            raw_parsed = _json.loads(raw_reply)
+            raw_parsed = _json.loads(raw_reply_content) if raw_reply_content else {}
         except Exception:
-            try:
-                extracted = _extract_json_result(raw_reply)
-                raw_parsed = extracted if isinstance(extracted, list) else []
-            except Exception:
-                raw_parsed = []
+            raw_parsed = {}
         if isinstance(raw_parsed, dict):
-            raw_parsed = [raw_parsed]
+            chapters = raw_parsed.get("defect_chapters", raw_parsed.get("不合格章节", []))
+            raw_parsed = chapters if isinstance(chapters, list) else [raw_parsed]
 
         defects_per_shard = {}
         for item in (raw_parsed if isinstance(raw_parsed, list) else []):
-            defects = item.get("不合格项") or item.get("缺陷") or item.get("issues") or item.get("items") or []
+            if isinstance(item, dict):
+                defects = item.get("defects", item.get("不合格项", item.get("项",
+                         item.get("缺陷", item.get("issues", [])))))
+            else:
+                defects = []
             for d in (defects if isinstance(defects, list) else []):
-                evidence = str(d.get("证据") or d.get("位置") or d.get("evidence") or "")
-                problem = d.get("问题") or d.get("描述") or ""
-                fix_dir = d.get("修改方向") or d.get("建议") or ""
+                if not isinstance(d, dict):
+                    continue
+                evidence = str(d.get("evidence") or d.get("证据") or d.get("位置") or "")
+                problem = d.get("reason") or d.get("问题") or d.get("描述") or ""
+                fix_dir = d.get("fix_direction") or d.get("修改方向") or d.get("建议") or ""
                 matched = []
                 if evidence:
                     ev_lower = evidence.lower()
@@ -392,7 +461,7 @@ async def run_unambiguity(
         await asyncio.sleep(0.3)
         await websocket.send_json({
             "type": "progress",
-            "content": f"\n 后荣检验报告：\n{raw_reply}\n\n"
+            "content": f"\n 后荣检验报告：\n{raw_reply_content}\n\n"
         })
 
         if project_id and db:
@@ -401,6 +470,8 @@ async def run_unambiguity(
                 step=SUB_STEP["step"] - 1, attempt=attempt,
                 results=list(all_results or []),
                 content=content, last_save_path=last_save_path,
+                last_defects_detail=last_defects_detail,
+                last_fixed_paths=last_fixed_paths,
             )
 
         version = await _get_next_version(project_docs_dir, project_slug)
@@ -419,8 +490,10 @@ async def run_unambiguity(
         })
 
         all_tasks = await houxing_plan_tasks(
-            detail=detail, all_ch=all_ch,
+            detail=raw_reply_content, all_ch=all_ch,
             project_docs_dir=project_docs_dir, project_slug=project_slug,
+            report_path=report_path, tmp_dir=project_tmp_dir,
+            defect_keys=failed_chapter_keys,
         )
 
         merged = {}
@@ -454,11 +527,13 @@ async def run_unambiguity(
                          for i, t in enumerate(all_tasks)) + "\n"
         })
 
+        ctx_map = {}
         full_tasks = []
         for t in all_tasks:
             sk = t.get("chapter", "")
             ch_data = all_ch.get(sk, {})
             ctx = f"分片文件: {ch_data.get('path', sk)}\n\n当前内容:\n{ch_data.get('content', '')[:4000]}"
+            ctx_map[sk] = ctx
             full_tasks.append(f"{_json.dumps(t, ensure_ascii=False)}\n\n上下文:\n{ctx}")
 
         await websocket.send_json({
@@ -467,52 +542,103 @@ async def run_unambiguity(
         })
 
         sub_results = await delegate_task(
-            tasks=full_tasks, wait_all=True, timeout=600, max_concurrent=10, websocket=websocket,
+            tasks=full_tasks, wait_all=True, timeout=1800, max_concurrent=10, websocket=websocket,
+            tmp_dir=project_tmp_dir,
         )
 
         fixed_shard_paths = []
         for t, result_str in zip(all_tasks, sub_results):
             sk = t.get("chapter", "")
-            if not result_str or result_str.startswith("[子Agent异常]") or result_str.startswith("[子Agent超时]"):
-                continue
-
             shard_path = all_ch.get(sk, {}).get("path", "")
 
-            if not result_str.startswith("<!-- CHAPTER:"):
+            # 子Agent 返回异常或超时 → 重试
+            if not result_str or result_str.startswith("[子Agent异常]") or result_str.startswith("[子Agent超时]") or result_str.startswith("[子Agent无法完成]"):
+                error_detail = result_str if result_str else "无返回"
                 await websocket.send_json({
                     "type": "progress",
-                    "content": f"  ⚠️ 子Agent返回内容缺少「<!-- CHAPTER:」标记，删除无效文件重新生成 [{sk}]\n"
+                    "content": f"  ⚠️ 子Agent返回异常 [{sk}]: {error_detail[:100]}，开始重试\n"
                 })
-                if shard_path and os.path.exists(shard_path):
-                    os.remove(shard_path)
+                success = False
                 for retry in range(3):
+                    retry_ctx = ctx_map.get(sk, "")
+                    retry_task = _build_retry_task(t, retry_ctx, retry, reason=f"上一次失败原因: {error_detail}")
                     retry_results = await delegate_task(
-                        tasks=[_json.dumps(t, ensure_ascii=False)],
-                        wait_all=True, timeout=600, max_concurrent=1, websocket=websocket,
+                        tasks=[retry_task],
+                        wait_all=True, timeout=1800, max_concurrent=1, websocket=websocket,
+                        tmp_dir=project_tmp_dir,
                     )
                     result_str = retry_results[0] if retry_results else ""
-                    if result_str and not result_str.startswith("[子Agent异常]") and not result_str.startswith("[子Agent超时]"):
-                        if result_str.startswith("<!-- CHAPTER:"):
+                    if result_str and not result_str.startswith("[子Agent异常]") and not result_str.startswith("[子Agent超时]") and not result_str.startswith("[子Agent无法完成]"):
+                        valid, vreason, _ = _validate_shard_content(_resolve_result(result_str), sk)
+                        if valid:
+                            success = True
                             break
-                    if shard_path and os.path.exists(shard_path):
-                        os.remove(shard_path)
-                    await websocket.send_json({
-                        "type": "progress",
-                        "content": f"  ⚠️ 子Agent第{retry+1}次重试仍缺少 chapter 标记 [{sk}]\n"
-                    })
-                else:
+                        await websocket.send_json({
+                            "type": "progress",
+                            "content": f"  ⚠️ 子Agent第{retry+1}次重试内容验证失败 [{sk}]: {vreason}\n"
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "progress",
+                            "content": f"  ⚠️ 子Agent第{retry+1}次重试仍异常 [{sk}]\n"
+                        })
+                    # 清理临时文件（原始正式文件不碰）
+                    if result_str and result_str.endswith('.tmp') and os.path.exists(result_str):
+                        os.remove(result_str)
+                if not success:
                     await websocket.send_json({
                         "type": "progress",
                         "content": f"  ❌ 子Agent重试3次仍无法生成有效内容，跳过 [{sk}]\n"
                     })
                     continue
 
-            if result_str == all_ch.get(sk, {}).get("content", ""):
+            # 正常结果 → 验证内容质量
+            valid, vreason, _ = _validate_shard_content(_resolve_result(result_str), sk)
+            if not valid:
                 await websocket.send_json({
                     "type": "progress",
-                    "content": f"  ⚠️ 分片无变化 [{sk}]\n"
+                    "content": f"  ⚠️ 子Agent返回内容验证失败 [{sk}]: {vreason}，重新生成\n"
                 })
-                continue
+                for retry in range(3):
+                    retry_ctx = ctx_map.get(sk, "")
+                    retry_task = _build_retry_task(t, retry_ctx, retry, reason=vreason)
+                    retry_results = await delegate_task(
+                        tasks=[retry_task],
+                        wait_all=True, timeout=1800, max_concurrent=1, websocket=websocket,
+                        tmp_dir=project_tmp_dir,
+                    )
+                    result_str = retry_results[0] if retry_results else ""
+                    if result_str and not result_str.startswith("[子Agent异常]") and not result_str.startswith("[子Agent超时]") and not result_str.startswith("[子Agent无法完成]"):
+                        valid2, vreason2, _ = _validate_shard_content(_resolve_result(result_str), sk)
+                        if valid2:
+                            break
+                        await websocket.send_json({
+                            "type": "progress",
+                            "content": f"  ⚠️ 子Agent第{retry+1}次重试内容验证失败 [{sk}]: {vreason2}\n"
+                        })
+                    else:
+                        await websocket.send_json({
+                            "type": "progress",
+                            "content": f"  ⚠️ 子Agent第{retry+1}次重试仍缺少 chapter 标记 [{sk}]\n"
+                        })
+                    # 清理临时文件（原始正式文件不碰）
+                    if result_str and result_str.endswith('.tmp') and os.path.exists(result_str):
+                        os.remove(result_str)
+                else:
+                    if result_str and result_str.endswith('.tmp') and os.path.exists(result_str):
+                        os.remove(result_str)
+                    await websocket.send_json({
+                        "type": "progress",
+                        "content": f"  ❌ 子Agent重试3次仍无法生成有效内容，跳过 [{sk}]\n"
+                    })
+                    continue
+
+            # 验证通过：临时文件 → 正式文件（原子重命名，不触碰原始文件）
+            if result_str and result_str.endswith('.tmp') and shard_path:
+                if os.path.exists(result_str):
+                    os.rename(result_str, shard_path)
+            elif result_str and result_str.endswith('.tmp') and os.path.exists(result_str):
+                os.remove(result_str)
 
             if shard_path:
                 fixed_shard_paths.append(shard_path)
@@ -547,6 +673,31 @@ async def run_unambiguity(
         with open(index_path, "w", encoding="utf-8") as f:
             f.write(index_content)
 
+        # step3_qa_4: 完成后将分片合并为新 SRS 文档
+        try:
+            version = await _get_next_version(project_docs_dir, project_slug)
+            srs_save_path = os.path.join(project_docs_dir, f"{project_slug}_SRS_V{version}.md")
+            with open(srs_save_path, "w", encoding="utf-8") as f:
+                f.write(content)
+            await websocket.send_json({
+                "type": "progress",
+                "content": f"\n  📦 分片已合并为完整 SRS 文档：{srs_save_path}\n"
+            })
+            # 保存合并后的 SRS 路径到 artifacts，供 step4 使用
+            if project_id and db:
+                from app.services.workflow_engine import WorkflowEngine
+                engine = WorkflowEngine(project_id, db)
+                engine.save_step3_artifacts({
+                    "doc_content": content,
+                    "srs": content,
+                    "doc_path": srs_save_path,
+                    "qa_inspections": list(all_results or []),
+                    "qa_passed": True,
+                    "qa_checked": True,
+                })
+        except Exception as e:
+            logger.error(f"合并 SRS 文档失败: {e}", exc_info=True)
+
         save_path = project_docs_dir
         last_save_path = save_path
         fixed_paths_str = "\n".join(fixed_shard_paths) if fixed_shard_paths else ""
@@ -558,6 +709,8 @@ async def run_unambiguity(
                 step=SUB_STEP["step"] - 1, attempt=attempt + 1,
                 results=list(all_results or []),
                 content=content, last_save_path=last_save_path,
+                last_defects_detail=last_defects_detail,
+                last_fixed_paths=last_fixed_paths,
             )
 
         await websocket.send_json({
@@ -576,11 +729,11 @@ async def run_unambiguity(
             step=SUB_STEP["step"] - 1, attempt=MAX_FIX_ATTEMPTS,
             results=list(all_results or []),
             content=content, last_save_path=last_save_path,
+            last_defects_detail=last_defects_detail,
+            last_fixed_paths=last_fixed_paths,
         )
         cp = _load_qa_checkpoint(project_id, db)
         cp["exhausted"] = True
-        cp["last_defects_detail"] = last_defects_detail
-        cp["last_fixed_paths"] = last_fixed_paths
         from app.services.workflow_engine import WorkflowEngine
         engine = WorkflowEngine(project_id, db)
         engine.save_step3_artifacts({"qa_checkpoint": cp})

@@ -106,10 +106,14 @@ class Settings(BaseSettings):
         "/home/jim/projects",
     )
 
-    # ── 项目存储（重复定义，同时修改）──
-    PROJECTS_BASE_DIR: str = os.getenv(
-        "PROJECTS_BASE_DIR",
-        "/home/jim/projects",
+    # ── 项目子目录（相对于 PROJECTS_BASE_DIR/{slug}/）─────
+    # 文档输出目录（需求、设计、代码、报告等正式产出物）
+    PROJECT_DOCS_SUBDIR: str = os.getenv(
+        "PROJECT_DOCS_SUBDIR", "docs"
+    )
+    # 临时文件目录（中间产物、缓存、检验报告等）
+    PROJECT_TMP_SUBDIR: str = os.getenv(
+        "PROJECT_TMP_SUBDIR", "tmp"
     )
 
     # ── 文件上传 ──────────────────────────────────────────

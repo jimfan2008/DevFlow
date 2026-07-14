@@ -14,6 +14,30 @@ from app.models.enums import ProjectStatus
 logger = logging.getLogger("devflow.project")
 
 
+def notify_status_change(db: Session, project_id: str, old_status: str, new_status: str, detail: str = ""):
+    """
+    向项目关联的群组发送 @haimei 通知消息，告知项目状态变化
+    """
+    from app.models.group import Group
+    from app.services.chat_store import chat_store
+
+    groups = db.query(Group).filter(Group.project_id == project_id).all()
+    for group in groups:
+        try:
+            message_text = f"@haimei 项目状态变更：{old_status} → {new_status}"
+            if detail:
+                message_text += f"\n{detail}"
+            chat_store.add_message(
+                group_id=group.id,
+                sender="system",
+                role="system",
+                content=message_text,
+                metadata={"type": "status_change", "old_status": old_status, "new_status": new_status}
+            )
+        except Exception as e:
+            logger.warning(f"Failed to notify status change to group {group.id}: {e}")
+
+
 class ProjectService:
     def __init__(self, db: Session):
         self.db = db
@@ -49,7 +73,7 @@ class ProjectService:
             id=str(uuid.uuid4()),
             name=f"{name}-需求评审",
             description=f"项目 {name} 的需求评审群组",
-            members=[creator_id],
+            members=["haimei", creator_id],
             mode="discussion",
             project_id=project.id,
         )
@@ -58,6 +82,8 @@ class ProjectService:
         project.review_group_id = review_group.id
         self.db.commit()
         self.db.refresh(project)
+
+        notify_status_change(self.db, project.id, "", ProjectStatus.created.value, f"项目「{name}」已创建")
         return project
 
     def get_project(self, project_id: str) -> Optional[Project]:
@@ -96,12 +122,15 @@ class ProjectService:
         if target_status not in allowed:
             raise ValueError(f"Cannot transition from {project.status} to {target_status}")
 
+        old_status = project.status
         project.status = target_status
         project.updated_at = datetime.now(timezone.utc)
         if target_status == ProjectStatus.completed.value:
             project.completed_at = datetime.now(timezone.utc)
         self.db.commit()
         self.db.refresh(project)
+
+        notify_status_change(self.db, project_id, old_status, target_status)
         return project
 
     def add_member(self, project_id: str, user_id: str, role: str = "member") -> ProjectMember:

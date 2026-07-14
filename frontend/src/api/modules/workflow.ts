@@ -103,4 +103,7 @@ export const workflowApi = {
   readStep3File(projectId: string, path: string) {
     return apiClient.post<ApiResponse<{ path: string; name: string; content: string }>>(`/v1/workflow/${projectId}/step3/read-file`, { path })
   },
+  getShardIndex(projectId: string, body?: Record<string, unknown>) {
+    return apiClient.post<ApiResponse<{ shards: { key: string; title: string; path: string; summary: string; has_content: boolean }[]; index_path: string; index_content: string; total_shards: number; docs_dir: string }>>(`/v1/workflow/${projectId}/step3/shard-index`, body || {})
+  },
 }

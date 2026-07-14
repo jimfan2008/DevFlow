@@ -323,6 +323,18 @@ class WorkflowEngine:
         row = self._get_step_row(step_number)
         if not row:
             raise ValueError(f"步骤 {step_number} 不存在")
+        if row.status == "completed":
+            self.current_step = max(self.current_step, step_number + 1)
+            existing = row.output_artifacts or {}
+            existing["haimei_qa_approval"] = {
+                "action": "海梅确认QA检验通过",
+                "qa_agent": qa_agent_id,
+                "approved_at": datetime.now(timezone.utc).isoformat(),
+                "message": f"海梅已确认第{step_number}步QA检验通过，准予进入下一步",
+            }
+            row.output_artifacts = existing
+            self.db.commit()
+            return row.to_dict() if hasattr(row, 'to_dict') else {}
         if row.status != "qa_review":
             raise ValueError(f"第{step_number}步必须先完成步骤再进行QA检验")
 
@@ -482,7 +494,10 @@ class WorkflowEngine:
         return {}
 
     def save_step3_artifacts(self, artifacts: dict):
-        self._cached_step3_artifacts = artifacts
+        if hasattr(self, '_cached_step3_artifacts') and self._cached_step3_artifacts:
+            self._cached_step3_artifacts.update(artifacts)
+        else:
+            self._cached_step3_artifacts = artifacts
         self._ensure_steps()
         row = self._get_step_row(3)
         if not row:
@@ -1098,7 +1113,8 @@ class WorkflowEngine:
                 }
                 existing.context = ctx
             else:
-                task = Task(
+                from sqlalchemy import insert
+                stmt = insert(Task).values(
                     id=str(uuid.uuid4()),
                     project_id=self.project_id,
                     name=task_name,
@@ -1118,12 +1134,10 @@ class WorkflowEngine:
                     },
                     created_at=now,
                     updated_at=now,
+                    started_at=now if step_status == "in_progress" else None,
+                    completed_at=now if step_status == "completed" else None,
                 )
-                if step_status == "in_progress":
-                    task.started_at = now
-                if step_status == "completed":
-                    task.completed_at = now
-                self.db.add(task)
+                self.db.execute(stmt)
             synced_count += 1
 
         if synced_count:

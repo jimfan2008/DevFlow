@@ -168,6 +168,7 @@ async def _run_step5(websocket: WebSocket, project_id: str, db) -> bool:
                 project_description=proj_desc, core_goal=core_goal,
                 agent_name="后富（HouFu）CI/CD工程师",
                 stream=True, max_tokens=64000,
+                project_slug=slug,
             ):
                 if chunk.strip():
                     chunks.append(chunk)

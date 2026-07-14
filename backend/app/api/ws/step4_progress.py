@@ -6,6 +6,7 @@ from typing import Dict, List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
 from app.api.ws.auth import verify_token
+from app.api.ws.step3_qa import _inspect_via_subagent
 
 logger = logging.getLogger(__name__)
 
@@ -171,6 +172,7 @@ async def _run_step4(project_id: str, db):
                     project_description=proj_desc, core_goal=core_goal,
                     agent_name=f"后旺-{doc_type}设计师",
                     stream=True, max_tokens=64000,
+                    project_slug=slug,
                 ):
                     if chunk.strip():
                         chunks.append(chunk)
@@ -212,6 +214,7 @@ async def _run_step4(project_id: str, db):
                     project_description=proj_desc, core_goal=core_goal,
                     agent_name=f"后旺-{doc_type}设计师",
                     stream=True, max_tokens=64000,
+                    project_slug=slug,
                 ):
                     if chunk.strip():
                         chunks.append(chunk)
@@ -261,17 +264,7 @@ async def _run_step4(project_id: str, db):
                 f'[{{"key": "{dim_key}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}]'
             )
 
-            qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-            qa_chunks = []
-            async for chunk in qa_cli.chat_isolated(
-                messages=[{"role": "user", "content": insp_prompt}],
-                project_id=project_id, project_name=proj_name,
-                project_description=proj_desc, core_goal=core_goal,
-                agent_name="后荣-设计方案QA检验员",
-                stream=True, max_tokens=8192,
-            ):
-                qa_chunks.append(chunk)
-            qa_r = "".join(qa_chunks).strip()
+            qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=3)
 
             brace_s, brace_e = qa_r.find('['), qa_r.rfind(']') + 1
             if brace_s != -1 and brace_e > brace_s:

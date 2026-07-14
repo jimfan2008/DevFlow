@@ -59,6 +59,15 @@ const step6Round = ref(0)
 const step6TotalRounds = ref(10)
 const step6ShowPrompt = ref(false)
 
+interface CaseResult {
+  case_id: string
+  title: string
+  passed: boolean
+  score: number
+  feedback: string
+}
+const caseResults = ref<CaseResult[]>([])
+
 function getProgressWsUrl(): string {
   const token = localStorage.getItem('access_token') || ''
   const port = import.meta.env.VITE_BACKEND_PORT || '9000'
@@ -153,26 +162,53 @@ async function loadStatus() {
       stageLog.value.push({ type: 'stage', message: artifacts.message })
     }
 
-    if (stepStatus.value === 'pending') {
+    const hasTddPlan = !!(artifacts.tdd_plan || artifacts.qa_passed)
+    const hasProgress = !!(artifacts.current_fix_round || artifacts.convergence?.length)
+
+    if (hasTddPlan) {
+      if (stepStatus.value === 'pending' || stepStatus.value === 'in_progress') {
+        stepStatus.value = 'completed'
+        stageLog.value.push({ type: 'stage', message: `✅ TDD计划已生成，步骤${stepNumber}已完成。` })
+        const nextStepNum = stepNumber + 1
+        if (nextStepNum <= 16) {
+          clearAllTimers()
+          setTimeout(() => {
+            router.push({ name: `Step${nextStepNum}`, params: { projectId: props.projectId }, query: { name: projectName.value } })
+          }, 2000)
+        }
+        return
+      }
+    } else if (stepStatus.value === 'pending') {
       const prevKey = String(prevStep.value)
       const prevRow = steps[prevKey] || {}
       if (prevRow.status === 'completed') {
-        stageLog.value.push({ type: 'stage', message: `🚀 步骤${prevStep.value}已就绪，自动执行步骤${stepNumber}...` })
-        setTimeout(() => handleExecute(), 500)
+        if (hasProgress) {
+          stageLog.value.push({ type: 'stage', message: `♻️ 检测到已有执行进度，恢复执行步骤${stepNumber}...` })
+          setTimeout(() => handleExecute(), 500)
+        } else {
+          stageLog.value.push({ type: 'stage', message: `🚀 步骤${prevStep.value}已就绪，自动执行步骤${stepNumber}...` })
+          setTimeout(() => handleExecute(), 500)
+        }
       } else {
         stageLog.value.push({
           type: 'stage',
           message: `⚠️ 步骤${prevStep.value}状态为"${prevRow.status || 'pending'}"，需先完成步骤${prevStep.value}才能开始。`,
         })
       }
-    }
-
-    if (stepStatus.value === 'in_progress') {
-      stageLog.value.push({ type: 'stage', message: `🔄 检测到步骤6中断，正在重新执行...` })
-      connectWsStep6(() => {
-        stepStatus.value = 'in_progress'
-        streamStatus.value = '🚀 正在执行...'
-      })
+    } else if (stepStatus.value === 'in_progress') {
+      if (hasProgress) {
+        stageLog.value.push({ type: 'stage', message: `♻️ 检测到已有执行进度（第${artifacts.current_fix_round || '?'}轮），恢复执行...` })
+        connectWsStep6(() => {
+          stepStatus.value = 'in_progress'
+          streamStatus.value = '♻️ 恢复执行中...'
+        })
+      } else {
+        stageLog.value.push({ type: 'stage', message: `🔄 检测到步骤6中断，正在重新执行...` })
+        connectWsStep6(() => {
+          stepStatus.value = 'in_progress'
+          streamStatus.value = '🚀 正在执行...'
+        })
+      }
       startPolling()
       resetStuckTimer()
     }
@@ -213,6 +249,14 @@ function connectWsStep6(onOpen: () => void, isResume: boolean = false) {
           streamStatus.value = msg.message || streamStatus.value
         } else if (msg.type === 'content') {
           liveContent.value += msg.content
+        } else if (msg.type === 'case_result') {
+          const existing = caseResults.value.findIndex(r => r.case_id === msg.case_id)
+          const entry = { case_id: msg.case_id, title: msg.title || '', passed: msg.passed, score: msg.score, feedback: msg.feedback || '' }
+          if (existing >= 0) {
+            caseResults.value[existing] = entry
+          } else {
+            caseResults.value.push(entry)
+          }
         } else if (msg.type === 'done') {
           stageLog.value.push({ type: 'done', message: msg.message })
           streamStatus.value = msg.message
@@ -350,6 +394,26 @@ onUnmounted(() => {
       </div>
     </div>
 
+    <div v-if="caseResults.length > 0" class="step6-results">
+      <h4>🔍 hourong 检验结果（{{ caseResults.filter(r => r.passed).length }}/{{ caseResults.length }} 通过）</h4>
+      <div class="step6-results-table">
+        <div class="step6-results-row step6-results-header">
+          <span class="col-status">状态</span>
+          <span class="col-id">编号</span>
+          <span class="col-title">标题</span>
+          <span class="col-score">评分</span>
+        </div>
+        <div v-for="r in caseResults" :key="r.case_id"
+          class="step6-results-row"
+          :class="r.passed ? 'row-passed' : 'row-failed'">
+          <span class="col-status">{{ r.passed ? '✅' : '❌' }}</span>
+          <span class="col-id">{{ r.case_id }}</span>
+          <span class="col-title" :title="r.feedback">{{ r.title }}</span>
+          <span class="col-score">{{ r.score }}</span>
+        </div>
+      </div>
+    </div>
+
     <div class="step6-rexec" v-if="!liveContent">
       <el-button type="warning" size="large" :loading="executing" @click="handleExecute">
         🔄 重新执行
@@ -398,6 +462,23 @@ onUnmounted(() => {
     pre { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
   }
   &-waiting { text-align: center; color: #909399; padding: 40px 0; font-size: 14px; }
+}
+
+.step6-results {
+  margin-top: 16px; text-align: left; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden;
+  h4 { margin: 0; padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid #e4e7ed; font-size: 13px; }
+  &-table { font-size: 12px; }
+  &-row {
+    display: flex; align-items: center; padding: 6px 16px; border-bottom: 1px solid #f0f0f0;
+    &:last-child { border-bottom: none; }
+  }
+  &-header { font-weight: 600; background: #fafafa; color: #606266; }
+  .col-status { width: 36px; flex-shrink: 0; text-align: center; }
+  .col-id { width: 80px; flex-shrink: 0; font-family: monospace; color: #606266; }
+  .col-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .col-score { width: 50px; flex-shrink: 0; text-align: right; font-family: monospace; }
+  .row-passed { background: #f0f9eb; }
+  .row-failed { background: #fef0f0; }
 }
 
 .step6-rexec { text-align: center; margin-top: 20px; }

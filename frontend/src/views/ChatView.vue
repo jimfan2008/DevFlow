@@ -61,7 +61,7 @@
         @click="memberListCollapsed = !memberListCollapsed"
       />
       <div class="chat-view__chat-area">
-        <div class="chat-view__messages" ref="messagesRef">
+        <div class="chat-view__messages" ref="messagesRef" @scroll="onMessagesScroll">
           <MessageItem
             v-for="msg in currentMessages"
             :key="msg.id"
@@ -151,6 +151,8 @@ const memberListCollapsed = ref(false)
 const showMentions = ref(false)
 const mentionCandidates = ref<string[]>([])
 const messagesRef = ref<HTMLElement | null>(null)
+const isNearBottom = ref(true)
+const loadingHistory = ref(false)
 
 const currentMessages = computed(() => chatStore.getMessages(currentGroupId.value))
 const meetingState = computed(() => chatStore.getMeetingState(currentGroupId.value))
@@ -179,7 +181,7 @@ onMounted(async () => {
     if (data.message) {
       chatStore.removeTempMessages(data.group_id, data.message.content, data.message.sender)
       chatStore.addMessage(data.group_id, data.message)
-      scrollToBottom()
+      if (isNearBottom.value) scrollToBottom()
     }
   })
 
@@ -193,7 +195,7 @@ onMounted(async () => {
   ws.on('message_chunk', (data: any) => {
     if (data.group_id && data.profile_name && data.content) {
       chatStore.updateStreamingMessage(data.group_id, data.profile_name, data.content, data.message_id)
-      scrollToBottom()
+      if (isNearBottom.value) scrollToBottom()
     }
   })
 
@@ -310,7 +312,9 @@ function handleSelectGroup(group: GroupInfo) {
     chatStore.fetchMessages(group.id),
     tasksStore.fetchMeetingOutcomes(group.id),
     tasksStore.fetchTasks(group.id),
-  ])
+  ]).then(() => {
+    scrollToBottom()
+  })
 }
 
 function handleInput() {
@@ -359,6 +363,8 @@ async function handleSend() {
     timestamp: new Date().toISOString(),
     is_streaming: false,
   })
+
+  scrollToBottom()
 
   try {
     if (meetingState.value?.isActive) {
@@ -437,6 +443,23 @@ function scrollToBottom() {
       messagesRef.value.scrollTop = messagesRef.value.scrollHeight
     }
   })
+}
+
+function onMessagesScroll() {
+  const el = messagesRef.value
+  if (!el) return
+  const threshold = 100
+  isNearBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < threshold
+  if (el.scrollTop < 50 && chatStore.hasMoreMessages(currentGroupId.value) && !chatStore.isLoadingMessages(currentGroupId.value)) {
+    const prevHeight = el.scrollHeight
+    chatStore.loadMoreMessages(currentGroupId.value).then(() => {
+      nextTick(() => {
+        if (messagesRef.value) {
+          messagesRef.value.scrollTop = messagesRef.value.scrollHeight - prevHeight
+        }
+      })
+    })
+  }
 }
 
 function formatDate(d: string) {

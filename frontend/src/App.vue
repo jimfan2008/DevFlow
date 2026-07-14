@@ -1,5 +1,5 @@
 <template>
-  <div id="app" :class="{ 'is-logout': !isLoggedIn }">
+  <div id="app" style="width:1750px;" :class="{ 'is-logout': !isLoggedIn }">
     <template v-if="isLoggedIn">
       <app-header />
       <div class="app-layout">

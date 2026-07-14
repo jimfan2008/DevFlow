@@ -88,7 +88,7 @@ def list_step6_docs(project_id: str, body: DocsListRequest, current_user=Depends
 
 @router.post("/{project_id}/step6/inspect")
 async def inspect_step6_tdd_plan(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step3_qa import _inspect_via_subagent
     import json as _json
     content, focus_items = body.content, body.focus_items
     if not content or len(content.strip()) < 20:
@@ -100,11 +100,7 @@ async def inspect_step6_tdd_plan(project_id: str, body: Step3InspectRequest, db:
     scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
     prompt = f"你是一个专业的测试计划QA检验员（后荣）。请严格检验以下TDD测试用例编写计划。\n\n=== TDD计划 ===\n{content}\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
-        client = GatewayClient(profile_name="hourong", timeout=120)
-        chunks = []
-        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
-            chunks.append(chunk)
-        reply = "".join(chunks).strip()
+        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
         if not reply: raise ValueError("后荣未返回")
         parsed = _json.loads(reply)
         if not isinstance(parsed, list): raise ValueError("不是数组")

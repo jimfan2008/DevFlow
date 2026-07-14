@@ -10,14 +10,16 @@ SUPPORTED_SWARM_AGENTS = [
 ]
 
 WRITER_AGENT_TYPES = [
-    "opencode", "cursor", "claude_code", "lingma",
-    "codearts", "trae", "codebuddy", "pi_coding_agent",
-    "reasonix",
+    "pi_coding_agent", "opencode", "claude_code", "cursor",
+    "lingma", "codearts", "trae", "codebuddy", "reasonix",
 ]
 
 TESTER_AGENT_TYPES = [
-    "codex", "devika", "hermes",
+    "reasonix", "claude_code", "codex", "devika", "hermes",
 ]
+
+WRITER_PREFERENCE = ["pi_coding_agent", "opencode"]
+TESTER_PREFERENCE = ["reasonix", "claude_code"]
 
 MANAGER_PURPOSE_MAP = {
     "houfa": "code_writing",
@@ -172,3 +174,27 @@ class SwarmService:
     @staticmethod
     def get_online_tester_agents(db) -> list:
         return SwarmService.get_online_agents_by_types(db, TESTER_AGENT_TYPES)
+
+    @staticmethod
+    def get_preferred_writer_agents(db) -> list:
+        """获取在线编写Agent，按偏好排序：PI > OpenCode > 其他"""
+        agents = SwarmService.get_online_agents_by_types(db, WRITER_AGENT_TYPES)
+        def _sort_key(a):
+            try:
+                return WRITER_PREFERENCE.index(a.agent_type)
+            except ValueError:
+                return len(WRITER_PREFERENCE)
+        agents.sort(key=_sort_key)
+        return agents
+
+    @staticmethod
+    def get_preferred_tester_agents(db) -> list:
+        """获取在线测试Agent，按偏好排序：Reasonix > Claude Code > 其他"""
+        agents = SwarmService.get_online_agents_by_types(db, TESTER_AGENT_TYPES)
+        def _sort_key(a):
+            try:
+                return TESTER_PREFERENCE.index(a.agent_type)
+            except ValueError:
+                return len(TESTER_PREFERENCE)
+        agents.sort(key=_sort_key)
+        return agents

@@ -135,6 +135,13 @@ const routes = [
     meta: { requiresAuth: true, title: '第三步：需求分析' }
   },
   {
+    path: '/step3/:projectId/qa',
+    name: 'Step3Qa',
+    component: () => import('@/views/Step3QaView.vue'),
+    props: true,
+    meta: { requiresAuth: true, title: '第三步：QA检验' }
+  },
+  {
     path: '/step4/:projectId',
     name: 'Step4',
     component: () => import('@/views/Step4View.vue'),
@@ -255,6 +262,24 @@ const router = createRouter({
     if (savedPosition) return savedPosition
     return { top: 0 }
   }
+})
+
+router.beforeEach(async (to, from, next) => {
+  if (to.name === 'Step3') {
+    try {
+      const token = localStorage.getItem('access_token') || ''
+      const resp = await fetch('/api/v1/workflow/' + to.params.projectId + '/status', {
+        headers: { 'Authorization': 'Bearer ' + token },
+      })
+      const json = await resp.json()
+      const d = json && (json.data || json)
+      if (d && d.steps && d.steps['3'] && d.steps['3'].status === 'qa_review' && to.query.force !== '1') {
+        next({ name: 'Step3Qa', params: { projectId: to.params.projectId } })
+        return
+      }
+    } catch (_) {}
+  }
+  next()
 })
 
 export default router

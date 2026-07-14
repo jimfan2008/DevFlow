@@ -6,6 +6,7 @@ from app.api.workflow.core import (
 )
 from app.services.gateway_client import GatewayClient
 from app.api.ws.step7_progress import broadcast
+from app.api.ws.step3_qa import _inspect_via_subagent
 
 
 @router.post("/{project_id}/step7/chat")
@@ -23,7 +24,7 @@ async def step7_chat(project_id: str, body: Step7ChatRequest,
         messages = body.messages + [{"role": "user", "content": body.message}]
         client = GatewayClient(profile_name="houfa", timeout=1200)
         reply_chunks = []
-        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name, project_description=project.description or "", core_goal=core_goal, agent_name="后发（HouFa）程序员", stream=False):
+        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name, project_description=project.description or "", core_goal=core_goal, agent_name="后发（HouFa）程序员", stream=False, project_slug=project.slug if project.slug else project_id):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
         if not reply or len(reply.strip()) < 5:
@@ -44,11 +45,7 @@ async def _inspect_tdd_cases(project_id: str, doc_path: str, project_name: str =
             await _asyncio.sleep(2)
             await broadcast(project_id, {"type": "step7", "message": f"🔄 hourong 第{attempt}次重新检验TDD用例..."})
         insp_prompt = f"你是一个专业的TDD测试用例QA检验员（后荣）。请严格检验以下测试用例。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n评分规则：每个检验维起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。\n只输出 JSON 数组，不要有其他文字:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in TDD_TESTCASE_DIMENSIONS)
-        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
-        qa_chunks = []
-        async for chunk in qa_cli.chat_isolated(messages=[{"role": "user", "content": insp_prompt}], project_id=project_id, project_name=project_name, project_description=project_description, core_goal=core_goal, agent_name=agent_label or "后荣-TDD用例QA检验员", stream=True, max_tokens=8192):
-            qa_chunks.append(chunk)
-        qa_r = "".join(qa_chunks).strip()
+        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=max_retries)
         if not qa_r:
             if attempt < max_retries:
                 await broadcast(project_id, {"type": "step7", "message": f"⚠️ hourong 未返回，重试（第{attempt}次）"})
@@ -76,30 +73,27 @@ async def _inspect_tdd_cases(project_id: str, doc_path: str, project_name: str =
 
 
 def _load_tdd_cases_from_db(bg_db, project_id: str) -> tuple[list[dict], str]:
+    """从数据库加载所有轮次的TDD测试用例，按case_id去重保留最新版本"""
     from app.models.tdd_test_case import TDDTestCase
     from sqlalchemy import func
-    latest_round = bg_db.query(
-        func.max(TDDTestCase.round_number)
-    ).filter(
+
+    all_cases = bg_db.query(TDDTestCase).filter(
         TDDTestCase.project_id == project_id,
-        TDDTestCase.qa_status == "passed",
-    ).scalar()
-    if not latest_round:
-        latest_round = bg_db.query(
-            func.max(TDDTestCase.round_number)
-        ).filter(
-            TDDTestCase.project_id == project_id,
-        ).scalar()
-    if latest_round:
-        cases = bg_db.query(TDDTestCase).filter(
-            TDDTestCase.project_id == project_id,
-            TDDTestCase.round_number == latest_round,
-        ).order_by(TDDTestCase.case_index).all()
-        cases_data = [c.to_dict() for c in cases]
-        import json as _j
-        cases_json = _j.dumps(cases_data, ensure_ascii=False, indent=2)
-        return cases_data, cases_json
-    return [], ""
+    ).order_by(TDDTestCase.round_number.desc(), TDDTestCase.case_index).all()
+
+    if not all_cases:
+        return [], ""
+
+    seen = {}
+    for c in all_cases:
+        cid = c.case_id
+        if cid not in seen:
+            seen[cid] = c.to_dict()
+
+    cases_data = list(seen.values())
+    import json as _j
+    cases_json = _j.dumps(cases_data, ensure_ascii=False, indent=2)
+    return cases_data, cases_json
 
 
 def _parse_priority(p: str) -> int:
@@ -121,12 +115,12 @@ async def run_step7_swarm(
     project_id: str,
     requirement: str,
     design_doc: str,
-    tdd_plan: str,
     core_goal: str,
     proj_name: str = "",
     proj_desc: str = "",
     existing: dict = None,
     resume: bool = False,
+    requirement_path: str = "",
 ):
     """蜂群并行TDD测试用例生成（共享内部逻辑，同时供HTTP端点和海梅调度使用）"""
     import random, json, re, httpx
@@ -155,66 +149,183 @@ async def run_step7_swarm(
         # ── 补全前置步骤（如缺失） ──
         if not design_doc and requirement:
             await broadcast(project_id, {"type": "step7", "message": "📄 架构设计缺失，正在自动生成..."})
+            req_ref = f"\n\n=== 需求文档路径 ===\n{requirement_path}\n" if requirement_path else ""
             try:
                 dd_client = GatewayClient(profile_name="houfa", timeout=300)
-                dd_prompt = f"你是资深架构师后旺（HouWang）。基于以下需求，输出一份简洁的架构设计文档。\n\n=== 需求 ===\n{requirement}\n\n输出设计文档，包含：1.整体架构 2.模块划分 3.数据流 4.关键技术选型"
+                dd_prompt = f"你是资深架构师后旺（HouWang）。{req_ref}请阅读需求文档（如果提供了路径），输出一份简洁的架构设计文档。\n\n输出设计文档，包含：1.整体架构 2.模块划分 3.数据流 4.关键技术选型"
                 dd_chunks = []
-                async for chunk in dd_client.chat_isolated(messages=[{"role": "user", "content": dd_prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="后旺-架构设计自动补全", stream=False, max_tokens=8000):
+                async for chunk in dd_client.chat_isolated(messages=[{"role": "user", "content": dd_prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="后旺-架构设计自动补全", stream=False, max_tokens=8000, project_slug=slug):
                     dd_chunks.append(chunk)
                 design_doc = "".join(dd_chunks).strip()
                 bg_engine.save_step4_artifacts({"design_doc": design_doc, "auto_generated": True})
                 await broadcast(project_id, {"type": "step7", "message": "📄 架构设计已自动生成"})
             except Exception as e:
                 logger.warning(f"Auto-generate design_doc failed: {e}")
-                design_doc = f"基于需求的架构设计\n\n需求: {requirement[:500]}"
+                design_doc = f"基于需求的架构设计{req_ref}"
 
-        # 从数据库读取 TDD 测试用例（取代直接读取 TDD PLAN 文档）
-        tdd_cases_data, tdd_cases_json = _load_tdd_cases_from_db(bg_db, project_id)
-        if not tdd_cases_data and not tdd_plan and requirement:
-            await broadcast(project_id, {"type": "step7", "message": "📋 数据库无测试用例且TDD计划缺失，正在自动生成..."})
+        # ── Step 1: 从数据库读取TDD测试用例计划，重建计划文本 ──
+        await broadcast(project_id, {"type": "step7", "message": "📋 从数据库读取TDD测试用例计划..."})
+        db_cases, db_cases_json = _load_tdd_cases_from_db(bg_db, project_id)
+        if not db_cases:
+            await broadcast(project_id, {"type": "step7", "message": "📋 数据库无TDD测试用例，根据需求自动生成..."})
             try:
-                tp_client = GatewayClient(profile_name="houfa", timeout=300)
-                tp_prompt = f"你是资深测试工程师海梅（HaiMei）。基于以下需求和架构设计，输出一份TDD测试用例计划。\n\n=== 需求 ===\n{requirement}\n\n=== 架构 ===\n{design_doc}\n\n输出TDD计划，列出需要编写的测试用例类型和覆盖范围。"
+                tp_client = GatewayClient(profile_name="houfa", timeout=1200)
+                req_ref = f"\n\n=== 需求文档路径 ===\n{requirement_path}\n" if requirement_path else ""
+                tp_prompt = f"你是资深测试工程师海梅（HaiMei）。{req_ref}请阅读需求文档（如果提供了路径），基于以下架构设计，输出一份TDD测试用例计划。\n\n=== 架构 ===\n{design_doc}\n\n输出TDD计划，列出需要编写的测试用例类型和覆盖范围。"
                 tp_chunks = []
-                async for chunk in tp_client.chat_isolated(messages=[{"role": "user", "content": tp_prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="海梅-TDD计划自动补全", stream=False, max_tokens=8000):
+                async for chunk in tp_client.chat_isolated(
+                    messages=[{"role": "user", "content": tp_prompt}],
+                    project_id=project_id, project_name=proj_name, project_description=proj_desc,
+                    core_goal=core_goal, agent_name="海梅-TDD计划自动补全", stream=False, max_tokens=8000,
+                    project_slug=slug,
+                ):
                     tp_chunks.append(chunk)
-                tdd_plan = "".join(tp_chunks).strip()
-                bg_engine.save_step6_artifacts({"tdd_plan": tdd_plan, "auto_generated": True})
+                tdd_plan_content = "".join(tp_chunks).strip()
                 await broadcast(project_id, {"type": "step7", "message": "📋 TDD计划已自动生成"})
             except Exception as e:
-                logger.warning(f"Auto-generate tdd_plan failed: {e}")
-                tdd_plan = f"基于需求的TDD计划\n支持: {requirement[:500]}"
-
-        # ── Step 1: 直接从数据库读取TDD测试用例作为TODO LIST ──
-        if tdd_cases_data:
-            subtasks = []
-            for c in tdd_cases_data:
-                subtasks.append({
-                    "name": f"[{c.get('case_id','')}] {c.get('title','')}",
-                    "description": c.get("description") or c.get("test_steps", ""),
-                    "acceptance_criteria": c.get("expected_result", ""),
-                    "priority": _parse_priority(c.get("priority", "P2")),
-                    "module": c.get("category", ""),
-                })
-        elif tdd_plan:
-            import re as _re
-            lines = [l.strip() for l in tdd_plan.split('\n') if l.strip()]
-            subtasks = [{"name": l[:80], "description": l[:200], "acceptance_criteria": "", "priority": 2, "module": ""} for i, l in enumerate(lines) if l and not l.startswith(('#', '-', '*', '>', '|'))][:50]
+                err_msg = f"自动生成TDD计划失败: {str(e)[:200]}"
+                logger.error(err_msg)
+                bg_engine.save_step7_artifacts({"status": "error", "message": err_msg})
+                await broadcast(project_id, {"type": "error", "message": f"❌ {err_msg}"})
+                return
         else:
-            subtasks = [{"name": "默认测试用例", "description": requirement[:500], "acceptance_criteria": "功能正常", "priority": 1, "module": ""}]
+            lines = ["# TDD测试用例计划\n", f"## 总览\n\n共 {len(db_cases)} 个测试用例\n"]
+            for c in db_cases:
+                lines.append(f"\n### [{c.get('case_id','')}] {c.get('title','')}\n")
+                lines.append(f"- **描述**: {c.get('description','无')}\n")
+                lines.append(f"- **前置条件**: {c.get('precondition','无')}\n")
+                lines.append(f"- **测试步骤**: {c.get('test_steps','无')}\n")
+                lines.append(f"- **预期结果**: {c.get('expected_result','无')}\n")
+                lines.append(f"- **优先级**: {c.get('priority','P2')}\n")
+                lines.append(f"- **分类**: {c.get('category','无')}\n")
+            tdd_plan_content = "\n".join(lines)
+            await broadcast(project_id, {"type": "step7", "message": f"📋 从数据库加载 {len(db_cases)} 个TDD测试用例"})
+
+        # 将TDD计划推送到前端展示
+        await broadcast(project_id, {"type": "tdd_plan", "content": tdd_plan_content, "message": "📄 TDD计划已获取"})
+
+        # ── Step 2: houfa按一个测试用例一个任务的方式转换为TODO LIST ──
+        await broadcast(project_id, {"type": "step7", "message": "🤖 houfa正在将TDD计划转换为TODO LIST..."})
+
+        async def _extract_json_array(text: str) -> list | None:
+            import re as _re
+            candidates = []
+            # 策略1: 代码块提取
+            fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', text, _re.DOTALL)
+            for fc in fenced:
+                s = fc.strip()
+                if s.startswith('['):
+                    candidates.append(s)
+            # 策略2: 直接花括号/方括号提取
+            bs = text.find('[')
+            be = text.rfind(']') + 1
+            if bs != -1 and be > bs:
+                candidates.append(text[bs:be])
+            # 策略3: 剥离空格后试试
+            stripped = text.strip()
+            if stripped.startswith('['):
+                candidates.append(stripped)
+            candidates.append(text)
+            for c in candidates:
+                # 去尾逗号
+                c = _re.sub(r',\s*([\]}])', r'\1', c)
+                try:
+                    parsed = json.loads(c)
+                    if isinstance(parsed, list) and len(parsed) > 0 and all(isinstance(x, dict) for x in parsed):
+                        return parsed
+                except Exception:
+                    continue
+            return None
+
+        async def _fallback_split_tasks(plan_text: str) -> list:
+            rows = []
+            for line in plan_text.split('\n'):
+                line = line.strip()
+                if line.startswith('### ['):
+                    import re as _re
+                    m = _re.match(r'### \[([^\]]+)\]\s*(.*)', line)
+                    if m:
+                        case_id = m.group(1)
+                        title = m.group(2)
+                        rows.append({"name": title or f"用例{case_id}", "description": "", "acceptance_criteria": ""})
+            return rows
+
+        subtasks = []
+        for conv_attempt in range(1, 4):
+            try:
+                houfa_client = GatewayClient(profile_name="houfa", timeout=600)
+                convert_prompt = (
+                    "你是资深测试工程师后发（HouFa）。请将以下TDD测试用例编写计划，按一个测试用例一个任务的方式，"
+                    "转换为TODO LIST。\n\n"
+                    f"=== TDD计划 ===\n{tdd_plan_content[:12000]}\n\n"
+                    "输出格式为JSON数组，每个元素包含：\n"
+                    '{"name": "测试用例名称", "description": "测试步骤描述", "acceptance_criteria": "验收标准"}\n'
+                    "示例：\n"
+                    '[{"name": "用户登录测试", "description": "测试用户使用正确密码登录", "acceptance_criteria": "登录成功并跳转到首页"},'
+                    '{"name": "注册验证测试", "description": "测试使用无效邮箱注册", "acceptance_criteria": "提示邮箱格式错误"}]\n'
+                    "只输出JSON数组，不要任何其他文字。"
+                )
+                convert_chunks = []
+                async for chunk in houfa_client.chat_isolated(
+                    messages=[{"role": "user", "content": convert_prompt}],
+                    project_id=project_id, project_name=proj_name, project_description=proj_desc,
+                    core_goal=core_goal, agent_name="后发-TDD计划转换", stream=False, max_tokens=12000,
+                    project_slug=slug,
+                ):
+                    convert_chunks.append(chunk)
+                convert_reply = "".join(convert_chunks).strip()
+                parsed = await _extract_json_array(convert_reply)
+                if parsed:
+                    subtasks = parsed
+                    await broadcast(project_id, {"type": "step7", "message": f"✅ houfa第{conv_attempt}次转换成功，共{len(subtasks)}个任务"})
+                    break
+                else:
+                    logger.warning(f"houfa转换TDD计划第{conv_attempt}次: 无法解析JSON, 原始回复前300字: {convert_reply[:300]}")
+                    raise ValueError("houfa未返回合法JSON数组")
+            except Exception as e:
+                logger.warning(f"houfa转换TDD计划第{conv_attempt}次失败: {e}")
+                if conv_attempt < 3:
+                    await broadcast(project_id, {"type": "step7", "message": f"🔄 houfa转换失败（第{conv_attempt}次），正在重试..."})
+                    import asyncio as _asyncio
+                    await _asyncio.sleep(2)
+                else:
+                    await broadcast(project_id, {"type": "step7", "message": "⚠️ houfa 3次均未能生成TODO LIST，使用文本回退方案..."})
+                    subtasks = await _fallback_split_tasks(tdd_plan_content)
+                    if subtasks:
+                        await broadcast(project_id, {"type": "step7", "message": f"✅ 文本回退方案成功，共{len(subtasks)}个任务"})
+                        break
+                    else:
+                        err_msg = "houfa 3次尝试均未能生成TODO LIST且文本回退也失败"
+                        logger.error(err_msg)
+                        bg_engine.save_step7_artifacts({"status": "error", "message": err_msg})
+                        await broadcast(project_id, {"type": "error", "message": f"❌ {err_msg}"})
+                        return
+
+        if not subtasks:
+            await broadcast(project_id, {"type": "step7", "message": "⚠️ TODO LIST为空，使用文本回退方案..."})
+            subtasks = await _fallback_split_tasks(tdd_plan_content)
+            if not subtasks:
+                err_msg = "无法生成TODO LIST：TDD计划中未找到任何测试用例"
+                bg_engine.save_step7_artifacts({"status": "error", "message": err_msg})
+                await broadcast(project_id, {"type": "error", "message": f"❌ {err_msg}"})
+                return
 
         subtask_names = [st.get("name", f"用例{i+1}") for i, st in enumerate(subtasks)]
-        await broadcast(project_id, {"type": "step7", "subtask_names": subtask_names, "message": f"📋 从数据库加载 {len(subtasks)} 个TDD测试用例作为TODO LIST"})
+        await broadcast(project_id, {"type": "step7", "subtask_names": subtask_names, "message": f"📋 TODO LIST已生成：{len(subtasks)} 个测试用例任务"})
 
-        # ── Step 2: 从DB获取在线编程Agent（opencode/claude_code/cursor/codex等） ──
-        writer_agents = SwarmService.get_online_writer_agents(bg_db)
-        tester_agents = SwarmService.get_online_tester_agents(bg_db)
+        # ── 并行参数 ──
+        PARALLEL_WRITERS = 5
+        PARALLEL_TESTERS = 2
+
+        # ── Step 2: 获取编程Agent，按偏好排序（PI > OpenCode > 其他; Reasonix > Claude Code > 其他） ──
+        writer_agents = SwarmService.get_preferred_writer_agents(bg_db)
+        tester_agents = SwarmService.get_preferred_tester_agents(bg_db)
         if not writer_agents:
-            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent（请注册opencode/claude_code等编程Agent）"})
-            await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的编写Agent（请注册opencode/claude_code等编程Agent）"})
+            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent（请注册PI/OpenCode等编程Agent）"})
+            await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的编写Agent"})
             return
         if not tester_agents:
-            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的测试Agent"})
+            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的测试Agent（请注册Reasonix/Claude Code等测试Agent）"})
             await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的测试Agent"})
             return
 
@@ -224,7 +335,7 @@ async def run_step7_swarm(
             await broadcast(project_id, {"type": "agent_online", "name": ta.name, "role": "tester", "agent_type": ta.agent_type})
         await broadcast(project_id, {"type": "step7", "message": f"🐝 蜂群就绪：{len(writer_agents)}个编写Agent + {len(tester_agents)}个测试Agent, {len(subtasks)}个子任务"})
 
-        # ── Step 3: 创建蜂群（仅对真实Agent，降级Agent跳过） ──
+        # ── Step 3: 创建蜂群 ──
         swarm_svc = SwarmService()
         swarm = swarm_svc.create_swarm(
             project_id=project_id,
@@ -239,13 +350,12 @@ async def run_step7_swarm(
             except ValueError:
                 pass
 
-        # ── Step 4: 通用Agent调用辅助函数（自动对接第3方编程Agent） ──
+        # ── Step 4: 通用Agent调用辅助函数 ──
         async def _call_agent(agent, prompt_text, timeout=600):
             cfg = agent.config or {}
             api_key = cfg.get("api_key") or cfg.get("apiKey")
             model = cfg.get("model") or "default"
 
-            # 路径0: CLI 子进程调用（独立编程 Agent：opencode / pi / reasonix 等）
             cli_cmd = cfg.get("cli_command") or agent.api_endpoint
             if cli_cmd and not cli_cmd.startswith("http"):
                 import shlex
@@ -281,13 +391,11 @@ async def run_step7_swarm(
                 logger.error(f"Step7 agent {agent.name} CLI all attempts failed")
                 return ""
 
-            # 路径1: 直接通过 OpenAI 兼容 API 调用
             if agent.api_endpoint:
                 ep = agent.api_endpoint.rstrip("/")
                 headers = {"Content-Type": "application/json"}
                 if api_key:
                     headers["Authorization"] = f"Bearer {api_key}"
-
                 last_err = None
                 for attempt in range(1, 4):
                     try:
@@ -322,11 +430,9 @@ async def run_step7_swarm(
                         last_err = e
                         logger.warning(f"Step7 agent {agent.name} error (attempt {attempt}/3): {e}")
                         await asyncio.sleep(2 ** attempt)
-
                 if last_err:
                     logger.info(f"Step7 agent {agent.name} direct API failed after 3 attempts, falling back to GatewayClient")
 
-            # 路径2: 通过 Hermes Gateway 调用（role_name → 真实 Hermes profile 名）
             profile = agent.role_name or agent.name or agent.agent_type
             try:
                 gc = GatewayClient(profile_name=profile, timeout=timeout)
@@ -335,6 +441,7 @@ async def run_step7_swarm(
                     messages=[{"role": "user", "content": prompt_text}],
                     project_id=project_id, project_name=proj_name, project_description=proj_desc,
                     core_goal=core_goal, agent_name=agent.name, stream=False, max_tokens=32000,
+                    project_slug=slug,
                 ):
                     gc_chunks.append(chunk)
                 reply = "".join(gc_chunks)
@@ -347,21 +454,14 @@ async def run_step7_swarm(
             logger.error(f"Step7 agent {agent.name} ({agent.agent_type}) all call paths failed")
             return ""
 
-        # ── Step 5: 并行执行子任务 ──
-        sem = asyncio.Semaphore(min(12, len(subtasks)))
-        writer_idx = 0
-        tester_idx = 0
-        wlock = asyncio.Lock()
-        tlock = asyncio.Lock()
+        # ── Step 5: 并行生成代码（Phase 1） ──
         all_results = []
         rlock = asyncio.Lock()
 
-        # 增量保存单个子任务结果到 DB（断点续跑用）
         async def _save_subtask_result(result: dict):
             try:
                 cur = bg_engine.get_step7_artifacts() or {}
                 saved_results = cur.get("subtask_results", [])
-                # 替换或追加
                 found = False
                 for i, sr in enumerate(saved_results):
                     if sr.get("index") == result.get("index"):
@@ -375,85 +475,52 @@ async def run_step7_swarm(
             except Exception as e:
                 logger.warning(f"Step7 save subtask result failed: {e}")
 
-        async def _run_subtask(st, idx):
-            nonlocal writer_idx, tester_idx
-            async with sem:
-                sname = st.get("name", f"用例{idx}")
-                sdesc = st.get("description", "")
-                sacc = st.get("acceptance_criteria", "")
-                file_path = os.path.join(docs_dir, f"{slug}_tdctask_{idx:04d}.md")
-                try:
-                    for attempt in range(1, 6):
-                        async with wlock:
-                            wi = writer_idx % len(writer_agents)
-                            writer_idx += 1
-                        writer = writer_agents[wi]
+        writer_idx = 0
+        sem_writer = asyncio.Semaphore(PARALLEL_WRITERS)
 
-                        await broadcast(project_id, {"type": "step7", "message": f"✍️ [{sname}] {writer.name} 编写（第{attempt}轮）..."})
-
-                        fb = ""
-                        if attempt > 1 and st.get("last_feedback"):
-                            fb = f"\n\n=== 上次测试反馈（仅修复这些问题）===\n{st['last_feedback']}"
-
-                        wp = (
-                            f"你{writer.name}，负责编写TDD测试用例代码。\n\n"
-                            f"=== 需求 ===\n{requirement[:3000]}\n=== 架构 ===\n{design_doc[:2000]}\n"
-                            f"=== 测试用例 ===\n名称：{sname}\n描述：{sdesc}\n验收标准：{sacc}\n"
-                            f"直接输出完整测试代码（含import）。不要推理过程。{fb}"
-                        )
-                        await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {writer.name} 提示词", "prompt": wp, "agent": writer.name, "subtask": sname})
-                        code = await _call_agent(writer, wp)
-                        if code.strip():
-                            await broadcast(project_id, {"type": "agent_response", "subtask": sname, "role": "writer", "response": code[:2000]})
-                        if not code.strip():
-                            continue
-
-                        with open(file_path, "w") as f:
-                            f.write(code)
-
-                        async with tlock:
-                            ti = tester_idx % len(tester_agents)
-                            tester_idx += 1
-                        tester = tester_agents[ti]
-
-                        await broadcast(project_id, {"type": "step7", "message": f"🔍 [{sname}] {tester.name} 验证中..."})
-
-                        tp = (
-                            f"你{tester.name}，负责验证TDD测试用例代码。\n\n"
-                            f"=== 验收标准 ===\n{sacc}\n=== 测试代码 ===\n{code}\n\n"
-                            "严格验证：语法正确性、逻辑是否符合验收标准、边界覆盖、可独立运行。\n"
-                            "第一行输出 PASS 或 FAIL，然后详细说明问题。"
-                        )
-                        await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {tester.name} 提示词", "prompt": tp, "agent": tester.name, "subtask": sname})
-                        tr = await _call_agent(tester, tp)
-                        if tr.strip():
-                            await broadcast(project_id, {"type": "agent_response", "subtask": sname, "role": "tester", "response": tr[:2000]})
-
-                        if tr.strip().startswith("PASS"):
-                            async with rlock:
-                                result = {"name": sname, "index": idx, "status": "passed", "file_path": file_path, "attempts": attempt, "writer": writer.name, "tester": tester.name}
-                                all_results.append(result)
-                            await _save_subtask_result(result)
-                            await broadcast(project_id, {"type": "step7", "message": f"✅ [{sname}] 通过（第{attempt}轮）"})
-                            return
-                        else:
-                            st["last_feedback"] = tr
-                            await broadcast(project_id, {"type": "step7", "message": f"⚠️ [{sname}] 未通过（第{attempt}轮）"})
-
+        async def _generate_one(st, idx):
+            nonlocal writer_idx
+            sname = st.get("name", f"用例{idx}")
+            sdesc = st.get("description", "")
+            sacc = st.get("acceptance_criteria", "")
+            file_path = os.path.join(docs_dir, f"{slug}_tdctask_{idx:04d}.md")
+            async with sem_writer:
+                for attempt in range(1, 6):
+                    wi = writer_idx % len(writer_agents)
+                    writer_idx += 1
+                    writer = writer_agents[wi]
+                    await broadcast(project_id, {"type": "step7", "message": f"✍️ [{sname}] {writer.name} 编写（第{attempt}轮）..."})
+                    fb = ""
+                    if attempt > 1 and st.get("last_feedback"):
+                        fb = f"\n\n=== 上次反馈（仅修复这些问题）===\n{st['last_feedback']}"
+                    req_ref = f"=== 需求文档路径 ===\n{requirement_path}\n" if requirement_path else ""
+                    wp = (
+                        f"你{writer.name}，负责编写TDD测试用例代码。\n\n"
+                        f"{req_ref}=== 架构 ===\n{design_doc[:2000]}\n"
+                        f"=== 测试用例 ===\n名称：{sname}\n描述：{sdesc}\n验收标准：{sacc}\n"
+                        f"直接输出完整测试代码（含import）。不要推理过程。{fb}"
+                    )
+                    await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {writer.name} 提示词", "prompt": wp, "agent": writer.name, "subtask": sname})
+                    code = await _call_agent(writer, wp)
+                    if code.strip():
+                        await broadcast(project_id, {"type": "agent_response", "subtask": sname, "role": "writer", "response": code[:2000]})
+                    if not code.strip():
+                        st["last_feedback"] = "编写Agent未生成有效代码"
+                        continue
+                    with open(file_path, "w") as f:
+                        f.write(code)
                     async with rlock:
-                        result = {"name": sname, "index": idx, "status": "failed", "file_path": file_path, "attempts": 5}
+                        result = {"name": sname, "index": idx, "status": "generated", "file_path": file_path, "attempts": attempt, "writer": writer.name, "code": code[:500]}
                         all_results.append(result)
-                    await _save_subtask_result(result)
-                    await broadcast(project_id, {"type": "step7", "message": f"❌ [{sname}] 5轮均未通过"})
-                except Exception as e:
-                    logger.error(f"Step7 subtask {idx} ({sname}) exception: {e}")
-                    async with rlock:
-                        result = {"name": sname, "index": idx, "status": "failed", "file_path": "", "attempts": 5, "error": str(e)[:200]}
-                        all_results.append(result)
-                    await _save_subtask_result(result)
-                    await broadcast(project_id, {"type": "step7", "message": f"💥 [{sname}] 执行异常: {str(e)[:100]}"})
+                    await broadcast(project_id, {"type": "step7", "message": f"📦 [{sname}] {writer.name} 代码已生成（第{attempt}轮），等待测试..."})
+                    return
+                async with rlock:
+                    result = {"name": sname, "index": idx, "status": "failed", "file_path": file_path, "attempts": 5}
+                    all_results.append(result)
+                await _save_subtask_result(result)
+                await broadcast(project_id, {"type": "step7", "message": f"❌ [{sname}] 5轮编写均失败"})
 
-        # 断点续跑：从 DB 读取已完成的子任务结果
+        # 断点续跑（仅加载已完成结果，跳过已完成的子任务）
         if resume:
             saved = bg_engine.get_step7_artifacts().get("subtask_results", [])
             for sr in saved:
@@ -462,13 +529,89 @@ async def run_step7_swarm(
                     all_results.append(sr)
             if saved:
                 await broadcast(project_id, {"type": "step7", "message": f"♻️ 续跑：已加载 {len(saved)} 个已完成子任务结果"})
-                # 过滤掉已完成的子任务
                 completed_indices = {sr.get("index", 0) for sr in saved}
                 subtasks = [st for i, st in enumerate(subtasks) if (i + 1) not in completed_indices]
                 if not subtasks:
                     await broadcast(project_id, {"type": "step7", "message": "♻️ 续跑：所有子任务已完成，跳过蜂群执行"})
 
-        await asyncio.gather(*[_run_subtask(st, i + 1) for i, st in enumerate(subtasks)])
+        # 并行启动所有子任务的代码生成（Semaphore 控制最多 PARALLEL_WRITERS 个并发）
+        await broadcast(project_id, {"type": "step7", "message": f"🚀 并行启动 {len(subtasks)} 个子任务的代码生成（最多 {PARALLEL_WRITERS} 个并发）..."})
+        gen_tasks = [_generate_one(st, i + 1) for i, st in enumerate(subtasks)]
+        await asyncio.gather(*gen_tasks)
+        generated = [r for r in all_results if r["status"] == "generated"]
+        gen_failed = [r for r in all_results if r["status"] == "failed"]
+        await broadcast(project_id, {"type": "step7", "message": f"📊 代码生成完成：{len(generated)}个成功 / {len(gen_failed)}个失败"})
+
+        # ── Step 6: 并行测试代码（Phase 2：用 Reasonix/Claude Code 测试已生成的代码） ──
+        if not generated:
+            await broadcast(project_id, {"type": "step7", "message": "⚠️ 没有已生成的代码需要测试"})
+        else:
+            sem_tester = asyncio.Semaphore(PARALLEL_TESTERS)
+            tester_idx = 0
+
+            async def _test_one(result):
+                nonlocal tester_idx
+                sname = result["name"]
+                idx = result["index"]
+                file_path = result["file_path"]
+                async with sem_tester:
+                    if not file_path or not os.path.exists(file_path):
+                        async with rlock:
+                            result["status"] = "failed"
+                            result["test_error"] = "代码文件不存在"
+                        return
+                    try:
+                        with open(file_path, "r") as f:
+                            code = f.read()
+                    except Exception:
+                        async with rlock:
+                            result["status"] = "failed"
+                            result["test_error"] = "无法读取代码文件"
+                        return
+
+                    for attempt in range(1, 4):
+                        ti = tester_idx % len(tester_agents)
+                        tester_idx += 1
+                        tester = tester_agents[ti]
+                        await broadcast(project_id, {"type": "step7", "message": f"🧪 [{sname}] {tester.name} 测试（第{attempt}轮）..."})
+                        tp = (
+                            f"你{tester.name}，负责测试TDD测试用例代码。\n\n"
+                            f"=== 测试用例 ===\n名称：{sname}\n"
+                            f"=== 测试代码路径 ===\n{file_path}\n"
+                            f"=== 测试代码 ===\n{code}\n\n"
+                            "请执行以下检验：\n"
+                            "1. 语法正确性——代码是否能通过编译/解释\n"
+                            "2. 逻辑正确性——测试逻辑是否覆盖验收标准\n"
+                            "3. 边界覆盖——是否有边界值测试\n"
+                            "4. 可独立运行——测试用例是否可独立执行\n"
+                            "逐项评分（0-100），评分≥90为通过。\n"
+                            "先输出 PASS 或 FAIL，再给出详细评分。"
+                        )
+                        test_reply = await _call_agent(tester, tp)
+                        if test_reply.strip():
+                            passed = "PASS" in test_reply.upper() and "FAIL" not in test_reply.upper()
+                            async with rlock:
+                                result["status"] = "passed" if passed else "failed"
+                                result["test_agent"] = tester.name
+                                result["test_report"] = test_reply[:1000]
+                                result["test_attempts"] = attempt
+                            if passed:
+                                await broadcast(project_id, {"type": "step7", "message": f"✅ [{sname}] {tester.name} 测试通过（第{attempt}轮）"})
+                                return
+                            else:
+                                await broadcast(project_id, {"type": "step7", "message": f"⚠️ [{sname}] {tester.name} 测试未通过（第{attempt}轮）"})
+                                continue
+                        else:
+                            await broadcast(project_id, {"type": "step7", "message": f"⚠️ [{sname}] {tester.name} 未返回有效结果，重试..."})
+
+                    async with rlock:
+                        result["status"] = "failed"
+                        result["test_error"] = "3轮测试均未通过"
+                    await broadcast(project_id, {"type": "step7", "message": f"❌ [{sname}] 3轮测试均未通过"})
+
+            await broadcast(project_id, {"type": "step7", "message": f"🧪 并行测试 {len(generated)} 个已生成的代码（最多 {PARALLEL_TESTERS} 个并发）..."})
+            test_tasks = [_test_one(r) for r in generated]
+            await asyncio.gather(*test_tasks)
 
         passed = [r for r in all_results if r["status"] == "passed"]
         failed_ = [r for r in all_results if r["status"] == "failed"]
@@ -560,17 +703,15 @@ async def execute_step7_async(project_id: str, db: Session = Depends(get_db), cu
         return APIResponse(code=1, message=f"无法开始步骤7: {str(e)[:200]}")
     step3 = engine.get_step3_artifacts() or {}
     requirement = (step3.get("doc_content") or step3.get("content") or step3.get("requirement") or step3.get("srs") or "")
+    requirement_path = step3.get("local_path") or step3.get("filepath") or ""
     step2 = engine.get_step2_artifacts() or {}
     core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
     # If previous steps missing, auto-generate from requirement
     step4 = engine.get_step4_artifacts() or {}
     design_doc = step4.get("design_doc") or ""
     if not design_doc and requirement:
-        design_doc = f"基于需求自动生成架构设计\n需求: {requirement[:500]}"
-    step6 = engine.get_step6_artifacts() or {}
-    tdd_plan = step6.get("tdd_plan") or step6.get("plan_content") or ""
-    if not tdd_plan and requirement:
-        tdd_plan = f"基于需求自动生成TDD计划\n需求: {requirement[:500]}"
+        req_ref = f"\n需求文档路径: {requirement_path}" if requirement_path else ""
+        design_doc = f"基于需求自动生成架构设计{req_ref}"
     engine.save_step7_artifacts({"status": "generating", "message": "🐝 后发正在组建蜂群并行编写TDD测试用例..."})
 
     async def _generate():
@@ -578,10 +719,10 @@ async def execute_step7_async(project_id: str, db: Session = Depends(get_db), cu
             project_id=project_id,
             requirement=requirement,
             design_doc=design_doc,
-            tdd_plan=tdd_plan,
             core_goal=core_goal,
             existing=existing if resume else None,
             resume=resume,
+            requirement_path=requirement_path,
         )
     _asyncio.create_task(_generate())
     return APIResponse(code=0, data={"message": "第七步已启动", "status": "generating"})
@@ -621,11 +762,7 @@ async def inspect_step7(project_id: str, body: Step3InspectRequest, db: Session 
     scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
     prompt = f"你是一个专业的TDD测试用例QA检验员（后荣）。\n\n=== TDD用例 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
-        client = GatewayClient(profile_name="hourong", timeout=120)
-        chunks = []
-        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
-            chunks.append(chunk)
-        reply = "".join(chunks).strip()
+        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
         if not reply:
             raise ValueError("后荣未返回")
         parsed = _json.loads(reply)
