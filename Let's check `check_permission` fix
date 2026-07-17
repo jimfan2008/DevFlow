@@ -1,0 +1,5 @@
+    async def check_permission(self, user_id: str, action: str) -> bool:
+        """检查用户是否有权执行指定操作。"""
+        if user_id not in self.moderators:
+            return False
+        return self.moderator_actions.get(action, False)
