@@ -1,65 +1,32 @@
-#!/usr/bin/env python3
-"""
-"""
 import pytest
-import pytest_asyncio
-import time
-from unittest.mock import patch, MagicMock
-from sqlalchemy import create_engine
-from sqlalchemy.pool import StaticPool
-from sqlalchemy.orm import sessionmaker
-from httpx import AsyncClient, ASGITransport
-from typing import Set
+from datetime import datetime, timedelta
 
 
-# ── 测试数据(内联,不依赖外部文件) ───────────────────────
-TEST_USER_DATA = { ... }
-TEST_LOGIN_PAYLOAD = { ... }
+class IterationHandler:
+    # ... implementation ...
+    def handle_dissatisfaction(self, event):
+        trigger_time = event.get("timestamp") or self.system.current_time
+        deadline = trigger_time + timedelta(hours=2)
+        reason = event.get("feedback", "")
+        project_id = event.get("project_id", "")
+        round_id = event.get("round_id", "")
 
-# ── In-Memory Token Blacklist (替代 Redis) ──────────────
-_blacklisted_tokens: Set[str] = set()
+        self.record(project_id=project_id, round_id=round_id, reason=reason)
 
-def _mock_add_to_blacklist(token: str, expire_seconds: int = None) -> bool: ...
-def _mock_is_blacklisted(token: str) -> bool: ...
-def _mock_remove_from_blacklist(token: str) -> bool: ...
-def _mock_blacklist_size() -> int: ...
+        self.iterator.trigger_iteration(
+            project_id=project_id,
+            round_id=round_id,
+            reason=reason,
+            deadline=deadline,
+        )
 
-# ── 数据库与 App 设置 ─────────────────────────────────────
-from app.main import app
-from app.database import get_db, Base
-from app.models.user import User
-from app.utils.security import get_password_hash
-from fastapi import Header, Depends
-from sqlalchemy.orm import Session
-from app.middleware import jwt_blacklist
+        for agent in self.agents:
+            self.notification_service.send(
+                recipient=agent.name,
+                notification_type="iteration_triggered",
+                message=f"Project {project_id} iteration triggered due to user dissatisfaction: {reason}",
+                deadline=deadline,
+            )
 
-TEST_DB_URL = "sqlite://"
-TEST_ENGINE = create_engine(...)
-TestSessionLocal = sessionmaker(...)
-
-def setup_database(): ...
-def teardown_database(): ...
-def _create_test_user(session): ...
-
-# ── 自定义 get_current_user(含黑名单检查) ───────────────
-def get_current_user_with_blacklist(...): ...
-
-# ── Fixtures ──────────────────────────────────────────────
-@pytest.fixture(scope="module")
-def event_loop(): ...
-
-@pytest_asyncio.fixture(scope="function")
-async def db_session(): ...
-
-@pytest_asyncio.fixture(scope="function")
-async def test_user(db_session): ...
-
-@pytest_asyncio.fixture(scope="function")
-async def client(db_session, test_user): ...
-
-# ═══════════════════════════════════════════════════════════
-# 测试用例
-# ═══════════════════════════════════════════════════════════
-@pytest.mark.asyncio
-class TestManualLogout:
-    ...
+class TestIterationTriggerUserDissatisfied:
+    # ... tests ...
