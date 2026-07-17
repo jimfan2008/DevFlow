@@ -1,0 +1,4 @@
+=== 待检验代码（仅基于以下内容判断，禁止读取外部文件）===
+def __init__(self, user_id: str, role: str, content: str):
+    ...
+    self.sent_at: datetime = None
