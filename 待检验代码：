@@ -1,4 +1,42 @@
+import os
+import sys
 import pytest
-import time
-import uuid
-from app.models.user import User
+import pytest_asyncio
+import asyncio
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker
+from httpx import AsyncClient, ASGITransport
+from typing import AsyncGenerator
+
+# 确保 backend 的 app 模块可导入
+_BACKEND_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "backend")
+if _BACKEND_DIR not in sys.path:
+    sys.path.insert(0, _BACKEND_DIR)
+
+try:
+    from app.main import app
+    from app.db.session import get_db_session
+    from app.models.base import Base
+    from app.models.user import User
+    from app.core.security import hash_password as get_password_hash
+    _BACKEND_AVAILABLE = True
+except (ModuleNotFoundError, ImportError):
+    _BACKEND_AVAILABLE = False
+    app = None
+    get_db_session = None
+    Base = None
+    User = None
+    get_password_hash = None
+
+
+# ── 内存 SQLite 测试数据库 ──
+
+TEST_DB_URL = "sqlite://"
+TEST_ENGINE = create_engine(
+    TEST_DB_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
