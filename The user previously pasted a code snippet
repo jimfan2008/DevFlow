@@ -1,0 +1,5 @@
+for dn in range(4, 15):
+             assert controller.steps[dn].status == "pending", (
+-                f"步骤3重置触发的下游{num}应被重置为pending"
++                f"步骤3重置触发的下游{dn}应被重置为pending"
+             )
