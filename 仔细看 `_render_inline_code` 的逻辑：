@@ -1,0 +1,9 @@
+            if in_code:
+                # 遇到闭合反引号
+                result.append("<code>")
+                result.append(text[i:backtick])
+                result.append("</code>")
+                in_code = False
+            else:
+                result.append(text[i:backtick])
+                in_code = True
