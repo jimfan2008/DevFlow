@@ -146,52 +146,82 @@ async def run_consistency(
         doc_source = f"文件: {last_save_path}\n\n" if last_save_path else ""
 
         annotated = _build_annotated_content(project_docs_dir, project_slug)
-        display_content = annotated if annotated else content
-        chapter_note = (
-            "\n\n===== 分片标记说明 =====\n"
-            "以上需求文档中已使用 <!-- CHAPTER:key --> 划分了各个分片（章节）。\n"
-            "每个不合格项的「证据」字段必须标注所属分片key，格式 [chapter:key]，"
-            "例如 [chapter:overview] 或 [chapter:functional]。这是定位修改范围的核心依据。\n"
-        ) if annotated else ""
 
-        inspect_prompt = (
-            doc_source + "=== 需求文档 ===\n"
-            + display_content + chapter_note + "\n\n"
-            + "=== 检验维度 ===\n"
-            + f"本次只检验【{dim_label}】这一项。\n"
-            + f"检验标准：{dim_desc}\n\n"
-            + "请严格按此标准给出通过/不通过判定。\n\n"
-            + "评分规则：\n"
-            + "- 起始100分。\n"
-            + f"- 首次检验（第1轮）：每发现一个缺陷扣减相应分数（轻微扣5-10分，一般扣15-20分，严重扣25-30分）。得分>=90则通过。\n"
-            + f"- 复检（第{attempt}轮）：仅对本轮**新发现**的不合格项扣分。已在上轮指出且已修复的不合格项不重复扣分。\n"
-            + "  如果上一轮的所有不合格项均已修复且无新问题，得分必须为100分（通过）。\n"
-            + "  得分>=90则通过。\n\n"
-        )
+        if attempt == 1:
+            display_content = annotated if annotated else content
+            chapter_note = (
+                "\n\n===== 分片标记说明 =====\n"
+                "以上需求文档中已使用 <!-- CHAPTER:key --> 划分了各个分片（章节）。\n"
+                "每个不合格项的「证据」字段必须标注所属分片key，格式 [chapter:key]，"
+                "例如 [chapter:overview] 或 [chapter:functional]。这是定位修改范围的核心依据。\n"
+            ) if annotated else ""
 
-        if attempt > 1 and last_defects_detail:
-            inspect_prompt += (
-                "=== 收敛性检查（严格遵循）===\n"
-                f"这是第{attempt}轮复检。以下列出第{attempt - 1}轮发现的不合格项，请逐项严格判定：\n"
-                "1. 逐项检查每个不合格项是否已修复。\n"
-                "2. 已修复且合格 → 不计入本轮不合格项，不扣分。\n"
-                "3. 未修复或修复不充分 → 继续指出，但已在上一轮扣过的分数不再重复扣。\n"
-                "4. 仅本轮新发现的问题才作为新的不合格项扣分。\n"
-                "5. 如果所有不合格项均已修复，得分必须为100，判定结果为「通过」，不合格章节为[]。\n\n"
-                "上一轮不合格项：\n"
-                + last_defects_detail + "\n\n"
-                + "后兴已对以下分片文件进行了修改（重点检验）：\n"
-                + (last_fixed_paths + "\n\n" if last_fixed_paths else "（无明确分片记录，请检查完整文档）\n\n")
-                + "收敛目标：不合格项必须逐轮减少。若全部修复，请直接判定通过。\n\n"
+            inspect_prompt = (
+                doc_source + "=== 需求文档 ===\n"
+                + display_content + chapter_note + "\n\n"
+                + "=== 检验维度 ===\n"
+                + f"本次只检验【{dim_label}】这一项。\n"
+                + f"检验标准：{dim_desc}\n\n"
+                + "请严格按此标准给出通过/不通过判定。\n\n"
+                + "评分规则：\n"
+                + "- 起始100分。\n"
+                + "- 每发现一个缺陷扣减相应分数（轻微扣5-10分，一般扣15-20分，严重扣25-30分）。得分>=90则通过。\n"
+            )
+        else:
+            modified_content_parts = []
+            if last_fixed_paths:
+                for fp_str in last_fixed_paths.split("\n"):
+                    fp = fp_str.strip()
+                    if fp and os.path.exists(fp):
+                        try:
+                            with open(fp, "r", encoding="utf-8") as f:
+                                c = f.read()
+                            if c.strip():
+                                modified_content_parts.append(c)
+                        except Exception:
+                            pass
+            modified_content = "\n\n".join(modified_content_parts) if modified_content_parts else "(无具体修改的分片文件记录)"
+            prev_report = raw_reply_content if raw_reply_content else (last_defects_detail or "(无上一轮检验记录)")
+
+            inspect_prompt = (
+                f"=== 第{attempt}轮复检 – 仅验证上一轮不合格项是否已修复 ===\n"
+                + f"本次只检验【{dim_label}】这一个维度。\n\n"
+                + "⚠️ 禁止扩大检验范围！仅检查上一轮报告中列出的不合格项是否已修复，不要检查新内容。\n\n"
+                + "===== 上一轮检验报告（不合格项清单）=====\n"
+                + f"{prev_report}\n\n"
+                + "===== 后兴修改后的分片内容（仅需检查这些分片）=====\n"
+                + f"{modified_content}\n\n"
+                + "===== 复检规则（严格执行）=====\n"
+                + "1. 逐项检查上一轮报告中的每个不合格项是否已修复。\n"
+                + "2. 已修复且合格 → 不计入本轮不合格项，不扣分。\n"
+                + "3. 未修复或修复不充分 → 继续指出，但已在上一轮扣过的分数不再重复扣。\n"
+                + "4. ⛔ 仅检查上一轮报告中列出的不合格项！禁止检查新内容，禁止提出新问题。\n"
+                + "5. 如果上一轮所有不合格项均已修复 → 得分100，判定为「通过」，不合格章节为[]\n"
+                + "6. 收敛目标：不合格项必须逐轮减少。若全部修复，直接判定通过。\n"
             )
 
         inspect_prompt += (
-            "!!! 你必须输出一个合法的 JSON 对象（不是数组），不要包含任何其他文字。!!!\n"
-            + 'JSON格式：{"维度": "' + dim_label + '", "得分": <0-100>, "判定结果": "通过/未通过",'
-            + ' "不合格章节": [{"分片文件": "<分片路径>", "不合格项数": <N>, "项": [{"理由": "...", "证据": "（必须有 [chapter:key]）", "改善方向": "..."}]}]}\n'
+            "\n\n===== ⚠️ 强制JSON格式（系统将拒绝任何非JSON输出）=====\n"
+            + "你**只能**输出一个严格合法的JSON对象（不是数组），禁止包含任何其他文字。\n"
+            + "输出内容的第1个字符必须是 {，最后1个字符必须是 }。如果输出包含任何非JSON内容，系统将直接拒绝整个回复。\n"
+            + "规则：\n"
+            + "- 所有字符串必须使用双引号\"\n"
+            + "- 禁止末尾逗号\n"
+            + "- 禁止注释（// 或 /* */）\n"
+            + "- 禁止 ```json、``` 等任何代码块标记\n"
+            + "- 输出的第一和最后一个字符必须是 { 和 }\n"
+            + "- 必须能通过 Python json.loads() 直接解析\n\n"
+            + "必须使用的JSON格式：\n"
+            + '{"维度": "' + dim_label + '", '
+            + '"判定结果": "通过/未通过", '
+            + '"得分": <0-100>,\n'
+            + ' "不合格章节": [\n'
+            + '    {"分片文件": "<shard_key>", "不合格项数": <N>, '
+            + '"项": [{"理由": "不合格描述", "证据": "（必须有 [chapter:key]）", "改善方向": "如何修改"}]}\n'
+            + '  ]}\n'
             + '如果没有不合格项，"不合格章节" 请设为 []。\n'
-            + '注意：每个不合格项的「证据」字段必须以 [chapter:key] 开头，'
-            + '指明该问题所属的分片，例如 [chapter:overview] 或 [chapter:functional]。'
+            + '注意：每个不合格项的「证据」字段必须以 [chapter:key] 开头。\n'
+            + '「理由」明确指出不合格的原因，「改善方向」必须明确指导修复方法。'
         )
 
         await websocket.send_json({

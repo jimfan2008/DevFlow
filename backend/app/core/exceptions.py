@@ -187,3 +187,8 @@ class MeetingAlreadyInProgressError(DevFlowException):
 class MeetingHostOfflineError(DevFlowException):
     def __init__(self):
         super().__init__(status_code=503, error_code="MEETING_002", detail="Host agent is not online")
+
+
+class GitHubOAuthError(DevFlowException):
+    def __init__(self, detail: str = "GitHub OAuth failed"):
+        super().__init__(status_code=400, error_code="AUTH_005", detail=detail)

@@ -13,6 +13,7 @@ declare module 'vue' {
     ConfirmDialog: typeof import('./src/components/common/ConfirmDialog.vue')['default']
     CreateBoardDialog: typeof import('./src/components/boards/CreateBoardDialog.vue')['default']
     CreateGroupModal: typeof import('./src/components/CreateGroupModal.vue')['default']
+    DesktopLayout: typeof import('./src/components/layout/DesktopLayout.vue')['default']
     EditColumnDialog: typeof import('./src/components/boards/EditColumnDialog.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']

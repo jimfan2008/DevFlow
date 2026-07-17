@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys, sqlite3, json, os, glob
 sys.path.insert(0, '/home/jim/DevFlow/backend')
-conn = sqlite3.connect('/home/jim/DevFlow/backend/devflow.db')
+conn = sqlite3.connect('/home/jim/DevFlow/devflow.db')
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
 

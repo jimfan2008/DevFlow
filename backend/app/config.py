@@ -51,7 +51,7 @@ class Settings(BaseSettings):
         "DATABASE_URL",
         "postgresql+asyncpg://devflow_user:devflow_password@localhost:5432/devflow_db",
     )
-    SQLITE_DATABASE_URL: str = "sqlite+aiosqlite:///./devflow.db"
+    SQLITE_DATABASE_URL: str = "sqlite+aiosqlite:////home/jim/DevFlow/devflow.db"
 
     # ── 连接池 (兼容旧版) ─────────────────────────────────
     DB_POOL_SIZE: int = 10
@@ -99,6 +99,14 @@ class Settings(BaseSettings):
     GITEA_DB_NAME: str = os.getenv("GITEA_DB_NAME", "gitea")
     GITEA_DB_USER: str = os.getenv("GITEA_DB_USER", "gitea")
     GITEA_DB_PASSWORD: str = os.getenv("GITEA_DB_PASSWORD", "gitea_password")
+
+    # ── GitHub OAuth ────────────────────────────────────────
+    GITHUB_CLIENT_ID: str = os.getenv("GITHUB_CLIENT_ID", "")
+    GITHUB_CLIENT_SECRET: str = os.getenv("GITHUB_CLIENT_SECRET", "")
+    GITHUB_OAUTH_REDIRECT_URI: str = os.getenv(
+        "GITHUB_OAUTH_REDIRECT_URI",
+        os.path.join(os.getenv("FRONTEND_URL", "http://localhost:5173"), "auth/github/callback"),
+    )
 
     # ── 项目存储 ───────────────────────────────────────────
     PROJECTS_BASE_DIR: str = os.getenv(

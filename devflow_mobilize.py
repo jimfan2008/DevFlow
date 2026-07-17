@@ -27,7 +27,7 @@ for m in sorted(methods):
 
 # 检查 haimei_mobilize_agent 方法
 from app.database import SessionLocal
-conn = sqlite3.connect('/home/jim/DevFlow/backend/devflow.db')
+conn = sqlite3.connect('/home/jim/DevFlow/devflow.db')
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
 c.execute('SELECT id, name, current_step FROM projects')

@@ -15,7 +15,7 @@ os.chdir('/home/jim/DevFlow/backend')
 
 import sqlite3
 
-DB_PATH = '/home/jim/DevFlow/backend/devflow.db'
+DB_PATH = '/home/jim/DevFlow/devflow.db'
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)

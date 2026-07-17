@@ -15,33 +15,24 @@
 
     <el-alert v-if="error" :title="error" type="error" show-icon closable class="step7-view__alert" />
 
-    <!-- idle -->
-    <div v-if="stepStatus === 'pending'" class="step7-view__card">
-      <div class="step7-view__card-icon">🧪</div>
-      <h2>准备执行：后发蜂群并行编写TDD测试用例</h2>
-      <p>
-        后发将TDD测试计划拆分为原子测试用例 → 派发给最多12个第三方编写Agent（opencode/cursor/claude_code等）并行执行<br>
-        完成后交由测试Agent（codex/devika等）验证，每个子任务最多5轮修复循环<br>
-        全部通过后 hourong 1% 随机抽检
-      </p>
-      <div class="step7-view__doc-list-preview">
-        <div class="step7-view__doc-type-item"><span class="step7-view__doc-type-icon">📋</span><div><div class="step7-view__doc-type-name">TDD计划解析</div><div class="step7-view__doc-type-desc">后发将step6 TDD计划拆分为原子测试用例</div></div></div>
-        <div class="step7-view__doc-type-item"><span class="step7-view__doc-type-icon">✍️</span><div><div class="step7-view__doc-type-name">并行编写</div><div class="step7-view__doc-type-desc">最多12个编写Agent并发编写测试代码</div></div></div>
-        <div class="step7-view__doc-type-item"><span class="step7-view__doc-type-icon">🔍</span><div><div class="step7-view__doc-type-name">测试验证</div><div class="step7-view__doc-type-desc">测试Agent逐用例验证，最多5轮修复</div></div></div>
-        <div class="step7-view__doc-type-item"><span class="step7-view__doc-type-icon">🎲</span><div><div class="step7-view__doc-type-name">hourong抽检</div><div class="step7-view__doc-type-desc">1%随机抽检，确保整体质量</div></div></div>
-      </div>
-      <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
-        {{ executing ? '蜂群组建中...' : '🚀 启动后发蜂群' }}
-      </el-button>
+    <!-- loading: 自动启动蜂群中（取代原中间页，直接进入蜂群执行视图） -->
+    <div v-if="(stepStatus === 'pending' || stepStatus === 'in_progress') && taskStatesArray.length === 0 && !executing" class="step7-view__loading-start">
+      <div class="step7-view__loading-icon">🐝</div>
+      <h2>正在启动后发蜂群...</h2>
+      <p>{{ streamStatus || '正在准备并行执行环境' }}</p>
+      <el-progress :percentage="100" :stroke-width="4" status="warning" indeterminate style="max-width:300px; margin:12px auto" />
     </div>
 
-    <!-- executing: agent grid + TODO sidebar -->
-    <div v-if="stepStatus === 'in_progress'" class="step7-view__executing">
+    <!-- executing / results: agent grid + TODO sidebar (只要有任务状态就显示) -->
+    <div v-if="taskStatesArray.length > 0" class="step7-view__executing">
       <div class="step7-view__executing-header">
         <div class="step7-view__card-icon">🐝</div>
         <div class="step7-view__executing-info">
           <h2>后发蜂群并行执行</h2>
           <p class="step7-view__executing-status">{{ streamStatus || '蜂群正在工作中...' }}</p>
+        </div>
+        <div v-if="stepStatus === 'completed'" class="step7-view__executing-header-right">
+          <el-tag type="success" effect="dark" size="large">✅ 已完成</el-tag>
         </div>
       </div>
 
@@ -132,9 +123,13 @@
                 <div v-if="task.showTesterPrompt && task.testerPrompt" class="step7-view__prompt-box">
                   <pre>{{ task.testerPrompt }}</pre>
                 </div>
-                <div class="step7-view__agent-line" v-if="task.writerResponse">
-                  <el-button text size="small" @click="task.showWriterResponse = !task.showWriterResponse">
+                <div class="step7-view__agent-line" v-if="task.writerResponse || task.status === 'passed' || task.status === 'failed'">
+                  <el-button v-if="task.writerResponse" text size="small" @click="task.showWriterResponse = !task.showWriterResponse">
                     {{ task.showWriterResponse ? '收起' : '📄 编写响应' }}
+                  </el-button>
+                  <span v-if="task.writerResponse && (task.status === 'passed' || task.status === 'failed')" class="step7-view__sep">|</span>
+                  <el-button v-if="task.status === 'passed' || task.status === 'failed'" text size="small" type="primary" @click="openReport(task.testReportFull || task.testerResponse || '（报告为空）', `测试报告 - ${task.name}`)">
+                    📄 检验报告
                   </el-button>
                 </div>
                 <div v-if="task.showWriterResponse && task.writerResponse" class="step7-view__response-box">
@@ -148,11 +143,15 @@
                 <div v-if="task.showTesterResponse && task.testerResponse" class="step7-view__response-box">
                   <pre>{{ task.testerResponse }}</pre>
                 </div>
+                <div class="step7-view__agent-line" v-if="task.testerConclusion">
+                  <span class="step7-view__agent-label">🔖 结论</span>
+                  <span class="step7-view__agent-value" :class="task.testerConclusion === '检验通过' ? 'text-success' : 'text-danger'">{{ task.testerConclusion }}</span>
+                </div>
+
                 <div class="step7-view__agent-line" v-if="task.attempts > 0">
                   <span class="step7-view__agent-label">🔄 轮次</span>
-                  <span class="step7-view__agent-value">{{ task.attempts }}/5</span>
-                </div>
-              </div>
+                  <span class="step7-view__agent-value">{{ task.attempts }}/{{ MAX_ATTEMPTS }}</span>
+                </div>              </div>
               <div v-if="task.message && !task.writerPrompt && !task.testerPrompt" class="step7-view__agent-msg">{{ task.message }}</div>
               <div class="step7-view__agent-bar">
                 <el-progress
@@ -201,14 +200,14 @@
             <el-progress :percentage="progressPercent" :stroke-width="8" :color="progressColor" class="step7-view__progress-bar" />
             <div class="step7-view__task-list" ref="taskListRef">
               <div
-                v-for="task in taskStatesArray"
+                v-for="task in pendingTasksArray"
                 :key="task.index"
                 class="step7-view__task-item"
                 :class="'status-' + task.status"
               >
                 <span class="step7-view__task-icon">{{ taskIcon[task.status] }}</span>
                 <span class="step7-view__task-name">{{ task.name }}</span>
-                <span v-if="task.attempts > 0" class="step7-view__task-attempt">{{ task.attempts }}/5</span>
+                <span v-if="task.attempts > 0" class="step7-view__task-attempt">{{ task.attempts }}/{{ MAX_ATTEMPTS }}</span>
               </div>
               <div v-if="taskStatesArray.length === 0" class="step7-view__task-empty">{{ streamStatus || '暂无子任务' }}</div>
             </div>
@@ -217,6 +216,11 @@
       </div>
 
       <div class="step7-view__executing-actions">
+        <div v-if="failedCount > 0" class="step7-view__resume-action" style="margin-bottom: 16px;">
+          <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
+            🔄 续跑未通过子任务
+          </el-button>
+        </div>
         <el-button
           v-if="stuckWarning || backendError"
           type="danger"
@@ -243,35 +247,7 @@
       </el-collapse>
     </div>
 
-    <!-- results: qa_review / qa_passed / error -->
-    <div v-if="stepStatus === 'qa_review' || stepStatus === 'completed' || stepStatus === 'error'" class="step7-view__result">
-      <!-- Summary cards -->
-      <div v-if="taskStatesArray.length" class="step7-view__summary">
-        <div
-          v-for="task in taskStatesArray"
-          :key="task.index"
-          class="step7-view__summary-card"
-          :class="'status-' + task.status"
-        >
-          <span class="step7-view__summary-icon">{{ taskIcon[task.status] }}</span>
-          <div class="step7-view__summary-body">
-            <div class="step7-view__summary-label">{{ task.name }}</div>
-            <el-tag :type="task.status === 'passed' ? 'success' : task.status === 'failed' ? 'danger' : 'info'" size="small">
-              {{ task.status === 'passed' ? '✅ 通过' : task.status === 'failed' ? '❌ 未通过' : '⏳ 待执行' }}
-            </el-tag>
-            <span v-if="task.attempts > 0" class="step7-view__summary-rounds">{{ task.attempts }}轮</span>
-          </div>
-        </div>
-
-        <div v-if="failedCount > 0" class="step7-view__resume-action">
-          <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
-            🔄 续跑未通过子任务
-          </el-button>
-        </div>
-      </div>
-
-      <!-- TDD cases preview -->
-      <div class="step7-view__tabs">
+    <!-- TDD cases preview -->
         <el-tabs v-model="activeDocTab">
           <el-tab-pane label="📄 TDD测试用例" name="cases">
             <div class="step7-view__doc-content" v-if="tddCases">
@@ -292,7 +268,6 @@
             <el-empty v-else description="暂无统计数据" />
           </el-tab-pane>
         </el-tabs>
-      </div>
 
       <div v-if="stepStatus === 'error'" class="step7-view__resume-section">
         <el-divider />
@@ -310,8 +285,17 @@
           <el-button type="primary" size="large" @click="goToNext">进入下一步 ➜</el-button>
         </div>
       </div>
-    </div>
   </div>
+
+  <!-- 检验报告弹出对话框 -->
+  <el-dialog v-model="reportDialogVisible" :title="reportDialogTitle" width="80%" top="5vh" :close-on-click-modal="true" destroy-on-close>
+    <div class="step7-view__report-content">
+      <pre>{{ reportDialogContent }}</pre>
+    </div>
+    <template #footer>
+      <el-button @click="reportDialogVisible = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
@@ -320,6 +304,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { workflowApi } from '@/api/modules/workflow'
+
+const MAX_ATTEMPTS = 10
 
 const props = defineProps<{ projectId: string }>()
 const router = useRouter()
@@ -341,6 +327,16 @@ const activeDocTab = ref('cases')
 const spotCheckTotal = ref(0)
 const spotCheckFailures = ref(0)
 
+const reportDialogVisible = ref(false)
+const reportDialogContent = ref('')
+const reportDialogTitle = ref('')
+
+function openReport(reportContent: string, title: string) {
+  reportDialogContent.value = reportContent || '（报告为空）'
+  reportDialogTitle.value = title
+  reportDialogVisible.value = true
+}
+
 type TaskStatus = 'pending' | 'writing' | 'testing' | 'passed' | 'failed'
 
 interface TaskState {
@@ -359,6 +355,9 @@ interface TaskState {
   testerResponse: string
   showWriterResponse: boolean
   showTesterResponse: boolean
+  testerConclusion: string
+  testReportFull: string
+  testReportFile: string
 }
 
 const taskStates = ref<Record<number, TaskState>>({})
@@ -375,6 +374,9 @@ const passedCount = computed(() => taskStatesArray.value.filter(t => t.status ==
 const failedCount = computed(() => taskStatesArray.value.filter(t => t.status === 'failed').length)
 const activeCount = computed(() => taskStatesArray.value.filter(t => t.status === 'writing' || t.status === 'testing').length)
 const pendingCount = computed(() => taskStatesArray.value.filter(t => t.status === 'pending').length)
+const pendingTasksArray = computed(() =>
+  taskStatesArray.value.filter(t => t.status !== 'passed')
+)
 
 const progressPercent = computed(() => {
   if (totalTasks.value === 0) return 0
@@ -486,6 +488,8 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
           showWriterPrompt: false, showTesterPrompt: false,
           writerResponse: '', testerResponse: '',
           showWriterResponse: false, showTesterResponse: false,
+          testerConclusion: '',
+          testReportFull: '', testReportFile: '',
         }
       }
     }
@@ -501,7 +505,7 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   if (!task) {
     // Create on first sight
     const idx = Object.keys(taskStates.value).length + 1
-    task = { index: idx, name: sname, writerAgent: '', testerAgent: '', status: 'pending', attempts: 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false, writerResponse: '', testerResponse: '', showWriterResponse: false, showTesterResponse: false }
+    task = { index: idx, name: sname, writerAgent: '', testerAgent: '', status: 'pending', attempts: 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false, writerResponse: '', testerResponse: '', showWriterResponse: false, showTesterResponse: false, testerConclusion: '', testReportFull: '', testReportFile: '' }
     taskStates.value[idx] = task
   }
 
@@ -542,10 +546,21 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   }
 
   // ── 通过 ──
+  // ── 补充提取检验报告 ──
+  if (msg.test_report_full && msg.subtask) {
+    const rtask = Object.values(taskStates.value).find(t => t.name === msg.subtask)
+    if (rtask) {
+      rtask.testReportFull = msg.test_report_full
+      rtask.testReportFile = msg.test_report_file || ''
+    }
+  }
+
   const passMatch = txt.match(/✅.*?通过（第(\d+)轮）/)
   if (passMatch) {
     task.status = 'passed'
     task.attempts = parseInt(passMatch[1])
+    if (msg.writerAgent) task.writerAgent = msg.writerAgent
+    if (msg.testAgent) task.testerAgent = msg.testAgent
     scrollTaskList()
     return
   }
@@ -557,9 +572,14 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   }
 
   // ── 5轮均未通过 ──
-  if (txt.includes('❌') && txt.includes('5轮均未通过')) {
+  if (txt.includes('❌') && txt.includes('均未通过')) {
     task.status = 'failed'
-    task.attempts = 5
+    if (msg.test_report_full) {
+      task.testReportFull = msg.test_report_full
+      task.testReportFile = msg.test_report_file || ''
+    }
+    const attemptMatch = txt.match(/(\d+)轮.*均未通过/)
+    if (attemptMatch) task.attempts = parseInt(attemptMatch[1])
     scrollTaskList()
     return
   }
@@ -669,7 +689,10 @@ function startPolling() {
             task.status = sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
             task.attempts = sr.attempts || 0
             if (sr.writer) task.writerAgent = sr.writer
-            if (sr.tester) task.testerAgent = sr.tester
+            if (sr.test_agent) task.testerAgent = sr.test_agent
+            if (sr.tester_conclusion) task.testerConclusion = sr.tester_conclusion
+            if (sr.test_report_full) task.testReportFull = sr.test_report_full
+            if (sr.test_report_file) task.testReportFile = sr.test_report_file
           }
         }
       }
@@ -729,7 +752,15 @@ async function loadStatus() {
     const stepRow = steps['7'] || {}
     stepStatus.value = stepRow.status || 'pending'
 
-    const s7 = data?.step7 || {}
+    // 优先从专用步骤7状态 API 加载 artifacts（确保拿到最新数据）
+    let s7 = data?.step7 || {}
+    try {
+      const artRes = await workflowApi.getStep7Status(props.projectId) as any
+      if (artRes?.data && Object.keys(artRes.data).length > 0) {
+        s7 = artRes.data
+      }
+    } catch {}
+
     if (s7.tdd_cases && s7.tdd_cases.trim().length > 50) {
       tddCases.value = s7.tdd_cases
     }
@@ -737,22 +768,30 @@ async function loadStatus() {
       spotCheckTotal.value = s7.swarm_summary.spot_checked || 0
       spotCheckFailures.value = s7.swarm_summary.spot_failures || 0
     }
+
+    // ── 强制定位每个子任务状态 ──
     if (s7.subtask_results) {
       for (const sr of s7.subtask_results) {
         const existing = Object.values(taskStates.value).find(t => t.name === sr.name)
+        const resolvedStatus: string = sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
         if (existing) {
-          existing.status = sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
+          existing.status = resolvedStatus
           existing.attempts = sr.attempts || 0
           if (sr.writer) existing.writerAgent = sr.writer
-          if (sr.tester) existing.testerAgent = sr.tester
+          if (sr.test_agent) existing.testerAgent = sr.test_agent
+          if (sr.tester_conclusion) existing.testerConclusion = sr.tester_conclusion
+          if (sr.test_report_full) existing.testReportFull = sr.test_report_full
+          if (sr.test_report_file) existing.testReportFile = sr.test_report_file
         } else {
           const idx = Object.keys(taskStates.value).length + 1
           taskStates.value[idx] = {
             index: idx, name: sr.name,
-            writerAgent: sr.writer || '', testerAgent: sr.tester || '',
-            status: sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending',
+            writerAgent: sr.writer || '', testerAgent: sr.test_agent || '',
+            status: resolvedStatus,
             attempts: sr.attempts || 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false,
             writerResponse: '', testerResponse: '', showWriterResponse: false, showTesterResponse: false,
+            testerConclusion: '',
+            testReportFull: sr.test_report_full || '', testReportFile: sr.test_report_file || '',
           }
         }
       }
@@ -763,22 +802,48 @@ async function loadStatus() {
     }
 
     if (stepStatus.value === 'pending') {
-      const prevRow = steps['6'] || {}
-      if (prevRow.status === 'completed') {
-        stageLog.value.push({ type: 'stage', message: '🚀 步骤6已完成，自动执行步骤7...' })
-        setTimeout(() => handleExecute(), 500)
+      // 有已保存的子任务结果 → 从 DB 恢复
+      if (s7.subtask_results && s7.subtask_results.length > 0) {
+        const allPassed = s7.subtask_results.every(sr => sr.status === 'passed')
+        if (allPassed) {
+          stageLog.value.push({ type: 'stage', message: `♻️ 从数据库恢复 ${s7.subtask_results.length} 个子任务状态` })
+          streamStatus.value = '✅ 所有子任务已通过'
+          stepStatus.value = 'completed'
+          stageLog.value.push({ type: 'stage', message: '✅ 所有子任务均已通过检验' })
+        } else {
+          // 有部分已通过 + 部分失败/待执行 → 自动续跑未通过子任务
+          const passedCount = s7.subtask_results.filter(sr => sr.status === 'passed').length
+          const pendingCount = s7.subtask_results.length - passedCount
+          stageLog.value.push({ type: 'stage', message: `♻️ 恢复 ${passedCount} 个已通过 + ${pendingCount} 个待重置子任务，自动启动续跑...` })
+          streamStatus.value = `♻️ 自动续跑 ${pendingCount} 个未通过子任务...`
+          setTimeout(() => handleExecute(), 500)
+        }
+      } else {
+        stageLog.value.push({ type: 'stage', message: '🚀 准备启动后发蜂群并行编写TDD测试用例...' })
+        setTimeout(() => handleExecute(), 300)
       }
     }
 
     if (stepStatus.value === 'in_progress') {
-      connectWs()
-      startPolling()
-      resetStuckTimer()
-      // haimei may have advanced step to in_progress without starting actual execution
-      const hasArtifacts = s7.status || s7.tdd_cases || Object.keys(taskStates.value).length > 0
-      if (!hasArtifacts) {
-        stageLog.value.push({ type: 'stage', message: '🚀 检测到步骤7已就绪但未启动，正在自动触发执行...' })
-        setTimeout(() => handleExecute(), 500)
+      // 如果所有子任务均已通过，直接切换到 completed
+      if (s7.subtask_results && s7.subtask_results.length > 0 && s7.subtask_results.every(sr => sr.status === 'passed')) {
+        stepStatus.value = 'completed'
+        streamStatus.value = '✅ 所有子任务已通过'
+        stageLog.value.push({ type: 'stage', message: '✅ 所有子任务均已通过检验' })
+        clearAllTimers()
+      } else {
+        connectWs()
+        startPolling()
+        resetStuckTimer()
+        const hasRealData = !!(s7.tdd_cases || s7.subtask_results || s7.swarm_summary)
+        const hasFailedOrPending = s7.subtask_results && s7.subtask_results.some(sr => sr.status === 'failed' || sr.status === 'pending')
+        if (!hasRealData) {
+          stageLog.value.push({ type: 'stage', message: '🚀 检测到步骤7已就绪但未启动，正在自动触发执行...' })
+          setTimeout(() => handleExecute(), 500)
+        } else if (hasFailedOrPending) {
+          stageLog.value.push({ type: 'stage', message: '🔄 检测到有未通过的子任务，正在自动续跑...' })
+          setTimeout(() => handleExecute(), 500)
+        }
       }
     }
 
@@ -803,7 +868,6 @@ async function handleExecute() {
   stageLog.value = [{ type: 'stage', message: '🐝 正在启动后发蜂群...' }]
   streamStatus.value = '🐝 正在启动后发蜂群...'
   stepStatus.value = 'in_progress'
-  taskStates.value = {}
   connectedAgents.value = []
   spotCheckTotal.value = 0
   spotCheckFailures.value = 0
@@ -887,14 +951,12 @@ onUnmounted(() => {
     &-icon { font-size: 48px; line-height: 1; }
   }
 
-  // ── idle: doc preview ──
-  &__doc-list-preview { max-width: 600px; margin: 0 auto 32px; text-align: left; }
-  &__doc-type-item {
-    display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 8px;
-    background: #f5f7fa; border-radius: 8px;
-    &-icon { font-size: 24px; }
-    &-name { font-weight: 500; font-size: 14px; }
-    &-desc { font-size: 12px; color: #909399; margin-top: 2px; }
+  // ── loading: 自动启动 ──
+  &__loading-start {
+    text-align: center; padding: 60px 24px; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px;
+    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; }
+    p { color: #909399; margin: 0 0 12px; }
+    &-icon { font-size: 48px; line-height: 1; }
   }
 
   // ── executing ──
@@ -1012,6 +1074,7 @@ onUnmounted(() => {
   &__task-empty { text-align: center; color: #c0c4cc; padding: 20px 0; font-size: 13px; }
 
   &__prompt-toggle { font-size: 11px; color: #409eff; padding: 0 4px; }
+  &__sep { color: #dcdfe6; font-size: 12px; margin: 0 2px; }
   &__prompt-box {
     grid-column: 1 / -1; margin: 4px 0 8px 0;
     pre {
@@ -1081,4 +1144,16 @@ onUnmounted(() => {
 
 .text-success { color: #67c23a; }
 .text-danger { color: #f56c6c; }
+
+.step7-view__report-content {
+  max-height: 70vh;
+  overflow-y: auto;
+  pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+  }
+}
 </style>

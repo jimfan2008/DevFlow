@@ -8,7 +8,7 @@ from app.services.workflow_engine import WorkflowEngine
 import sqlite3, json
 
 # 获取所有项目
-conn = sqlite3.connect('/home/jim/DevFlow/backend/devflow.db')
+conn = sqlite3.connect('/home/jim/DevFlow/devflow.db')
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
 c.execute('SELECT id, name, slug FROM projects')

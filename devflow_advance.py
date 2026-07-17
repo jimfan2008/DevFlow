@@ -3,7 +3,7 @@ sys.path.insert(0, '/home/jim/DevFlow/backend')
 from app.database import SessionLocal
 from app.services.workflow_engine import WorkflowEngine
 
-conn = sqlite3.connect('/home/jim/DevFlow/backend/devflow.db')
+conn = sqlite3.connect('/home/jim/DevFlow/devflow.db')
 conn.row_factory = sqlite3.Row
 c = conn.cursor()
 c.execute('SELECT id, name, current_step FROM projects')

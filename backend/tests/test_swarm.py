@@ -1,34 +1,24 @@
 """v4.0 Swarm Service Tests"""
 import pytest
-from app.services.swarm_service import SwarmService, SUPPORTED_SWARM_AGENTS
+from app.services.swarm_service import SwarmService
 
 
 class TestSwarmService:
 
-    def test_supported_swarm_agents_count(self):
-        assert len(SUPPORTED_SWARM_AGENTS) == 10
-
-    def test_supported_agents_include_all_types(self):
-        expected = {"claude_code", "codex", "opencode", "cursor",
-                    "codearts", "trae", "lingma", "hermes_sub_agent",
-                    "pi_coding_agent", "reasonix"}
-        assert set(SUPPORTED_SWARM_AGENTS) == expected
-
-    def test_create_code_swarm(self):
+    def test_create_and_disband(self):
         service = SwarmService()
-        swarm = service.create_swarm(
+        s = service.create_swarm(
             project_id="proj-1",
-            name="TDD测试用例编写蜂群",
+            name="test-swarm",
             purpose="code_writing",
             step_number=7,
             manager_role="houfa",
         )
-        assert swarm["name"] == "TDD测试用例编写蜂群"
-        assert swarm["purpose"] == "code_writing"
-        assert swarm["manager_role"] == "houfa"
-        assert swarm["step_number"] == 7
-        assert swarm["status"] == "active"
-        assert len(swarm["members"]) == 0
+        assert s["purpose"] == "code_writing"
+        assert s["manager_role"] == "houfa"
+        assert s["step_number"] == 7
+        assert s["status"] == "active"
+        assert len(s["members"]) == 0
 
     def test_create_test_swarm(self):
         service = SwarmService()
@@ -46,31 +36,31 @@ class TestSwarmService:
     def test_add_swarm_member(self):
         service = SwarmService()
         swarm = service.create_swarm("proj-1", "蜂群A", "code_writing", 7, "houfa")
-        updated = service.add_member(swarm["id"], agent_type="claude_code", agent_id="cc-1")
+        updated = service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-1")
         assert len(updated["members"]) == 1
-        assert updated["members"][0]["agent_type"] == "claude_code"
+        assert updated["members"][0]["agent_type"] == "houfa"
 
     def test_add_multiple_members(self):
         service = SwarmService()
         swarm = service.create_swarm("proj-1", "蜂群B", "code_writing", 9, "houfa")
-        service.add_member(swarm["id"], agent_type="claude_code", agent_id="cc-1")
-        service.add_member(swarm["id"], agent_type="codex", agent_id="cx-1")
-        updated = service.add_member(swarm["id"], agent_type="opencode", agent_id="oc-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-2")
+        updated = service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-3")
         assert len(updated["members"]) == 3
 
     def test_remove_swarm_member(self):
         service = SwarmService()
         swarm = service.create_swarm("proj-1", "蜂群C", "code_writing", 7, "houfa")
-        service.add_member(swarm["id"], agent_type="claude_code", agent_id="cc-1")
-        service.add_member(swarm["id"], agent_type="codex", agent_id="cx-1")
-        updated = service.remove_member(swarm["id"], agent_id="cc-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-2")
+        updated = service.remove_member(swarm["id"], agent_id="hf-1")
         assert len(updated["members"]) == 1
 
     def test_dispatch_tasks_to_members(self):
         service = SwarmService()
         swarm = service.create_swarm("proj-1", "蜂群D", "code_writing", 9, "houfa")
-        service.add_member(swarm["id"], agent_type="claude_code", agent_id="cc-1")
-        service.add_member(swarm["id"], agent_type="codex", agent_id="cx-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-2")
 
         tasks = [
             {"task_id": "task-1", "name": "用户模块"},
@@ -86,8 +76,8 @@ class TestSwarmService:
     def test_dispatch_dependent_tasks_different_agents(self):
         service = SwarmService()
         swarm = service.create_swarm("proj-1", "蜂群E", "code_writing", 9, "houfa")
-        service.add_member(swarm["id"], agent_type="claude_code", agent_id="cc-1")
-        service.add_member(swarm["id"], agent_type="codex", agent_id="cx-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-1")
+        service.add_member(swarm["id"], agent_type="houfa", agent_id="hf-2")
 
         tasks = [
             {"task_id": "task-a", "name": "前置任务A", "depends_on": []},

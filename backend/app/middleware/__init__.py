@@ -8,6 +8,7 @@ from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.jwt_blacklist import JWTBlacklistMiddleware
 from app.middleware.logging import LoggingMiddleware
 from app.middleware.error_handler import register_error_handlers
+from app.middleware.authorization import check_observer_permissions, ObserverReadOnlyError
 
 __all__ = [
     "add_cors_middleware",
@@ -15,4 +16,6 @@ __all__ = [
     "JWTBlacklistMiddleware",
     "LoggingMiddleware",
     "register_error_handlers",
+    "check_observer_permissions",
+    "ObserverReadOnlyError",
 ]

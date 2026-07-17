@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.services.auth_service import AuthService
@@ -9,15 +10,62 @@ from app.schemas.auth import (
     LoginRequest, RegisterRequest, PasswordChangeRequest,
     TokenResponse, UserResponse, UserListResponse, UserUpdateRequest,
 )
-from app.core.exceptions import InvalidCredentials, UserAlreadyExists, AuthUserNotFoundError, AuthPasswordError
+from app.core.exceptions import (
+    InvalidCredentials, UserAlreadyExists, AuthUserNotFoundError,
+    AuthPasswordError, GitHubOAuthError,
+)
 from app.models.user import User
+from app.config import get_settings
+import uuid
 import logging
 
 logger = logging.getLogger("devflow.auth")
 router = APIRouter(redirect_slashes=False)
 
 
-@router.post("/register", tags=["auth"])
+# ── GitHub OAuth ─────────────────────────────────────────
+
+
+@router.get("/oauth/github", tags=["auth", "oauth"])
+def github_oauth_initiate(
+    client_id: str = Query(..., description="GitHub OAuth App Client ID"),
+    redirect_uri: str = Query(None, description="自定义回调地址（可选）"),
+):
+    """发起 GitHub OAuth 登录，307 重定向到 GitHub 授权页"""
+    settings = get_settings()
+    state = str(uuid.uuid4())
+    callback_uri = redirect_uri or settings.GITHUB_OAUTH_REDIRECT_URI
+    auth_url = f"https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={callback_uri}&scope=read:user+user:email&state={state}"
+    return RedirectResponse(url=auth_url, status_code=307)
+
+
+@router.get("/oauth/github/callback", tags=["auth", "oauth"])
+def github_oauth_callback(
+    code: str = Query(..., description="GitHub 授权码"),
+    client_id: str = Query(..., description="GitHub OAuth App Client ID"),
+    db: Session = Depends(get_db),
+):
+    """GitHub OAuth 回调：用授权码换取 access_token → 登录/注册 → 返回 JWT"""
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing authorization code")
+    auth_service = AuthService(db=db)
+    try:
+        result = auth_service.github_oauth_login(auth_code=code, client_id=client_id)
+        return {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "user": result["user"],
+                "tokens": result["tokens"],
+            },
+        }
+    except GitHubOAuthError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"OAuth callback failed: {str(e)}")
+
+
+@router.post("/register", tags=["auth"], status_code=201)
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
     try:
         data.check_passwords_match()

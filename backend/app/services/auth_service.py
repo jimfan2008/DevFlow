@@ -87,7 +87,8 @@ class AuthService:
             username=username,
             email=email,
             password_hash=hashed,
-            role="user",
+            role="viewer",
+            status="active",
         )
         self.db.add(new_user)
         self.db.commit()
@@ -129,3 +130,87 @@ class AuthService:
     def _get_user_model(self):
         from app.models.user import User
         return User
+
+    def github_oauth_login(self, auth_code: str, client_id: str) -> dict:
+        """通过 GitHub OAuth 授权码登录 / 注册。
+
+        - 用授权码换取 GitHub access_token
+        - 用 access_token 获取 GitHub 用户信息
+        - 按邮箱查找本地用户，不存在则自动创建（role='viewer'）
+        - 返回 JWT tokens + 用户信息
+        """
+        import httpx
+        from app.config import get_settings as _get_settings
+        from app.core.exceptions import GitHubOAuthError
+
+        settings = _get_settings()
+        client_secret = settings.GITHUB_CLIENT_SECRET
+
+        # 1. 用授权码换取 GitHub access_token
+        token_url = "https://github.com/login/oauth/access_token"
+        with httpx.Client() as http:
+            resp = http.post(
+                token_url,
+                data={
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "code": auth_code,
+                },
+                headers={"Accept": "application/json"},
+            )
+            if resp.status_code != 200 or "error" in resp.text:
+                raise GitHubOAuthError(detail="Failed to exchange authorization code")
+            token_data = resp.json()
+            github_access_token = token_data.get("access_token", "")
+            if not github_access_token:
+                raise GitHubOAuthError(detail="No access token returned from GitHub")
+
+            # 2. 获取 GitHub 用户信息
+            user_resp = http.get(
+                "https://api.github.com/user",
+                headers={
+                    "Authorization": f"token {github_access_token}",
+                    "Accept": "application/json",
+                },
+            )
+            if user_resp.status_code != 200:
+                raise GitHubOAuthError(detail="Failed to fetch GitHub user info")
+            github_user = user_resp.json()
+
+        # 3. 按邮箱查找或创建用户
+        User = self._get_user_model()
+        github_email = github_user.get("email") or f"gh_{github_user.get('id')}@github.com"
+        user = self.db.query(User).filter(User.email == github_email).first()
+
+        if user is None:
+            # 首次登录，自动创建账户
+            username = github_user.get("login", f"gh_{github_user.get('id')}")
+            # 确保用户名唯一：若已存在，附加数字
+            existing = self.db.query(User).filter(User.username == username).first()
+            if existing:
+                username = f"{username}_{github_user.get('id', 'user')}"
+            user = User(
+                username=username,
+                email=github_email,
+                password_hash="",  # OAuth 用户无需密码哈希
+                role="viewer",
+                avatar_url=github_user.get("avatar_url"),
+            )
+            self.db.add(user)
+            self.db.commit()
+            self.db.refresh(user)
+
+        # 4. 生成 tokens
+        tokens = self.create_tokens(user.id, extra_claims={"role": user.role})
+        return {"user": user.to_dict(), "tokens": tokens}
+
+    def get_github_authorize_url(self, client_id: str, redirect_uri: str, state: str) -> str:
+        """生成 GitHub OAuth 授权 URL"""
+        from urllib.parse import urlencode
+        params = {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": "read:user user:email",
+            "state": state,
+        }
+        return f"https://github.com/login/oauth/authorize?{urlencode(params)}"

@@ -318,7 +318,7 @@ def _split_chapters(full_text: str) -> dict:
     import re
     chapters = {}
     pattern = re.compile(
-        rf'{re.escape(CHAPTER_MARKER_START)}\s*(\w+)\s*{re.escape(CHAPTER_MARKER_END)}'
+        rf'{re.escape(CHAPTER_MARKER_START)}\s*([\w-]+)\s*{re.escape(CHAPTER_MARKER_END)}'
         r'([\s\S]*?)(?='
         rf'{re.escape(CHAPTER_MARKER_START)}|\Z)'
     )

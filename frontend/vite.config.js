@@ -39,6 +39,21 @@ export default defineConfig({
       }
     }
   },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    exclude: ['tests/e2e/**', 'node_modules/**'],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      }
+    },
+    server: {
+      deps: {
+        inline: ['element-plus'],
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src')

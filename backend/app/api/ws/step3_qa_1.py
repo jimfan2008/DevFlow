@@ -833,8 +833,11 @@ async def delegate_task(
                         chapter = parsed.get("chapter", "")
                         problem = parsed.get("问题", "")
                         fix_dir = parsed.get("改善方向", "")
+                        retry_reason = parsed.get("重试原因", "")
                         save_path = path
                         task_info = f"分片文件: {path}\n章节: {chapter}\n问题: {problem}\n改善方向: {fix_dir}"
+                        if retry_reason:
+                            task_info += f"\n\n⚠️ 上一次重试失败原因:\n{retry_reason}"
                         # 从 task_desc 中提取当前分片内容并拼入 prompt
                         ctx_match = _re2.search(r'\n当前内容:\n(.+?)(?:\n=====|\Z)', task_desc, _re2.DOTALL)
                         if ctx_match:
@@ -992,7 +995,10 @@ def _build_retry_task(task: dict, ctx: str, retry_index: int, reason: str = "") 
     """逐轮加强的重试任务，防止子Agent重复生成同样的垃圾内容。"""
     import json as _j
 
-    base = _j.dumps(task, ensure_ascii=False)
+    task_with_reason = dict(task)
+    if reason:
+        task_with_reason["重试原因"] = reason
+    base = _j.dumps(task_with_reason, ensure_ascii=False)
     lines = [f"{base}\n\n上下文:\n{ctx}"]
 
     crisis_rules = [
@@ -1056,11 +1062,11 @@ def _validate_shard_content(content: str, shard_key: str = "") -> tuple:
         import re as _re3
         if not shard_key:
             # 从 CHAPTER 标记自动提取 shard_key
-            m = _re3.search(r'<!--\s*CHAPTER\s*:\s*(\w+)\s*-->', content)
+            m = _re3.search(r'<!--\s*CHAPTER\s*:\s*([\w-]+)\s*-->', content)
             shard_key = m.group(1) if m else "标题"
         # 自动插入标题，确保内容通过验证
         fixed = _re3.sub(
-            r'(<!--\s*CHAPTER\s*:\s*\w+\s*-->\s*(?:<!--\s*PATH\s*:.*?-->\s*)?)',
+            r'(<!--\s*CHAPTER\s*:\s*[\w-]+\s*-->\s*(?:<!--\s*PATH\s*:.*?-->\s*)?)',
             lambda m: m.group(1) + '\n# ' + shard_key,
             content,
             count=1,

@@ -119,3 +119,48 @@ backups/
 
 # Windows zone identifiers
 *.Zone.Identifier
+*:Zone.Identifier
+.aider*
+
+# Root-level ad-hoc debug scripts (underscore prefix)
+_*.py
+_*.mjs
+
+# Claude local settings
+.claude/settings.local.json
+
+# Database backups
+*.db.OLD
+
+# Backend debug/trigger scripts
+backend/debug_*.py
+backend/trigger_*.py
+backend/force_*.py
+backend/test_api.py
+backend/auto_advance.py
+backend/devflow_auto_advance.py
+
+# Root-level ad-hoc test/check scripts
+check_em_dash.py
+check_syntax.py
+count_lines.py
+fix_swarm_em_dash.py
+reset_password_test.py
+tdd_cache_monitor_test.py
+
+# Root-level test_*.py scripts (standalone copies, main tests in tests/)
+test_*.py
+
+# Agents root-level test scripts
+agents/password_reset_test.py
+
+# Backup files
+*.bak.*
+*.bak
+
+# Database files
+*.db
+
+# Stray empty files
+hi
+run

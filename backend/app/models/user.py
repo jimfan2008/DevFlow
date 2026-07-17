@@ -14,7 +14,8 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), nullable=False, default="user")
+    role = Column(String(20), nullable=False, default="viewer")
+    status = Column(String(20), nullable=False, default="active")
     avatar_url = Column(String(500), nullable=True)
     notification_config = Column(JSONB, server_default="{}")
     created_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -27,7 +28,7 @@ class User(Base):
     __table_args__ = (
         Index("idx_users_email", "email"),
         Index("idx_users_username", "username"),
-        CheckConstraint("role IN ('user', 'admin')", name="ck_users_role"),
+        CheckConstraint("role IN ('user', 'admin', 'viewer', 'manager', 'developer')", name="ck_users_role"),
     )
 
     def to_dict(self, include_relations=False):
@@ -36,6 +37,7 @@ class User(Base):
             "username": self.username,
             "email": self.email,
             "role": self.role,
+            "status": self.status,
             "avatar_url": self.avatar_url,
             "notification_config": self.notification_config,
             "created_at": self.created_at.isoformat() if self.created_at else None,

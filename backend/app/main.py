@@ -37,6 +37,54 @@ def _init_database():
         logger.info("生产模式（PostgreSQL），依赖 Alembic 迁移")
 
 
+def _register_cli_tools():
+    """自动注册系统上已安装的 CLI 编程 Agent（goose、aider 等）。"""
+    import shutil
+    CLI_TOOLS = [
+        ("goose",      "goose",      "Goose CLI Agent"),
+        ("aider-chat", "aider",      "Aider Chat Agent"),
+        ("openhands",  "openhands",  "OpenHands Agent"),
+        ("atom",       "atom",       "Atom Agent"),
+        ("atomcode",   "atomcode",   "AtomCode Agent"),
+    ]
+    try:
+        from app.database import SessionLocal
+        from app.models.agent import Agent
+
+        db = SessionLocal()
+        try:
+            for agent_type, cli_cmd, label in CLI_TOOLS:
+                if not shutil.which(cli_cmd):
+                    continue
+                existing = db.query(Agent).filter(
+                    Agent.agent_type == agent_type, Agent.is_named_role == False
+                ).first()
+                if existing:
+                    cfg = dict(existing.config or {})
+                    if not cfg.get("cli_command"):
+                        cfg["cli_command"] = cli_cmd
+                        existing.config = cfg
+                        if existing.status == "offline":
+                            existing.status = "online"
+                        db.commit()
+                        logger.info(f"  更新 CLI Agent: {label} ({agent_type}) → cli_command={cli_cmd}")
+                else:
+                    agent = Agent(
+                        name=agent_type,
+                        agent_type=agent_type,
+                        status="online",
+                        config={"cli_command": cli_cmd},
+                        discovered_by="profile_scan",
+                    )
+                    db.add(agent)
+                    db.commit()
+                    logger.info(f"  注册 CLI Agent: {label} ({agent_type}) → cli_command={cli_cmd}")
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(f"CLI Agent 自动注册失败（可忽略）: {e}")
+
+
 def _discover_hermes_agents():
     """扫描本地 Hermes 安装并注册到 Agent 表。"""
     try:
@@ -143,7 +191,10 @@ async def lifespan(app: FastAPI):
     # 2. 创建命名 Agent 角色
     _seed_named_agents()
 
-    # 3. 自动发现本地 Hermes 安装
+    # 3. 自动注册系统已安装的 CLI 编程 Agent
+    _register_cli_tools()
+
+    # 4. 自动发现本地 Hermes 安装
     _discover_hermes_agents()
 
     # 4. 启动 Hermes 健康检查

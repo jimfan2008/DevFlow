@@ -69,7 +69,7 @@ start_backend() {
     cd "$PROJECT_DIR"
     PYTHONPATH="$PROJECT_DIR/backend" \
     HERMES_PROFILES_PATH="${HERMES_PROFILES_PATH:-$HOME/.hermes}" \
-    DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:///./devflow.db}" \
+    DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:////home/jim/DevFlow/devflow.db}" \
     uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --log-level info &
     BACKEND_PID=$!
     for i in $(seq 1 30); do

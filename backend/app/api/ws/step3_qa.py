@@ -63,6 +63,8 @@ def _save_qa_checkpoint(
     last_fixed_paths: str = "",
 ) -> bool:
     from app.services.workflow_engine import WorkflowEngine
+    from app.models.workflow_step import WorkflowStep
+    import time
     cp = {
         "step": step,
         "attempt": attempt,
@@ -72,13 +74,26 @@ def _save_qa_checkpoint(
         "last_defects_detail": last_defects_detail,
         "last_fixed_paths": last_fixed_paths,
     }
-    try:
-        engine = WorkflowEngine(project_id, db)
-        engine.save_step3_artifacts({"qa_checkpoint": cp})
-        return True
-    except Exception as e:
-        logger.error(f"保存QA断点失败: {e}", exc_info=True)
-        return False
+    for retry in range(3):
+        try:
+            engine = WorkflowEngine(project_id, db)
+            engine.save_step3_artifacts({"qa_checkpoint": cp})
+            # 立即验证回读
+            verify = db.query(WorkflowStep).filter(
+                WorkflowStep.project_id == project_id,
+                WorkflowStep.step_number == 3,
+            ).first()
+            if verify and verify.output_artifacts:
+                saved = verify.output_artifacts.get("qa_checkpoint", {})
+                if isinstance(saved, dict) and saved.get("step") == step:
+                    return True
+                logger.warning(f"QA断点回读验证不一致: 期望step={step}, 实际={saved.get('step')}")
+            else:
+                logger.warning("QA断点回读: 找不到step3行或output_artifacts为空")
+        except Exception as e:
+            logger.error(f"保存QA断点失败(第{retry+1}次): {e}", exc_info=True)
+        time.sleep(0.5)
+    return False
 
 
 def _clear_qa_checkpoint(project_id: str, db):
@@ -760,18 +775,6 @@ async def _run_qa_loop(
             })
             continue
 
-        if project_id and db:
-            # 保存当前进度到断点，但绝不回退 step 值（防止后续 WS 重建覆盖更高进度）
-            check_cp = _load_qa_checkpoint(project_id, db) if project_id and db else {}
-            existing_step = check_cp.get("step", 0)
-            save_step = max(idx, existing_step) if existing_step > idx else idx
-            _save_qa_checkpoint(
-                project_id, db,
-                step=save_step, attempt=1,
-                results=all_results if all_results else check_cp.get("results", []),
-                content=current_content or check_cp.get("content", ""),
-            )
-
         await websocket.send_json({
             "type": "sub_step_start",
             "data": {
@@ -793,6 +796,19 @@ async def _run_qa_loop(
         if result:
             all_results.append(result)
 
+        # 每步完成后立即保存综合状态（无论通过/失败）
+        # 注意：不依赖 _load_qa_checkpoint，直接用当前数据保存
+        if project_id and db:
+            save_ok = _save_qa_checkpoint(
+                project_id, db,
+                step=idx + 1 if passed else idx,
+                attempt=1,
+                results=list(all_results or []),
+                content=current_content or "",
+            )
+            if not save_ok:
+                logger.error(f"子步骤{idx+1}【{sub_step['label']}】检查点保存失败")
+
         if not passed:
             await websocket.send_json({
                 "type": "progress",
@@ -801,22 +817,7 @@ async def _run_qa_loop(
             await websocket.close()
             return
 
-        # 通过后立即保存状态，确保不会再回到本子步骤
         if project_id and db:
-            cp_ok = _save_qa_checkpoint(
-                project_id, db,
-                step=idx + 1, attempt=1,
-                results=all_results,
-                content=current_content,
-            )
-            if not cp_ok:
-                logger.error(f"子步骤{idx+1}【{sub_step['label']}】通过后状态保存失败，流程终止")
-                await websocket.send_json({
-                    "type": "error",
-                    "message": f"子步骤{idx+1}【{sub_step['label']}】已通过，但状态保存失败，无法继续推进。请检查数据库状态后重试。"
-                })
-                await websocket.close()
-                return
             passed_step_keys.add(sk)
             await websocket.send_json({
                 "type": "progress",

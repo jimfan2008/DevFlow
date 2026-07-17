@@ -106,4 +106,7 @@ export const workflowApi = {
   getShardIndex(projectId: string, body?: Record<string, unknown>) {
     return apiClient.post<ApiResponse<{ shards: { key: string; title: string; path: string; summary: string; has_content: boolean }[]; index_path: string; index_content: string; total_shards: number; docs_dir: string }>>(`/v1/workflow/${projectId}/step3/shard-index`, body || {})
   },
+  getStep7Status(projectId: string) {
+    return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/step7/status`)
+  },
 }
