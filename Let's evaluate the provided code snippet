@@ -1,0 +1,3 @@
+def __init__(self, user_id: str, role: str, content: str):
+    ...
+    self.sent_at: datetime = None
