@@ -17,19 +17,16 @@ def test(name, fn):
         ok, msg = fn()
         if ok:
             passed += 1
-            status = "PASS"
             print(f"  ✅ {name}")
-            results.append({"name": name, "status": "passed", "message": msg})
+            results.append({"name": name, "status": "passed", "message": str(msg)})
         elif ok is None:
             skipped += 1
-            status = "SKIP"
             print(f"  ⚠️  {name} — {msg}")
-            results.append({"name": name, "status": "skipped", "message": msg})
+            results.append({"name": name, "status": "skipped", "message": str(msg)})
         else:
             failed += 1
-            status = "FAIL"
             print(f"  ❌ {name} — {msg}")
-            results.append({"name": name, "status": "failed", "message": msg})
+            results.append({"name": name, "status": "failed", "message": str(msg)})
     except Exception as e:
         failed += 1
         print(f"  ❌ {name} — 异常: {e}")
@@ -59,10 +56,14 @@ def make_req(method, path, body=None, expected_status=200):
         if r.status_code != expected_status:
             return False, {"status": r.status_code, "body": r.text[:200]}
         
+        # 兼容 204 No Content 或空响应
+        if not r.text:
+            return True, {}
+            
         try:
-            data = r.json() if r.text else {}
-        except json.JSONDecodeError:
-            return False, {"error": "Invalid JSON response"}
+            data = r.json()
+        except (json.JSONDecodeError, ValueError):
+            return False, {"error": "Invalid JSON response", "body": r.text[:200]}
             
         return True, data
     except Exception as e:
@@ -306,13 +307,10 @@ if TEST_SWARM_ID:
 
     test("S3-7: 获取蜂群详情", lambda: get(f"/api/v1/swarms/{TEST_SWARM_ID}"))
 
-    test("S3-8: 移除蜂群成员", lambda: (
-        lambda r: (True, "成员已移除") if r[0] or r[1].get("status", 0) == 200 else (False, str(r[1]))
-    )(make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}/members/cursor-api-1", expected_status=200)))
+    # 简化 S3-8/S3-9，直接利用 make_req 返回值
+    test("S3-8: 移除蜂群成员", lambda: make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}/members/cursor-api-1", expected_status=200))
 
-    test("S3-9: 解散蜂群", lambda: (
-        lambda r: (True, "蜂群已解散") if r[0] or r[1].get("status", 0) == 200 else (False, str(r[1]))
-    )(make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}", expected_status=200)))
+    test("S3-9: 解散蜂群", lambda: make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}", expected_status=200))
 
 else:
     print(f"  ⚠️  S3-2 ~ S3-9: 跳过（蜂群创建失败）")
