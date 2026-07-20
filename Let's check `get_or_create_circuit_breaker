@@ -1,0 +1,11 @@
+    def get_or_create_circuit_breaker(self, date_str: str) -> CircuitBreakerRecord:
+        today_str = date_str or self.get_today_date_str()
+        record = self.db.query(CircuitBreakerRecord).filter(
+            CircuitBreakerRecord.date_str == today_str
+        ).first()
+        if record is None:
+            record = CircuitBreakerRecord(...)
+            self.db.add(record)
+            self.db.commit()
+            self.db.refresh(record)
+        return record
