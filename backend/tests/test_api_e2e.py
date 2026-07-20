@@ -54,13 +54,19 @@ def make_req(method, path, body=None, expected_status=200):
         elif method == "DELETE":
             r = requests.delete(url, timeout=10)
         else:
-            return None, {}
+            return False, {"error": "Unsupported method"}
+        
         if r.status_code != expected_status:
-            return None, {"status": r.status_code, "body": r.text[:200]}
-        data = r.json() if r.text else {}
+            return False, {"status": r.status_code, "body": r.text[:200]}
+        
+        try:
+            data = r.json() if r.text else {}
+        except json.JSONDecodeError:
+            return False, {"error": "Invalid JSON response"}
+            
         return True, data
     except Exception as e:
-        return None, {"error": str(e)}
+        return False, {"error": str(e)}
 
 
 # ============================================================
@@ -250,19 +256,7 @@ print("=" * 60)
 
 TEST_SWARM_ID = None
 
-test("S3-1: 创建代码编写蜂群 (后发)", lambda: (
-    lambda data: (globals().update(TEST_SWARM_ID=data.get("swarm", {}).get("id")), (True, f"蜂群ID: {data.get('swarm', {}).get('id')}"))
-)(
-    post("/api/v1/swarms", {
-        "project_id": PROJECT_ID,
-        "name": "API测试代码蜂群",
-        "purpose": "code_writing",
-        "step_number": 9,
-        "manager_role": "houfa"
-    })[1]
-))
-
-# Simplified - check swarm creation result
+# 修复 S3-1 重复请求问题，统一状态统计
 swarm_ok, swarm_data = post("/api/v1/swarms", {
     "project_id": PROJECT_ID,
     "name": "API测试蜂群",
