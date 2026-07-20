@@ -1,0 +1,5 @@
+    def test_consistency_with_all_partial(self, full_checker):
+        for m in full_checker.get_code_modules():
+            full_checker.set_module_consistency(m.name, ConsistencyLevel.PARTIAL)
+        consistency = full_checker.check_module_consistency()
+        assert consistency == 0.0, "所有模块 PARTIAL 应得 0%"

@@ -1,0 +1,9 @@
+    def test_report_pass_with_95_threshold(self, full_checker):
+        total = len(full_checker.get_code_modules())
+        consistent_needed = int(total * 0.95)
+        if consistent_needed < total:
+            for i, m in enumerate(full_checker.get_code_modules()):
+                if i >= consistent_needed:
+                    full_checker.set_module_consistency(m.name, ConsistencyLevel.NONE)
+        report = full_checker.generate_report()
+        assert report.module_consistency >= 95.0, f"一致性 {report.module_consistency}% 应 >= 95%"

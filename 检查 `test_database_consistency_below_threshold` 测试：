@@ -1,0 +1,12 @@
+    def test_database_consistency_below_threshold(self, full_checker):
+        # 从代码表集合中移除一张表
+        doc_tables = [t for t in full_checker._database_tables if t.source == "code"]
+        doc_tables.pop()  # 移除最后一个
+        # 更新
+        full_checker._database_tables = [
+            t for t in full_checker._database_tables if not (t.source == "code")
+        ]
+        for t in doc_tables:
+            full_checker.add_database_table(t)
+        consistency = full_checker.check_database_consistency()
+        assert consistency < 100.0, "缺失表应降低一致性"

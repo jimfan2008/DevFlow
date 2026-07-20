@@ -1,0 +1,17 @@
+    def test_report_pass_with_95_threshold(self, full_checker):
+        total = len(full_checker.get_code_modules())
+        # 计算刚好满足 95% 阈值所需的一致模块数
+        consistent_needed = -(-int(total * 0.95 * 100) // 100) # 向上取整的整数运算
+        # 或者简单点：
+        consistent_needed = int(total * 0.95)
+        if total * 0.95 > consistent_needed:
+            consistent_needed += 1
+            
+        # 将多余的模块设为不一致
+        inconsistent_count = total - consistent_needed
+        for i, m in enumerate(full_checker.get_code_modules()):
+            if i >= consistent_needed:
+                full_checker.set_module_consistency(m.name, ConsistencyLevel.NONE)
+                
+        report = full_checker.generate_report()
+        assert report.module_consistency >= 95.0, f"一致性 {report.module_consistency}% 应 >= 95%"

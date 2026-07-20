@@ -1,0 +1,9 @@
+    def check_api_consistency(self) -> float:
+        if not self._api_endpoints:
+            return 100.0
+        consistent = sum(
+            1 for ep in self._api_endpoints
+            if ep.documented == ep.implemented
+            or (ep.documented and ep.implemented)
+        )
+        return consistent / len(self._api_endpoints) * 100.0

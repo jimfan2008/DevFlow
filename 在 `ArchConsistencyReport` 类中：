@@ -1,0 +1,11 @@
+class ArchConsistencyReport:
+    """架构一致性检查报告"""
+
+    def __init__(self):
+        self.doc_completeness: float = 0.0
+        self.consistency_score: float = 0.0
+        self.total_requirements: int = 0
+        self.covered_requirements: int = 0
+        self.total_modules: int = 0
+        self.consistent_modules: int = 0
+        self.issues: List[str] = field(default_factory=list)  # 错误在这里
