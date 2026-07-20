@@ -1,0 +1,15 @@
+def create_swarm():
+    ok, data = post("/api/v1/swarms", {
+        "project_id": PROJECT_ID,
+        "name": "API测试蜂群",
+        "purpose": "code_writing",
+        "step_number": 9,
+        "manager_role": "houfa"
+    })
+    if ok and data:
+        global TEST_SWARM_ID
+        TEST_SWARM_ID = data.get("swarm", {}).get("id")
+        return True, f"蜂群ID: {TEST_SWARM_ID}"
+    return False, str(data)
+
+test("S3-1: 创建蜂群", create_swarm)

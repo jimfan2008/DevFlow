@@ -1,0 +1,17 @@
+def make_req(method, path, body=None, expected_status=200):
+    url = f"{BASE}{path}"
+    try:
+        if method == "GET":
+            r = requests.get(url, timeout=10)
+        elif method == "POST":
+            r = requests.post(url, json=body, timeout=10)
+        elif method == "DELETE":
+            r = requests.delete(url, timeout=10)
+        else:
+            return False, {"error": "Unsupported method"}
+        if r.status_code != expected_status:
+            return False, {"status": r.status_code, "body": r.text[:200]}
+        data = r.json() if r.text else {}
+        return True, data
+    except Exception as e:
+        return False, {"error": str(e)}

@@ -1,0 +1,5 @@
+def get(path, expected_status=200):
+    return make_req("GET", path, expected_status=expected_status)
+
+def post(path, body=None, expected_status=200):
+    return make_req("POST", path, body=body, expected_status=expected_status)

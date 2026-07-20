@@ -1,0 +1,29 @@
+print("\n" + "=" * 60)
+print("📋 Scenario 3: 蜂群创建与任务分发 API 测试")
+print("=" * 60)
+
+TEST_SWARM_ID = None
+swarm_ok, swarm_data = post("/api/v1/swarms", {
+    "project_id": PROJECT_ID,
+    "name": "API测试蜂群",
+    "purpose": "code_writing",
+    "step_number": 9,
+    "manager_role": "houfa"
+})
+
+if swarm_ok and swarm_data:
+    TEST_SWARM_ID = swarm_data.get("swarm", {}).get("id")
+    test("S3-1: 创建蜂群", lambda: (True, f"ID: {TEST_SWARM_ID}"))
+else:
+    test("S3-1: 创建蜂群", lambda: (False, str(swarm_data)))
+
+if TEST_SWARM_ID:
+    test("S3-2: 添加蜂群成员 (Claude Code)", lambda: post(
+        f"/api/v1/swarms/{TEST_SWARM_ID}/members",
+        {"agent_type": "claude_code", "agent_id": "claude-api-1"}
+    ))
+    # ... 其他测试
+else:
+    # 跳过 S3-2 到 S3-9
+    for i in range(2, 10):
+        test(f"S3-{i}: 跳过（蜂群创建失败）", lambda: (None, "前置条件未满足"))

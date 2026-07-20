@@ -1,0 +1,30 @@
+test("S3-1: 创建代码编写蜂群 (后发)", lambda: (
+    lambda data: (globals().update(TEST_SWARM_ID=data.get("swarm", {}).get("id")), (True, f"蜂群ID: {data.get('swarm', {}).get('id')}"))
+)(
+    post("/api/v1/swarms", {
+        "project_id": PROJECT_ID,
+        "name": "API测试代码蜂群",
+        "purpose": "code_writing",
+        "step_number": 9,
+        "manager_role": "houfa"
+    })[1]
+))
+
+# Simplified - check swarm creation result
+swarm_ok, swarm_data = post("/api/v1/swarms", {
+    "project_id": PROJECT_ID,
+    "name": "API测试蜂群",
+    "purpose": "code_writing",
+    "step_number": 9,
+    "manager_role": "houfa"
+})
+
+if swarm_ok and swarm_data:
+    TEST_SWARM_ID = swarm_data.get("swarm", {}).get("id")
+    print(f"  ✅ S3-1: 创建蜂群 — ID: {TEST_SWARM_ID}")
+    results.append({"name": "S3-1: 创建蜂群", "status": "passed", "message": f"ID: {TEST_SWARM_ID}"})
+    passed += 1
+else:
+    print(f"  ❌ S3-1: 创建蜂群失败")
+    results.append({"name": "S3-1: 创建蜂群", "status": "failed", "message": str(swarm_data)})
+    failed += 1

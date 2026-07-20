@@ -1,0 +1,20 @@
+def test(name, fn):
+    global passed, failed, skipped
+    try:
+        ok, msg = fn()
+        if ok is True:
+            passed += 1
+            print(f"  ✅ {name}")
+            results.append({"name": name, "status": "passed", "message": msg})
+        elif ok is None:
+            skipped += 1
+            print(f"  ⚠️  {name} — {msg}")
+            results.append({"name": name, "status": "skipped", "message": msg})
+        else: # ok is False
+            failed += 1
+            print(f"  ❌ {name} — {msg}")
+            results.append({"name": name, "status": "failed", "message": msg})
+    except Exception as e:
+        failed += 1
+        print(f"  ❌ {name} — 异常: {e}")
+        results.append({"name": name, "status": "failed", "message": str(e)})

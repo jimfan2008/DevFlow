@@ -1,0 +1,15 @@
+# 初始化蜂群
+swarm_ok, swarm_data = post("/api/v1/swarms", {
+    "project_id": PROJECT_ID,
+    "name": "API测试蜂群",
+    "purpose": "code_writing",
+    "step_number": 9,
+    "manager_role": "houfa"
+})
+
+if swarm_ok and swarm_data:
+    TEST_SWARM_ID = swarm_data.get("swarm", {}).get("id")
+    test("S3-1: 创建蜂群", lambda: (True, f"ID: {TEST_SWARM_ID}"))
+else:
+    TEST_SWARM_ID = None
+    test("S3-1: 创建蜂群", lambda: (False, str(swarm_data)))
