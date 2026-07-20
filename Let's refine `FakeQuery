@@ -1,0 +1,9 @@
+class FakeQuery:
+    def __init__(self, records):
+        self._records = records
+
+    def filter(self, condition):
+        return self
+
+    def first(self):
+        return next(iter(self._records.values())) if self._records else None

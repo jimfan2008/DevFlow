@@ -1,0 +1,9 @@
+    def __init__(self, id: str, date_str: str, daily_tokens_used: int = 0,
+                 daily_hard_limit: int = 100000, status: str = "closed", tripped_at=None):
+        self.id = id
+        self.date_str = date_str
+        self.daily_tokens_used = daily_tokens_used
+        self.daily_hard_limit = daily_hard_limit
+        self.status = status
+        self.tripped_at = tripped_at
+        self.updated_at = datetime.now(timezone.utc)

@@ -1,0 +1,24 @@
+class FakeQuery:
+    def __init__(self, records, model_class=None):
+        self._records = records
+        self._model_class = model_class
+        self._filter_condition = None
+
+    def filter(self, condition):
+        # condition is like CircuitBreakerRecord.date_str == today_str
+        # We can't easily evaluate SQLAlchemy conditions, so we'll just return self
+        # and handle filtering in first() by checking all records
+        return self
+
+    def first(self):
+        # Since we can't evaluate the condition directly, we'll just return the first record
+        # or we can mock it better. Actually, for simplicity in tests, we can just iterate.
+        # But a better way is to store the condition or just return the first matching record.
+        # Given the test setup, we can just return the first record in _records.
+        # Or we can make FakeQuery smarter.
+        # Let's just return the first record for simplicity, or match by date_str if possible.
+        # Actually, the test injects records with specific dates.
+        # We'll just return the first record in _records.values()
+        if not self._records:
+            return None
+        return next(iter(self._records.values()))

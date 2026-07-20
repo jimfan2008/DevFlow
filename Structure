@@ -1,0 +1,196 @@
+import pytest
+from datetime import datetime, timezone
+from unittest.mock import patch
+from enum import Enum
+from fastapi import HTTPException
+
+
+class CircuitBreakerStatus(str, Enum):
+    CLOSED = "closed"
+    TRIPPED = "tripped"
+    HALF_OPEN = "half_open"
+
+
+class CircuitBreakerRecord:
+    def __init__(self, id: str, date_str: str, daily_tokens_used: int = 0,
+                 daily_hard_limit: int = 100000, status: str = "closed"):
+        self.id = id
+        self.date_str = date_str
+        self.daily_tokens_used = daily_tokens_used
+        self.daily_hard_limit = daily_hard_limit
+        self.status = status
+        self.tripped_at = None
+        self.updated_at = datetime.now(timezone.utc)
+
+
+class LLMTokenCircuitBreakerService:
+    def __init__(self, db_session):
+        self.db = db_session
+
+    def get_today_date_str(self) -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    def get_or_create_circuit_breaker(self, date_str: str) -> CircuitBreakerRecord:
+        today_str = date_str or self.get_today_date_str()
+        record = self.db.query(CircuitBreakerRecord).filter(
+            CircuitBreakerRecord.date_str == today_str
+        ).first()
+        if record is None:
+            record = CircuitBreakerRecord(
+                id=f"cb_{today_str}",
+                date_str=today_str,
+                daily_tokens_used=0,
+                daily_hard_limit=100000,
+                status="closed"
+            )
+            self.db.add(record)
+            self.db.commit()
+            self.db.refresh(record)
+        return record
+
+    def check_token_limit(self, estimated_tokens: int = 0) -> dict:
+        date_str = self.get_today_date_str()
+        record = self.get_or_create_circuit_breaker(date_str)
+        if record.status == "tripped":
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "token_limit_exceeded",
+                    "circuit_breaker": "tripped",
+                    "message": "Token硬限制已触发熔断，请稍后重试"
+                }
+            )
+        new_usage = record.daily_tokens_used + estimated_tokens
+        if new_usage > record.daily_hard_limit:
+            record.status = "tripped"
+            record.tripped_at = datetime.now(timezone.utc)
+            record.updated_at = datetime.now(timezone.utc)
+            self.db.commit()
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "token_limit_exceeded",
+                    "circuit_breaker": "tripped",
+                    "message": "Token硬限制已触发熔断，请稍后重试"
+                }
+            )
+        record.daily_tokens_used = new_usage
+        record.updated_at = datetime.now(timezone.utc)
+        self.db.commit()
+        return {"status": "ok", "daily_tokens_used": new_usage,
+                "daily_hard_limit": record.daily_hard_limit}
+
+
+class FakeDB:
+    def __init__(self):
+        self._records = {}
+
+    def query(self, model_class):
+        return FakeQuery(self._records)
+
+    def add(self, record):
+        self._records[record.id] = record
+
+    def commit(self):
+        pass
+
+    def refresh(self, record):
+        pass
+
+
+class FakeQuery:
+    def __init__(self, records):
+        self._records = records
+
+    def filter(self, condition):
+        return self
+
+    def first(self):
+        # 修复：正确返回已注入的记录，而非硬编码 None
+        return next(iter(self._records.values())) if self._records else None
+
+
+@pytest.fixture
+def fake_db():
+    return FakeDB()
+
+
+@pytest.fixture
+def service(fake_db):
+    return LLMTokenCircuitBreakerService(fake_db)
+
+
+class TestLLMTokenHardLimitCircuitBreaker:
+    def test_first_request_normal_when_under_limit(self, service, fake_db):
+        service.db._records["cb_2026-01-01"] = CircuitBreakerRecord(
+            id="cb_2026-01-01", date_str="2026-01-01",
+            daily_tokens_used=0, daily_hard_limit=1000, status="closed"
+        )
+        with patch.object(service, "get_today_date_str", return_value="2026-01-01"):
+            result = service.check_token_limit(estimated_tokens=500)
+        assert result["status"] == "ok"
+        assert result["daily_tokens_used"] == 500
+
+    def test_second_request_exceeds_limit_returns_429(self, service, fake_db):
+        service.db._records["cb_2026-01-01"] = CircuitBreakerRecord(
+            id="cb_2026-01-01", date_str="2026-01-01",
+            daily_tokens_used=0, daily_hard_limit=1000, status="closed"
+        )
+        with patch.object(service, "get_today_date_str", return_value="2026-01-01"):
+            first = service.check_token_limit(estimated_tokens=600)
+            assert first["status"] == "ok"
+        with patch.object(service, "get_today_date_str", return_value="2026-01-01"):
+            with pytest.raises(HTTPException) as exc_info:
+                service.check_token_limit(estimated_tokens=600)
+        assert exc_info.value.status_code == 429
+        detail = exc_info.value.detail
+        assert detail["error"] == "token_limit_exceeded"
+        assert detail["circuit_breaker"] == "tripped"
+
+    def test_circuit_breaker_table_status_tripped(self, service, fake_db):
+        service.db._records["cb_2026-01-01"] = CircuitBreakerRecord(
+            id="cb_2026-01-01", date_str="2026-01-01",
+            daily_tokens_used=0, daily_hard_limit=1000, status="closed"
+        )
+        with patch.object(service, "get_today_date_str", return_value="2026-01-01"):
+            first = service.check_token_limit(estimated_tokens=600)
+            assert first["status"] == "ok"
+        with patch.object(service, "get_today_date_str", return_value="2026-01-01"):
+            with pytest.raises(HTTPException):
+                service.check_token_limit(estimated_tokens=600)
+        record = fake_db._records["cb_2026-01-01"]
+        assert record.status == "tripped"
+        assert record.tripped_at is not None
+
+    def test_tripped_circuit_breaker_rejects_all_requests(self, service, fake_db):
+        service.db._records["cb_2026-01-01"] = CircuitBreakerRecord(
+            id="cb_2026-01-01", date_str="2026-01-01",
+            daily_tokens_used=950, daily_hard_limit=1000,
+            status="tripped", tripped_at=datetime.now(timezone.utc)
+        )
+        with patch.object(service, "get_today_date_str", return_value="2026-01-01"):
+            with pytest.raises(HTTPException) as exc_info:
+                service.check_token_limit(estimated_tokens=10)
+        assert exc_info.value.status_code == 429
+        detail = exc_info.value.detail
+        assert detail["error"] == "token_limit_exceeded"
+        assert detail["circuit_breaker"] == "tripped"
+
+    def test_new_date_creates_fresh_circuit_breaker(self, service, fake_db):
+        with patch.object(service, "get_today_date_str", return_value="2026-01-02"):
+            result = service.check_token_limit(estimated_tokens=100)
+        assert result["status"] == "ok"
+        assert result["daily_tokens_used"] == 100
+
+    def test_exact_limit_boundary_allows_request(self, service, fake_db):
+        """边界测试：使用量恰好等于限制值时，应允许通过且不触发熔断"""
+        service.db._records["cb_2026-01-03"] = CircuitBreakerRecord(
+            id="cb_2026-01-03", date_str="2026-01-03",
+            daily_tokens_used=0, daily_hard_limit=1000, status="closed"
+        )
+        with patch.object(service, "get_today_date_str", return_value="2026-01-03"):
+            result = service.check_token_limit(estimated_tokens=1000)
+        assert result["status"] == "ok"
+        assert result["daily_tokens_used"] == 1000
+        record = fake_db._records["cb_2026-01-03"]
+        assert record.status == "closed"

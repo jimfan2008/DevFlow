@@ -1,0 +1,33 @@
+class FakeQuery:
+    def __init__(self, records, target_date=None):
+        self._records = records
+        self._target_date = target_date
+
+    def filter(self, condition):
+        return self
+
+    def first(self):
+        if not self._records:
+            return None
+        # Find record matching target_date
+        for record in self._records.values():
+            if record.date_str == self._target_date:
+                return record
+        return None
+
+class FakeDB:
+    def __init__(self):
+        self._records = {}
+        self._target_date = None
+
+    def query(self, model_class):
+        return FakeQuery(self._records, self._target_date)
+
+    def add(self, record):
+        self._records[record.id] = record
+
+    def commit(self):
+        pass
+
+    def refresh(self, record):
+        pass
