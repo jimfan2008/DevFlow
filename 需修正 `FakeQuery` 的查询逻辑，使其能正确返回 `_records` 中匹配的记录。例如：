@@ -1,0 +1,8 @@
+class FakeQuery:
+    def __init__(self, records):
+        self._records = records
+    def filter(self, condition):
+        return self
+    def first(self):
+        # 简化模拟：直接返回 records 中的第一条记录，或根据 id 匹配
+        return next(iter(self._records.values()), None)
