@@ -373,9 +373,12 @@ const totalTasks = computed(() => taskStatesArray.value.length)
 const passedCount = computed(() => taskStatesArray.value.filter(t => t.status === 'passed').length)
 const failedCount = computed(() => taskStatesArray.value.filter(t => t.status === 'failed').length)
 const activeCount = computed(() => taskStatesArray.value.filter(t => t.status === 'writing' || t.status === 'testing').length)
-const pendingCount = computed(() => taskStatesArray.value.filter(t => t.status === 'pending').length)
+const pendingCount = computed(() => taskStatesArray.value.filter(t =>
+  t.status === 'pending'
+  && t.testerConclusion !== '检验通过'
+).length)
 const pendingTasksArray = computed(() =>
-  taskStatesArray.value.filter(t => t.status !== 'passed')
+  taskStatesArray.value.filter(t => t.status !== 'passed' && t.testerConclusion !== '检验通过')
 )
 
 const progressPercent = computed(() => {
@@ -474,12 +477,13 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   // Also push to stage log
   stageLog.value.push({ type: 'progress', message: txt })
 
-  // ── 解析TDD计划完成，预创建子任务 ──
+  // ── 解析TDD计划完成，预创建子任务（用 index 保证唯一性）──
   if (msg.subtask_names && Array.isArray(msg.subtask_names)) {
-    for (const name of msg.subtask_names) {
-      const existing = Object.values(taskStates.value).find(t => t.name === name)
-      if (!existing) {
-        const idx = Object.keys(taskStates.value).length + 1
+    const indices: number[] = msg.subtask_indices || msg.subtask_names.map((_, i) => i + 1)
+    for (let i = 0; i < msg.subtask_names.length; i++) {
+      const idx = indices[i]
+      const name = msg.subtask_names[i]
+      if (!taskStates.value[idx]) {
         taskStates.value[idx] = {
           index: idx, name,
           writerAgent: '', testerAgent: '', status: 'pending',
@@ -500,14 +504,9 @@ function parseStep7Message(msg: { type: string; message?: string; content?: stri
   const sname = extractBracketName(txt)
   if (!sname) return
 
-  // Find or create task by name
+  // Find task by name (subtask_names broadcast already created all entries)
   let task = Object.values(taskStates.value).find(t => t.name === sname)
-  if (!task) {
-    // Create on first sight
-    const idx = Object.keys(taskStates.value).length + 1
-    task = { index: idx, name: sname, writerAgent: '', testerAgent: '', status: 'pending', attempts: 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false, writerResponse: '', testerResponse: '', showWriterResponse: false, showTesterResponse: false, testerConclusion: '', testReportFull: '', testReportFile: '' }
-    taskStates.value[idx] = task
-  }
+  // Fallback: don't create if not found — subtask_names broadcast handles creation
 
   task.message = txt
 
@@ -681,18 +680,33 @@ function startPolling() {
         spotCheckFailures.value = s7.swarm_summary.spot_failures || 0
       }
 
-      // Restore subtask results
+      // Restore subtask results (by index, not name — names may duplicate)
       if (s7.subtask_results) {
         for (const sr of s7.subtask_results) {
-          const task = Object.values(taskStates.value).find(t => t.name === sr.name)
+          const task = taskStates.value[sr.index]
+          const resolvedStatus: string = (sr.status === 'passed' || sr.status === '检验通过') ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
           if (task) {
-            task.status = sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
+            task.status = resolvedStatus
             task.attempts = sr.attempts || 0
             if (sr.writer) task.writerAgent = sr.writer
             if (sr.test_agent) task.testerAgent = sr.test_agent
             if (sr.tester_conclusion) task.testerConclusion = sr.tester_conclusion
             if (sr.test_report_full) task.testReportFull = sr.test_report_full
             if (sr.test_report_file) task.testReportFile = sr.test_report_file
+          } else {
+            taskStates.value[sr.index] = {
+              index: sr.index, name: sr.name,
+              writerAgent: sr.writer || '', testerAgent: sr.test_agent || '',
+              status: resolvedStatus,
+              attempts: sr.attempts || 0, message: '',
+              writerPrompt: '', testerPrompt: '',
+              showWriterPrompt: false, showTesterPrompt: false,
+              writerResponse: '', testerResponse: '',
+              showWriterResponse: false, showTesterResponse: false,
+              testerConclusion: sr.tester_conclusion || '',
+              testReportFull: sr.test_report_full || '',
+              testReportFile: sr.test_report_file || '',
+            }
           }
         }
       }
@@ -769,11 +783,32 @@ async function loadStatus() {
       spotCheckFailures.value = s7.swarm_summary.spot_failures || 0
     }
 
-    // ── 强制定位每个子任务状态 ──
+    // ── 预创建所有子任务占位（从 total_subtask_names 获取完整列表）──
+    // subtask_results 只有已处理的任务（215条），但 TODO LIST 必须显示全部（276条）
+    if (s7.total_subtask_names && s7.total_subtask_names.length > 0) {
+      for (let i = 0; i < s7.total_subtask_names.length; i++) {
+        const idx = i + 1
+        const name = s7.total_subtask_names[i]
+        if (!taskStates.value[idx]) {
+          taskStates.value[idx] = {
+            index: idx, name,
+            writerAgent: '', testerAgent: '', status: 'pending',
+            attempts: 0, message: '',
+            writerPrompt: '', testerPrompt: '',
+            showWriterPrompt: false, showTesterPrompt: false,
+            writerResponse: '', testerResponse: '',
+            showWriterResponse: false, showTesterResponse: false,
+            testerConclusion: '', testReportFull: '', testReportFile: '',
+          }
+        }
+      }
+    }
+
+    // ── 强制定位每个子任务状态（用 index 匹配，不用 name） ──
     if (s7.subtask_results) {
       for (const sr of s7.subtask_results) {
-        const existing = Object.values(taskStates.value).find(t => t.name === sr.name)
-        const resolvedStatus: string = sr.status === 'passed' ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
+        const existing = taskStates.value[sr.index]
+        const resolvedStatus: string = (sr.status === 'passed' || sr.status === '检验通过') ? 'passed' : sr.status === 'failed' ? 'failed' : 'pending'
         if (existing) {
           existing.status = resolvedStatus
           existing.attempts = sr.attempts || 0
@@ -783,9 +818,8 @@ async function loadStatus() {
           if (sr.test_report_full) existing.testReportFull = sr.test_report_full
           if (sr.test_report_file) existing.testReportFile = sr.test_report_file
         } else {
-          const idx = Object.keys(taskStates.value).length + 1
-          taskStates.value[idx] = {
-            index: idx, name: sr.name,
+          taskStates.value[sr.index] = {
+            index: sr.index, name: sr.name,
             writerAgent: sr.writer || '', testerAgent: sr.test_agent || '',
             status: resolvedStatus,
             attempts: sr.attempts || 0, message: '', writerPrompt: '', testerPrompt: '', showWriterPrompt: false, showTesterPrompt: false,
@@ -797,25 +831,38 @@ async function loadStatus() {
       }
     }
 
+    // ── 从 _saved_passed_indices 强制覆盖状态（这是后端持久化的已通过索引，比 subtask_results 更可靠）──
+    if (s7._saved_passed_indices && Array.isArray(s7._saved_passed_indices)) {
+      for (const idx of s7._saved_passed_indices) {
+        const task = taskStates.value[idx]
+        if (task) {
+          task.status = 'passed'
+          if (!task.testerConclusion || task.testerConclusion === '') {
+            task.testerConclusion = '检验通过'
+          }
+        }
+      }
+    }
+
     if (s7.message) {
       stageLog.value.push({ type: 'stage', message: s7.message })
     }
 
     if (stepStatus.value === 'pending') {
       // 有已保存的子任务结果 → 从 DB 恢复
+      const totalExpected = s7.total_subtask_count || (s7.subtask_results ? s7.subtask_results.length : 0)
       if (s7.subtask_results && s7.subtask_results.length > 0) {
-        const allPassed = s7.subtask_results.every(sr => sr.status === 'passed')
+        const allPassed = s7.subtask_results.every(sr => sr.status === 'passed') && s7.subtask_results.length >= totalExpected
         if (allPassed) {
           stageLog.value.push({ type: 'stage', message: `♻️ 从数据库恢复 ${s7.subtask_results.length} 个子任务状态` })
           streamStatus.value = '✅ 所有子任务已通过'
           stepStatus.value = 'completed'
           stageLog.value.push({ type: 'stage', message: '✅ 所有子任务均已通过检验' })
         } else {
-          // 有部分已通过 + 部分失败/待执行 → 自动续跑未通过子任务
+          // 有部分已通过 + 部分待执行 → 自动续跑
           const passedCount = s7.subtask_results.filter(sr => sr.status === 'passed').length
-          const pendingCount = s7.subtask_results.length - passedCount
-          stageLog.value.push({ type: 'stage', message: `♻️ 恢复 ${passedCount} 个已通过 + ${pendingCount} 个待重置子任务，自动启动续跑...` })
-          streamStatus.value = `♻️ 自动续跑 ${pendingCount} 个未通过子任务...`
+          stageLog.value.push({ type: 'stage', message: `♻️ 恢复 ${passedCount} 个已通过，启动续跑剩余 ${totalExpected - passedCount} 个...` })
+          streamStatus.value = `♻️ 自动续跑剩余 ${totalExpected - passedCount} 个...`
           setTimeout(() => handleExecute(), 500)
         }
       } else {
@@ -825,8 +872,9 @@ async function loadStatus() {
     }
 
     if (stepStatus.value === 'in_progress') {
-      // 如果所有子任务均已通过，直接切换到 completed
-      if (s7.subtask_results && s7.subtask_results.length > 0 && s7.subtask_results.every(sr => sr.status === 'passed')) {
+      // 如果所有子任务均已通过且数量匹配，才切换到 completed
+      const totalExpected2 = s7.total_subtask_count || (s7.subtask_results ? s7.subtask_results.length : 0)
+      if (s7.subtask_results && s7.subtask_results.length >= totalExpected2 && s7.subtask_results.every(sr => sr.status === 'passed')) {
         stepStatus.value = 'completed'
         streamStatus.value = '✅ 所有子任务已通过'
         stageLog.value.push({ type: 'stage', message: '✅ 所有子任务均已通过检验' })
@@ -836,7 +884,10 @@ async function loadStatus() {
         startPolling()
         resetStuckTimer()
         const hasRealData = !!(s7.tdd_cases || s7.subtask_results || s7.swarm_summary)
-        const hasFailedOrPending = s7.subtask_results && s7.subtask_results.some(sr => sr.status === 'failed' || sr.status === 'pending')
+        // subtask_results 只有已处理的任务（passed/failed），pending 的条目不在其中
+        // 用 total_subtask_count 对比 subtask_results 的数量判断是否还有待处理的
+        const relayPending = s7.total_subtask_count && s7.subtask_results && s7.subtask_results.length < s7.total_subtask_count
+        const hasFailedOrPending = relayPending || (s7.subtask_results && s7.subtask_results.some(sr => sr.status === 'failed' || sr.status === 'pending'))
         if (!hasRealData) {
           stageLog.value.push({ type: 'stage', message: '🚀 检测到步骤7已就绪但未启动，正在自动触发执行...' })
           setTimeout(() => handleExecute(), 500)

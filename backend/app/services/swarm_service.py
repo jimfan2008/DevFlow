@@ -1,5 +1,14 @@
 """v4.0 - Agent 蜂群管理服务"""
-import ast, logging
+import ast, logging, warnings
+
+
+def _parse_py(code: str):
+    """ast.parse wrapper - suppress SyntaxWarning for invalid escape sequences in generated code."""
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        return ast.parse(code)
+
+
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
 from app.models.agent import Agent
@@ -10,18 +19,18 @@ SUPPORTED_SWARM_AGENTS = [
     "claude_code", "opencode",
     "codearts", "trae", "hermes_sub_agent",
     "pi_coding_agent", "reasonix", "houfa",
-    "aider-chat", "openhands", "goose",
+    "aider-chat", "goose",
 ]
 
 WRITER_AGENT_TYPES = [
     "pi_coding_agent", "opencode", "houfa", "claude_code",
-    "codearts", "trae", "codebuddy", "reasonix", "openhands",
+    "codearts", "trae", "codebuddy", "reasonix",
     "goose",
 ]
 
 TESTER_AGENT_TYPES = [
     "reasonix", "claude_code", "hermes",
-    "aider-chat", "goose",
+    "goose",
 ]
 
 WRITER_PREFERENCE = ["pi_coding_agent", "opencode"]
@@ -196,10 +205,6 @@ class SwarmService:
         parts.append(
             f"\n=== 测试用例 ===\n名称：{sname}\n描述：{sdesc}\n验收标准：{sacc}"
         )
-        if file_path:
-            parts.append(f"代码文件路径：{file_path}")
-        if report_file_path:
-            parts.append(f"最新检验报告文件路径：{report_file_path}")
         parts.append("")
 
         parts.append("═══════════【输出铁律】═══════════")
@@ -210,6 +215,7 @@ class SwarmService:
         parts.append("2. 禁止在代码前后输出任何文字——包括自我介绍、签名、版本号、路径、分隔线等")
         parts.append("3. 禁止 Markdown 代码块标记（```）。只输出纯文本代码")
         parts.append("4. 禁止使用 todo()、pass（作为占位符）或任何无法执行的伪代码")
+        parts.append("5. ⛔ 禁止使用任何文件读写工具！只输出代码文本，不要尝试用工具写文件或读文件")
         parts.append("")
         parts.append("【代码质量要求】")
         parts.append("1. 输出的代码必须能通过 Python 编译——包含所有必要的 import 语句，无缺失依赖")
@@ -256,6 +262,8 @@ class SwarmService:
         saved_code: str,
         tester_name: str,
         previous_report: str = "",
+        file_path: str = "",
+        report_file_path: str = "",
     ) -> str:
         header = (
             f"你{tester_name}，负责检验 TDD 测试代码的质量。\n\n"
@@ -304,6 +312,7 @@ class SwarmService:
 
         import re as _re
 
+                
         code = raw.strip()
 
         # Step 1: 提取第一个 ``` 代码块内的内容（忽略围栏外的任何文字）
@@ -346,7 +355,7 @@ class SwarmService:
         #          尝试逐行剥离前导废行直到代码合法
         if result.strip():
             try:
-                ast.parse(result)
+                _parse_py(result)
             except SyntaxError as e:
                 clines = result.split('\n')
                 lineno = getattr(e, "lineno", 1)
@@ -357,7 +366,7 @@ class SwarmService:
                     if not candidate:
                         continue
                     try:
-                        ast.parse(candidate)
+                        _parse_py(candidate)
                         result = candidate
                         logger.info(f"[clean_generated_code] 剥离前导 {start} 行后代码合法")
                         break
@@ -366,7 +375,7 @@ class SwarmService:
                 # 如果剥离到很后仍不合法，尝试检测并移除非 Python 的第一行
                 if result.strip():
                     try:
-                        ast.parse(result)
+                        _parse_py(result)
                     except SyntaxError as e2:
                         # 最后尝试：直接查找第一个 import/from/def/class 行
                         import re as _re2
@@ -375,19 +384,22 @@ class SwarmService:
                             if not candidate:
                                 continue
                             if _re2.search(r'^(import |from |def |class |async def )', candidate):
+                                # ⚠️ 不能递归调 clean_generated_code — 失败的代码会再次进入此分支导致无限递归爆栈
+                                # 直接取 candidate（已是从合法 Python 关键字开始的代码）并尝试解析
                                 try:
-                                    candidate_clean = SwarmService.clean_generated_code(candidate)
-                                    ast.parse(candidate_clean)
-                                    result = candidate_clean
+                                    _parse_py(candidate)
+                                    result = candidate
                                     break
                                 except SyntaxError:
-                                    pass
+                                    # 解析不过也认了，返回截取后的代码让上层处理
+                                    result = candidate
+                                    break
 
         # Step 5: 处理前导/后置未闭合字符串字面量
         #         策略：先剥离前导行直到合法，如果仍不合法，同时剥离前导和后置裸引号行
         if result.strip():
             try:
-                ast.parse(result)
+                _parse_py(result)
             except SyntaxError:
                 import re as _re5
                 clines5 = result.split('\n')
@@ -398,7 +410,7 @@ class SwarmService:
                     if not candidate:
                         continue
                     try:
-                        ast.parse(candidate)
+                        _parse_py(candidate)
                         result = candidate
                         logger.info(f"[clean_generated_code] Step5A: 剥离前导 {skip} 行后代码合法")
                         found_valid = True
@@ -420,7 +432,7 @@ class SwarmService:
                         if not candidate:
                             continue
                         try:
-                            ast.parse(candidate)
+                            _parse_py(candidate)
                             result = candidate
                             logger.info(f"[clean_generated_code] Step5B: 两端剥离+前导 {start} 行后代码合法")
                             found_valid = True
@@ -440,7 +452,7 @@ class SwarmService:
                             candidate = '\n'.join(clines5[start:end]).strip()
                             if candidate:
                                 try:
-                                    ast.parse(candidate)
+                                    _parse_py(candidate)
                                     result = candidate
                                     logger.info(f"[clean_generated_code] Step5C: 截取 import-block [{start}:{end}] 后代码合法")
                                     found_valid = True
@@ -456,7 +468,7 @@ class SwarmService:
                             if not candidate:
                                 continue
                             try:
-                                ast.parse(candidate)
+                                _parse_py(candidate)
                                 result = candidate
                                 logger.info(f"[clean_generated_code] Step5D: 移除裸引号行+前导 {start} 行后代码合法")
                                 found_valid = True
@@ -473,7 +485,8 @@ class SwarmService:
             return False, "代码为空"
         if language == "python":
             try:
-                ast.parse(code)
+                with warnings.catch_warnings():
+                                _parse_py(code)
                 return True, ""
             except SyntaxError as e:
                 lineno = getattr(e, "lineno", "?")
@@ -524,3 +537,93 @@ class SwarmService:
                 return len(TESTER_PREFERENCE)
         agents.sort(key=_sort_key)
         return agents
+
+    @staticmethod
+    def build_code_writer_prompt(
+        file_path: str,
+        file_description: str,
+        requirement: str,
+        design_doc: str,
+        tdd_cases: str,
+        core_goal: str,
+        writer_name: str,
+        attempt: int = 1,
+        last_feedback: str = "",
+        existing_code: str = "",
+        dependency_codes: list = None,
+        dep_graph: dict = None,
+        code_plan: str = "",
+    ) -> str:
+        """Build a prompt for generating a single source code file."""
+        parts = [
+            f"你是{writer_name}，资深程序员，负责编写功能代码中的一个文件。",
+        ]
+        parts.append(
+            f"\n=== 项目上下文 ===\n"
+            f"核心目标：{core_goal}\n"
+        )
+        if requirement:
+            parts.append(f"\n=== 需求文档 ===\n{requirement[:8000]}")
+        if design_doc:
+            parts.append(f"\n=== 架构设计 ===\n{design_doc[:6000]}")
+        if tdd_cases:
+            parts.append(f"\n=== TDD测试用例 ===\n{tdd_cases[:6000]}")
+        if code_plan:
+            parts.append(f"\n=== 代码编写计划 ===\n{str(code_plan)[:4000]}")
+        if dep_graph:
+            parts.append(f"\n=== 依赖图 ===\n{str(dep_graph)[:2000]}")
+
+        # 依赖文件代码
+        if dependency_codes:
+            dep_section = "\n=== 已生成的相关文件代码（依赖前置） ===\n"
+            for dep_path, dep_code in dependency_codes:
+                dep_section += f"--- {dep_path} ---\n{dep_code[:3000]}\n\n"
+            parts.append(dep_section)
+
+        parts.append(
+            f"\n=== 当前文件 ===\n"
+            f"文件路径：{file_path}\n"
+            f"功能描述：{file_description}\n"
+        )
+
+        parts.append("")
+        parts.append("═══════════【输出铁律】═══════════")
+        parts.append("你必须严格按以下格式输出，任何违反将导致直接被拒绝：")
+        parts.append("")
+        parts.append("【格式要求】")
+        parts.append("1. 第一行必须是 Python 代码（import/def/class 开头），不得有任何非代码内容")
+        parts.append("2. 禁止在代码前后输出任何文字——包括自我介绍、签名、版本号、路径、分隔线等")
+        parts.append("3. 禁止 Markdown 代码块标记（```）。只输出纯文本代码")
+        parts.append("4. 禁止使用 todo()、pass（作为占位符）或任何无法执行的伪代码")
+        parts.append("5. ⛔ 禁止使用任何文件读写工具！只输出代码文本，不要尝试用工具写文件或读文件")
+        parts.append("")
+        parts.append("【代码质量要求】")
+        parts.append("1. 输出的代码必须能通过 Python 编译——包含所有必要的 import 语句，无缺失依赖")
+        parts.append("2. 必须包含完整的类/函数定义，所有方法必须有实现体")
+        parts.append("3. 注释清晰，类型标注完整")
+        parts.append("4. 代码符合架构设计的技术选型")
+        parts.append("")
+        parts.append("【自我检查——在你输出之前，逐项核对】")
+        parts.append("□ 第1行是 import/def/class 吗？不是 → 删掉前导行")
+        parts.append("□ 代码里有没有你自身的签名/版本号/路径信息？有 → 删掉")
+        parts.append("□ 有没有 ``` 围栏？有 → 删掉围栏，只保留中间的代码")
+        parts.append("□ 有没有 TODO/pass 占位符？有 → 替换为完整实现")
+        parts.append("□ import 是否完整？缺少 → 补上")
+        parts.append("==================================")
+
+        if last_feedback and attempt > 1:
+            parts.append(
+                f"\n【⚠️ 上一轮检验未通过】\n"
+                f"请根据以下反馈修改当前文件：\n"
+                f"{last_feedback}\n"
+            )
+            if existing_code:
+                parts.append(
+                    f"=== 当前代码（在此基础修改）===\n"
+                    f"{existing_code}\n\n"
+                    f"只修改报告中指出的问题，不改动无关代码。"
+                )
+        else:
+            parts.append("\n按功能描述从零开始生成完整代码。")
+
+        return "\n".join(parts)

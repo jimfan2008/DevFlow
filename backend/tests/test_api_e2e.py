@@ -15,18 +15,18 @@ def test(name, fn):
     global passed, failed, skipped
     try:
         ok, msg = fn()
-        if ok:
+        if ok is True:
             passed += 1
             print(f"  ✅ {name}")
-            results.append({"name": name, "status": "passed", "message": str(msg)})
+            results.append({"name": name, "status": "passed", "message": msg})
         elif ok is None:
             skipped += 1
             print(f"  ⚠️  {name} — {msg}")
-            results.append({"name": name, "status": "skipped", "message": str(msg)})
-        else:
+            results.append({"name": name, "status": "skipped", "message": msg})
+        else: # ok is False
             failed += 1
             print(f"  ❌ {name} — {msg}")
-            results.append({"name": name, "status": "failed", "message": str(msg)})
+            results.append({"name": name, "status": "failed", "message": msg})
     except Exception as e:
         failed += 1
         print(f"  ❌ {name} — 异常: {e}")
@@ -34,11 +34,11 @@ def test(name, fn):
 
 
 def get(path, expected_status=200):
-    return make_req("GET", path, expected_status)
+    return make_req("GET", path, expected_status=expected_status)
 
 
 def post(path, body=None, expected_status=200):
-    return make_req("POST", path, body, expected_status)
+    return make_req("POST", path, body=body, expected_status=expected_status)
 
 
 def make_req(method, path, body=None, expected_status=200):
@@ -56,15 +56,7 @@ def make_req(method, path, body=None, expected_status=200):
         if r.status_code != expected_status:
             return False, {"status": r.status_code, "body": r.text[:200]}
         
-        # 兼容 204 No Content 或空响应
-        if not r.text:
-            return True, {}
-            
-        try:
-            data = r.json()
-        except (json.JSONDecodeError, ValueError):
-            return False, {"error": "Invalid JSON response", "body": r.text[:200]}
-            
+        data = r.json() if r.text else {}
         return True, data
     except Exception as e:
         return False, {"error": str(e)}
@@ -256,8 +248,6 @@ print("📋 Scenario 3: 蜂群创建与任务分发 API 测试")
 print("=" * 60)
 
 TEST_SWARM_ID = None
-
-# 修复 S3-1 重复请求问题，统一状态统计
 swarm_ok, swarm_data = post("/api/v1/swarms", {
     "project_id": PROJECT_ID,
     "name": "API测试蜂群",
@@ -268,13 +258,9 @@ swarm_ok, swarm_data = post("/api/v1/swarms", {
 
 if swarm_ok and swarm_data:
     TEST_SWARM_ID = swarm_data.get("swarm", {}).get("id")
-    print(f"  ✅ S3-1: 创建蜂群 — ID: {TEST_SWARM_ID}")
-    results.append({"name": "S3-1: 创建蜂群", "status": "passed", "message": f"ID: {TEST_SWARM_ID}"})
-    passed += 1
+    test("S3-1: 创建蜂群", lambda: (True, f"ID: {TEST_SWARM_ID}"))
 else:
-    print(f"  ❌ S3-1: 创建蜂群失败")
-    results.append({"name": "S3-1: 创建蜂群", "status": "failed", "message": str(swarm_data)})
-    failed += 1
+    test("S3-1: 创建蜂群", lambda: (False, str(swarm_data)))
 
 if TEST_SWARM_ID:
     test("S3-2: 添加蜂群成员 (Claude Code)", lambda: post(
@@ -313,8 +299,9 @@ if TEST_SWARM_ID:
     test("S3-9: 解散蜂群", lambda: make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}", expected_status=200))
 
 else:
-    print(f"  ⚠️  S3-2 ~ S3-9: 跳过（蜂群创建失败）")
-    skipped += 8
+    # 跳过 S3-2 到 S3-9
+    for i in range(2, 10):
+        test(f"S3-{i}: 跳过（蜂群创建失败）", lambda: (None, "前置条件未满足"))
 
 # ============================================================
 # Scenario 4: 安全审计 API

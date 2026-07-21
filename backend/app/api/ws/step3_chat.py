@@ -490,11 +490,14 @@ async def _modify_srs_via_subagent(
         "4. 如果输出章节内容，最后输出索引章节 <!-- CHAPTER: index -->"
     )
 
-    messages = []
+    system_parts = []
     if core_goal:
-        messages.append({"role": "system", "content": f"[项目核心目标]\n{core_goal}"})
-    messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": user_message})
+        system_parts.append(f"[项目核心目标]\n{core_goal}")
+    system_parts.append(system_prompt)
+    messages = [
+        {"role": "system", "content": "\n\n".join(system_parts)},
+        {"role": "user", "content": user_message},
+    ]
 
     full_reply = await _call_subagent(messages, timeout=300, max_tokens=32000, temperature=0.3)
 
@@ -646,9 +649,9 @@ async def step3_chat_ws(websocket: WebSocket, project_id: str, token: str = Quer
                     continue
 
                 refs_text = _load_refs_text(project_docs_dir)
-                messages = []
+                system_parts = []
                 if core_goal:
-                    messages.append({"role": "system", "content": f"[项目核心目标]\n{core_goal}"})
+                    system_parts.append(f"[项目核心目标]\n{core_goal}")
                 sys_content = BRAINSTORMING_QUESTIONNAIRE_PROMPT
                 if refs_text:
                     sys_content += (
@@ -657,8 +660,11 @@ async def step3_chat_ws(websocket: WebSocket, project_id: str, token: str = Quer
                         f"{refs_text}\n\n"
                         "注意：问题应基于这些文档中的真实信息，不要凭空假设。"
                     )
-                messages.append({"role": "system", "content": sys_content})
-                messages.append({"role": "user", "content": "请根据项目核心目标和参考文档生成需求调研问卷。"})
+                system_parts.append(sys_content)
+                messages = [
+                    {"role": "system", "content": "\n\n".join(system_parts)},
+                    {"role": "user", "content": "请根据项目核心目标和参考文档生成需求调研问卷。"},
+                ]
 
                 try:
                     async def _generate():
@@ -910,14 +916,15 @@ async def step3_chat_ws(websocket: WebSocket, project_id: str, token: str = Quer
                 else:
                     # 无SRS → 普通流式对话（问卷阶段）
                     refs_text = _load_refs_text(project_docs_dir)
-                    messages = []
+                    system_parts = []
                     if core_goal:
-                        messages.append({"role": "system", "content": f"[项目核心目标]\n{core_goal}"})
+                        system_parts.append(f"[项目核心目标]\n{core_goal}")
                     sys = "你是一个软件需求分析师（后兴）。"
                     if refs_text:
                         sys += f"用户上传了以下参考文档，请结合这些文档内容回答用户的问题：\n\n{refs_text}\n\n"
                     sys += "请回答用户关于需求调研的问题。"
-                    messages.append({"role": "system", "content": sys})
+                    system_parts.append(sys)
+                    messages = [{"role": "system", "content": "\n\n".join(system_parts)}]
                     messages.extend(history)
                     messages.append({"role": "user", "content": user_message})
 

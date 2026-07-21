@@ -113,6 +113,55 @@ def _parse_priority(p: str) -> int:
     return 2
 
 
+def _build_step7_handover(
+    proj_name: str,
+    subtask_count: int,
+    passed_count: int,
+    failed_count: int,
+    subtask_names: list[str],
+    passed_subtask_names: list[str],
+    spot_check_detail: str = "",
+) -> str:
+    """构建 Step7 → Step8 的交接文档，确保 step8 能读取到完整信息。"""
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    passed_list = "\n".join(f"  ✅ {n}" for n in passed_subtask_names) if passed_subtask_names else "  无"
+    total_list = "\n".join(f"  #{i+1} {n}" for i, n in enumerate(subtask_names)) if subtask_names else "  无"
+    lines = [
+        f"# 步骤 7 → 步骤 8 交接文档",
+        f"",
+        f"## 完成步骤",
+        f"后发蜂群编写TDD测试用例",
+        f"",
+        f"## 下一步",
+        f"海梅制订代码编写计划",
+        f"",
+        f"## 完成时间",
+        f"{now}",
+        f"",
+        f"## 执行摘要",
+        f"项目：{proj_name}",
+        f"子任务总数：{subtask_count}",
+        f"通过：{passed_count}",
+        f"失败：{failed_count}",
+        f"",
+        f"## 已通过的子任务列表",
+        f"{passed_list}",
+        f"",
+        f"## 全部子任务列表",
+        f"{total_list}",
+        f"",
+    ]
+    if spot_check_detail:
+        lines.append(f"## 抽检结果\n{spot_check_detail}\n")
+    lines += [
+        f"## 交接说明",
+        f"步骤7已完成TDD测试用例编写。步骤8（海梅制订代码编写计划）请基于以上TDD测试用例列表和已生成的测试代码文件推进。",
+        f"所有已通过的测试用例代码文件位于项目 test_cases 目录下，可通过 subtask_results 中的 file_path 获取完整路径。",
+    ]
+    return "\n".join(lines)
+
+
 async def run_step7_swarm(
     project_id: str,
     requirement: str,
@@ -130,6 +179,7 @@ async def run_step7_swarm(
     from app.services.swarm_service import SwarmService
     from app.database import SessionLocal
     from app.models.project import Project
+    from app.models.agent import Agent
 
     bg_db = SessionLocal()
     try:
@@ -157,56 +207,66 @@ async def run_step7_swarm(
                 design_doc_path = f
                 break
 
-        # ── 初始化已通过子任务集合（防御）：优先使用调用方传入的 saved_subtasks ──
+        # ════════════════════════════════════════════════════════════════
+        # 已通过子任务集合 — 这是整个函数的「唯一真相来源」
+        # 任何子任务只要在这个集合中，就绝对禁止再次执行
+        # ════════════════════════════════════════════════════════════════
+        completed_indices: set[int] = set()
+        # 1) 从 output_artifacts.subtask_results 恢复
         saved_results = saved_subtasks or []
         if not saved_results:
             arts = bg_engine.get_step7_artifacts() or {}
             saved_results = arts.get("subtask_results", [])
         logger.info(f"[Step7] run_step7_swarm resume={resume} saved_results_count={len(saved_results)}")
-        # DEBUG: 打印每个 saved_result 的完整字段
         for _sr in saved_results:
             logger.info(f"[Step7] DEBUG saved_result: name={_sr.get('name')} index={_sr.get('index')} status={_sr.get('status')} keys={list(_sr.keys())}")
-        passed_names_from_prev = set()
-        passed_indices_from_prev = set()
-        reset_indices = set()
-        for sr in saved_results:
-            if sr.get("status") == "passed":
-                idx = sr.get("index", 0)
-                name = sr.get("name", "")
-                reason = ""
-                # 验证 1：代码文件必须存在
-                fp = sr.get("file_path", "")
-                if not fp or not os.path.exists(fp):
-                    fp_std = os.path.join(test_cases_dir, f"test_tdd_{idx:04d}_{slug}.py")
-                    if not os.path.exists(fp_std):
-                        reason = f"代码文件不存在 path={fp or fp_std}"
-                # 验证 2：检验报告文件必须存在
-                if not reason:
-                    rp = sr.get("test_report_file", "")
-                    if not rp or not os.path.exists(rp):
-                        reason = f"检验报告文件不存在 path={rp}"
-                if reason:
-                    logger.warning(f"[Step7] 重置子任务状态（{reason}）: [{name}] idx={idx}")
-                    reset_indices.add(idx)
-                    continue
-                passed_names_from_prev.add(name)
-                passed_indices_from_prev.add(idx)
-        # 将被重置的子任务从 artifacts 中清除（状态改为空、轮次归零）
-        if reset_indices:
-            arts = bg_engine.get_step7_artifacts() or {}
-            old_results = arts.get("subtask_results", [])
-            old_progress = arts.get("subtask_progress", {})
-            new_results = []
-            for r in old_results:
-                if r.get("index") in reset_indices or r.get("status") != "passed":
-                    new_results.append(r)
-            for ri in reset_indices:
-                old_progress.pop(str(ri), None)
-            arts["subtask_results"] = new_results
-            arts["subtask_progress"] = old_progress
-            bg_engine.save_step7_artifacts(arts)
-            logger.info(f"[Step7] 已清除 {len(reset_indices)} 个子任务的状态和进度: {sorted(reset_indices)}")
-        logger.info(f"[Step7] 防御性过滤：{len(passed_names_from_prev)} 个已通过子任务名: {passed_names_from_prev} 重置: {sorted(reset_indices) if reset_indices else '无'}")
+            if _sr.get("status") == "passed":
+                completed_indices.add(_sr.get("index", 0))
+        # 2) 从 artifacts._saved_passed_indices 补充
+        saved_passed = (bg_engine.get_step7_artifacts() or {}).get("_saved_passed_indices", [])
+        if saved_passed:
+            completed_indices.update(int(i) for i in saved_passed)
+            logger.info(f"[Step7] 从 _saved_passed_indices 补充 {len(saved_passed)} 个已通过索引: {saved_passed}")
+        # 3) 从 swarm_tasks 表补充（兜底）
+        try:
+            from app.models.swarm import SwarmTask as SwarmTaskModel, Swarm as SwarmModelForQuery
+            st_list = bg_db.query(SwarmTaskModel).filter(
+                SwarmTaskModel.status == "检验通过",
+                SwarmTaskModel.swarm_id.in_(
+                    bg_db.query(SwarmModelForQuery.id).filter(SwarmModelForQuery.project_id == project_id)
+                )
+            ).all()
+            for st in st_list:
+                try:
+                    completed_indices.add(int(st.task_id))
+                except (ValueError, TypeError):
+                    pass
+        except Exception as e:
+            logger.warning(f"[Step7] 从 swarm_tasks 表补充已通过索引失败: {e}")
+        logger.info(f"[Step7] 已通过子任务索引（最终）: {sorted(completed_indices)}")
+
+        # ── all_results 初始化 ──
+        # 关键：completed_indices 中的每个子任务必须无条件进入 all_results
+        # 否则 retry 循环检测 passed=[] 时不会包含它们，导致逻辑错误
+        all_results = []
+        # 尝试从 saved_results 中找到已通过的完整记录并加入 all_results
+        for _sr in saved_results:
+            _idx = _sr.get("index", 0)
+            if _idx in completed_indices and _sr.get("status") == "passed":
+                all_results.append(dict(_sr))
+                logger.info(f"[Step7] all_results 初始化: idx={_idx} name={_sr.get('name','')[:40]}")
+        # 兜底：如果 completed_indices 中有但 saved_results 中无完整记录，创建占位条目
+        for _idx in sorted(completed_indices):
+            if not any(r.get("index") == _idx for r in all_results):
+                all_results.append({
+                    "index": _idx,
+                    "name": f"用例{_idx}",
+                    "status": "passed",
+                    "attempts": 1,
+                    "writer": "",
+                    "test_agent": "",
+                })
+                logger.info(f"[Step7] all_results 兜底初始化: idx={_idx}")
 
         prev = existing or {}
         if resume and prev.get("qa_passed") and prev.get("tdd_cases"):
@@ -242,11 +302,9 @@ async def run_step7_swarm(
             await broadcast(project_id, {"type": "error", "message": f"❌ {err_msg}"})
             return
 
-        # ── all_results 初始化（用于收集所有子任务结果） ──
-        all_results = []
         # ── Fallback: 从 tdd_test_cases.qa_status + 检验报告文件 恢复已通过子任务 ──
-        # 即使 output_artifacts.subtask_results 没保存，qa_status 和磁盘检验报告仍是可信证据
-        if not passed_indices_from_prev:
+        # 仅当 completed_indices 为空时（没有任何已保存的通过记录）才启用
+        if not completed_indices:
             reports_dir = os.path.join(test_cases_dir, "reports")
             for ci, c in enumerate(db_cases):
                 idx = ci + 1
@@ -260,7 +318,7 @@ async def run_step7_swarm(
                         try:
                             with open(rf) as fh:
                                 content = fh.read()
-                            first_line = content.strip().split('\n')[0] if content.strip() else ""
+                            first_line = content.strip().split('\\n')[0] if content.strip() else ""
                             score_match = re.search(r'总分[：:]\s*(\d+)', first_line)
                             score = int(score_match.group(1)) if score_match else 0
                             if "判定结果：通过" in first_line and "未通过" not in first_line and score >= 90:
@@ -283,8 +341,7 @@ async def run_step7_swarm(
                             except Exception:
                                 pass
                 if is_passed:
-                    passed_names_from_prev.add(c.get("title", ""))
-                    passed_indices_from_prev.add(idx)
+                    completed_indices.add(idx)
                     all_results.append({
                         "index": idx,
                         "name": c.get("title", f"用例{idx}"),
@@ -295,8 +352,8 @@ async def run_step7_swarm(
                         "test_agent": "",
                     })
                     logger.info(f"[Step7] Fallback 已通过: idx={idx} case_id={c.get('case_id','')} title={c.get('title','')[:50]}")
-            if passed_indices_from_prev:
-                logger.info(f"[Step7] Fallback 恢复 {len(passed_indices_from_prev)} 个已通过子任务，已加入 all_results")
+            if completed_indices:
+                logger.info(f"[Step7] Fallback 恢复 {len(completed_indices)} 个已通过子任务，已加入 all_results")
 
         lines = ["# TDD测试用例计划\n", f"## 总览\n\n共 {len(db_cases)} 个测试用例\n"]
         for c in db_cases:
@@ -329,215 +386,58 @@ async def run_step7_swarm(
             return
 
         # ── 全部子任务已通过 → 直接完成 step7，不启动蜂群 ──
-        if passed_indices_from_prev and len(passed_indices_from_prev) == len(subtasks):
-            logger.info(f"[Step7] 全部 {len(subtasks)} 个子任务均已通过 (fallback)，跳过蜂群执行")
+        if completed_indices and len(completed_indices) == len(subtasks):
+            logger.info(f"[Step7] 全部 {len(subtasks)} 个子任务均已通过，跳过蜂群执行")
             await broadcast(project_id, {"type": "step7", "message": f"✅ 全部 {len(subtasks)} 个子任务已通过检验（从历史记录恢复）"})
+            # ── 生成目标值 ──
+            _all_names = [subtasks[i].get("name", f"用例{i+1}") if i < len(subtasks) else f"用例{i+1}" for i in sorted(completed_indices)]
+            _passed_names = [r.get("name", "") for r in all_results if r.get("status") == "passed"]
+            _handover_doc = _build_step7_handover(
+                proj_name=proj_name,
+                subtask_count=len(subtasks),
+                passed_count=len(completed_indices),
+                failed_count=0,
+                subtask_names=[st.get("name", f"用例{i+1}") for i, st in enumerate(subtasks)],
+                passed_subtask_names=_passed_names,
+            )
             bg_engine.save_step7_artifacts({
                 "subtask_results": all_results,
                 "status": "done",
                 "message": f"✅ 全部 {len(subtasks)} 个子任务已通过",
                 "qa_passed": True,
                 "swarm_summary": {"total": len(subtasks), "passed": len(subtasks), "failed": 0, "spot_checked": 0, "spot_failures": 0},
+                "_saved_passed_indices": sorted(completed_indices),
+                "handover_doc": _handover_doc,
             })
             bg_engine.complete_step(7)
             await broadcast(project_id, {"type": "done", "message": f"✅ TDD测试用例已全部通过（共{len(subtasks)}项）"})
             return
 
-        # ── 过滤已通过的 subtask_names，避免前端显示为待执行 ──
-        subtask_names = [st.get("name", f"用例{i+1}") for i, st in enumerate(subtasks)]
-        subtask_names_filtered = [n for n in subtask_names if n not in passed_names_from_prev]
-        pending_count = len(subtask_names_filtered)
-        skipped_count = len(subtask_names) - pending_count
-        broadcast_names = subtask_names_filtered if resume else subtask_names
-        logger.info(f"[Step7] broadcast subtask_names: total={len(subtask_names)} filtered={len(broadcast_names)} skipped={skipped_count} resume={resume}")
-        await broadcast(project_id, {"type": "step7", "subtask_names": broadcast_names, "message": f"📋 TODO LIST已生成：{pending_count} 个待处理（{skipped_count} 个已跳过）"})
+        # ── 广播全部子任务到前端（不过滤），前端通过 index 匹配状态 ──
+        all_subtask_names = [st.get("name", f"用例{i+1}") for i, st in enumerate(subtasks)]
+        all_subtask_indices = [i + 1 for i in range(len(subtasks))]
+        await broadcast(project_id, {"type": "step7", "subtask_names": all_subtask_names, "subtask_indices": all_subtask_indices, "message": f"📋 TODO LIST已生成：共 {len(subtasks)} 个子任务（{len(completed_indices)} 个已通过将自动跳过）"})
+
+        # ── 将完整子任务列表存入 artifacts，供前端 ge() 初始化 TODO LIST ──
+        try:
+            cur_arts = bg_engine.get_step7_artifacts() or {}
+            cur_arts["total_subtask_names"] = all_subtask_names
+            cur_arts["total_subtask_count"] = len(subtasks)
+            bg_engine.save_step7_artifacts(cur_arts)
+        except Exception as e:
+            logger.warning(f"[Step7] 保存 total_subtask_names 失败: {e}")
 
         # ── Step 2: 获取编程Agent，按偏好排序（PI > OpenCode > 其他; Reasonix > Claude Code > 其他） ──
         writer_agents = SwarmService.get_preferred_writer_agents(bg_db)
         tester_agents = SwarmService.get_preferred_tester_agents(bg_db)
 
-        # ── CLI Agent 自动配置（检测系统命令，写入数据库 config） ──
-        CLI_AGENT_COMMANDS = {
-            "openhands":      ["openhands", "python3 -m openhands", "python -m openhands"],
-            "aider-chat":     ["aider --message {prompt} --yes"],
-            "goose":          ["goose run --text {prompt} --no-session -q"],
-            "claude_code":    ["claude"],
-            "pi_coding_agent": ["pi"],
-            "opencode":       ["opencode run {prompt}"],
-            "codebuddy":      ["codebuddy"],
-            "reasonix":       ["reasonix"],
-            "codearts":       ["codearts"],
-            "trae":           ["trae"],
-            "atom":           ["atom", "atom-agent"],
-            "atomcode":       ["atomcode"],
-        }
-
-        def _is_agent_callable(agent):
-            cfg = agent.config or {}
-            has_cli = bool(cfg.get("cli_command") and not cfg["cli_command"].startswith("http"))
-            has_api = bool(agent.api_endpoint)
-            is_delegate = (agent.agent_type == "houfa" or agent.name == "hourong")
-            is_gateway = (agent.agent_type == "hermes")
-            return has_cli or has_api or is_delegate or is_gateway
-
         async def _auto_configure_agent(agent):
-            # 预检：如果已有 cli_command，验证命令是否真的存在，不存在则清除
-            existing_cli = (agent.config or {}).get("cli_command", "")
-            cli_valid = True
-            if existing_cli and not existing_cli.startswith("http"):
-                parts = existing_cli.split()
-                first_word = parts[0]
-                ck = await asyncio.create_subprocess_exec(
-                    "sh", "-c", f"which '{first_word}' 2>/dev/null",
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                )
-                out_bytes, _ = await ck.communicate()
-                cli_valid = ck.returncode == 0 and out_bytes.strip()
-                if cli_valid and len(parts) > 1 and parts[0] in ("python3", "python"):
-                    module = parts[-1]
-                    vproc = await asyncio.create_subprocess_exec(
-                        first_word, "-c", f"import {module}",
-                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-                    )
-                    try:
-                        _, _ = await asyncio.wait_for(vproc.communicate(), timeout=15)
-                        cli_valid = (vproc.returncode == 0)
-                    except asyncio.TimeoutError:
-                        cli_valid = False
-                if not cli_valid:
-                    logger.warning(f"[Step7] 清除失效的 cli_command: {agent.name} old={existing_cli}")
-                    cfg = dict(agent.config or {})
-                    cfg.pop("cli_command", None)
-                    agent.config = cfg
-                    try:
-                        ag = bg_db.query(Agent).filter(Agent.id == agent.id).first()
-                        if ag:
-                            ag.config = cfg
-                            bg_db.commit()
-                    except Exception as e:
-                        logger.warning(f"[Step7] 清除失效配置失败: {agent.name} {e}")
-                else:
-                    # 命令存在且有效，检查是否匹配已知候选命令（代码更新后可能需要刷新）
-                    known_candidates = CLI_AGENT_COMMANDS.get(agent.agent_type, [])
-                    if known_candidates and existing_cli not in known_candidates:
-                        logger.info(f"[Step7] 刷新 Agent 命令: {agent.name} old={existing_cli} → candidates={known_candidates}")
-                        cfg = dict(agent.config or {})
-                        cfg.pop("cli_command", None)
-                        agent.config = cfg
-                        try:
-                            ag = bg_db.query(Agent).filter(Agent.id == agent.id).first()
-                            if ag:
-                                ag.config = cfg
-                                bg_db.commit()
-                        except Exception as e:
-                            logger.warning(f"[Step7] 刷新配置失败: {agent.name} {e}")
-                        cli_valid = False
-
-            if _is_agent_callable(agent) and cli_valid is not False:
-                return True
-            cfg = dict(agent.config or {})
-            if agent.api_endpoint:
-                return True
-            cmd_candidates = CLI_AGENT_COMMANDS.get(agent.agent_type, [])
-            if not cmd_candidates:
-                return False
-            for candidate in cmd_candidates:
-                try:
-                    parts = candidate.split()
-                    first_word = parts[0]
-                    proc = await asyncio.create_subprocess_exec(
-                        "sh", "-c", f"which '{first_word}' 2>/dev/null",
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                    )
-                    out_bytes, _ = await proc.communicate()
-                    if proc.returncode != 0 or not out_bytes.strip():
-                        continue
-                    base_cmd = out_bytes.decode().strip()
-                    if len(parts) > 1 and parts[0] in ("python3", "python"):
-                        module = parts[-1]
-                        vproc = await asyncio.create_subprocess_exec(
-                            first_word, "-c", f"import {module}",
-                            stdout=asyncio.subprocess.PIPE,
-                            stderr=asyncio.subprocess.PIPE,
-                        )
-                        try:
-                            _, _ = await asyncio.wait_for(vproc.communicate(), timeout=15)
-                            if vproc.returncode != 0:
-                                continue
-                        except asyncio.TimeoutError:
-                            continue
-                    cfg["cli_command"] = candidate
-                    agent.config = cfg
-                    try:
-                        ag = bg_db.query(Agent).filter(Agent.id == agent.id).first()
-                        if ag:
-                            ag.config = cfg
-                            bg_db.commit()
-                    except Exception as e:
-                        logger.warning(f"[Step7] 保存Agent配置失败: {agent.name} {e}")
-                    logger.info(f"[Step7] 自动配置Agent: {agent.name}({agent.agent_type}) → cli_command={candidate} (路径={base_cmd})")
-                    return True
-                except Exception as e:
-                    logger.warning(f"[Step7] 检测命令失败: {agent.name} candidate={candidate} {e}")
-            return False
+            from app.services.agent_utils import auto_configure_agent as _util_auto
+            return await _util_auto(agent, db_session=bg_db)
 
         async def _smoke_test_agent(agent) -> bool:
-            """快速烟雾测试：验证 agent 是否真的可以响应，而非仅配置存在。"""
-            _SMOKE_TIMEOUT = 60
-            cfg = agent.config or {}
-            cli_cmd = cfg.get("cli_command", "")
-            if cli_cmd and not cli_cmd.startswith("http"):
-                import re as _re
-                for flag in ("--version", "--help"):
-                    try:
-                        if "{prompt}" in cli_cmd:
-                            _cmd = f"timeout {_SMOKE_TIMEOUT} {cli_cmd.replace('{prompt}', flag)} 2>&1"
-                        else:
-                            _cmd = f"timeout {_SMOKE_TIMEOUT} {cli_cmd} {flag} 2>&1"
-                        smoke_proc = await asyncio.create_subprocess_exec(
-                            "sh", "-c", _cmd,
-                            stdin=asyncio.subprocess.DEVNULL,
-                            stdout=asyncio.subprocess.PIPE,
-                            stderr=asyncio.subprocess.PIPE,
-                        )
-                        try:
-                            out_bytes, _ = await asyncio.wait_for(smoke_proc.communicate(), timeout=_SMOKE_TIMEOUT)
-                        except asyncio.TimeoutError:
-                            logger.warning(f"[Step7] Agent 烟雾测试超时: {agent.name} cli={cli_cmd} {flag}")
-                            continue
-                        output = out_bytes.decode().strip() if out_bytes else ""
-                        rc = smoke_proc.returncode
-                        if rc != 0:
-                            # 检查是否为终端/TTY 相关问题导致崩溃
-                            if _re.search(r'(Input is not a terminal|not a tty|is not a TTY|stdin is not a terminal)', output):
-                                logger.warning(f"[Step7] Agent 烟雾测试因无终端环境失败: {agent.name} cli={cli_cmd}（该 Agent 需要交互式终端，跳过）")
-                                return False
-                            err_snip = output[:200].replace('\n', ' | ')
-                            logger.warning(f"[Step7] Agent 烟雾测试退出码非0: {agent.name} cli={cli_cmd} {flag} rc={rc} err={err_snip}")
-                            continue
-                        if not output:
-                            logger.warning(f"[Step7] Agent 烟雾测试无输出: {agent.name} cli={cli_cmd} {flag}")
-                            continue
-                        logger.info(f"[Step7] Agent 烟雾测试通过: {agent.name} cli={cli_cmd} {flag}")
-                        return True
-                    except Exception as e:
-                        logger.warning(f"[Step7] Agent 烟雾测试异常: {agent.name} cli={cli_cmd} {flag} {e}")
-                        continue
-                logger.warning(f"[Step7] Agent 烟雾测试全部失败: {agent.name} cli={cli_cmd}")
-                return False
-            if agent.api_endpoint:
-                try:
-                    import httpx
-                    async with httpx.AsyncClient(timeout=_SMOKE_TIMEOUT) as hc:
-                        await hc.get(agent.api_endpoint)
-                    return True
-                except Exception as e:
-                    logger.warning(f"[Step7] Agent API端点不可达: {agent.name} endpoint={agent.api_endpoint} {e}")
-                    return False
-            if agent.agent_type == "hermes" or agent.agent_type == "houfa" or agent.name == "hourong":
-                return True
-            return False
+            from app.services.agent_utils import smoke_test_agent as _util_smoke
+            return await _util_smoke(agent)
 
         async def _check_agent(a) -> bool:
             return await _auto_configure_agent(a) and await _smoke_test_agent(a)
@@ -567,7 +467,7 @@ async def run_step7_swarm(
             await broadcast(project_id, {"type": "step7", "message": f"⚠️ 跳过 {len(skipped_testers)} 个不可用的测试Agent: {skipped_testers}"})
 
         if not writer_agents:
-            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent（请确保系统已安装 openhands/aider/goose 等编程Agent并配置在 PATH 中）"})
+            bg_engine.save_step7_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent（请确保系统已安装 aider/goose 等编程Agent并配置在 PATH 中）"})
             await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的编写Agent"})
             return
         if not tester_agents:
@@ -596,161 +496,42 @@ async def run_step7_swarm(
             except ValueError:
                 pass
 
+        # ── 保存蜂群到数据库（swarms 表） ──
+        from app.models.swarm import Swarm as SwarmDB, SwarmTask
+        from datetime import datetime, timezone
+        db_swarm = None
+        try:
+            # 查询 houfa agent 作为管理者
+            houfa_agent = bg_db.query(Agent).filter(Agent.name == "houfa").first()
+            manager_id = houfa_agent.id if houfa_agent else (writer_agents[0].id if writer_agents else "")
+            db_swarm = SwarmDB(
+                project_id=project_id,
+                manager_agent_id=manager_id,
+                name=f"TDD-Swarm-{slug[:8]}",
+                purpose="code_writing",
+                step_number=7,
+                members=[{"agent_id": wa.id, "agent_type": wa.agent_type} for wa in writer_agents],
+                status="active",
+                created_at=datetime.now(timezone.utc),
+            )
+            bg_db.add(db_swarm)
+            bg_db.commit()
+            bg_db.refresh(db_swarm)
+            logger.info(f"[Step7] 蜂群已保存到数据库: swarm_id={db_swarm.id}")
+        except Exception as e:
+            logger.warning(f"[Step7] 保存蜂群到数据库失败: {e}")
+            db_swarm = None
+
         # ── Step 4: 通用Agent调用辅助函数 ──
         async def _call_agent(agent, prompt_text, timeout=600):
-            t_req = time.time()
-            agent_tag = f"{agent.name}({agent.agent_type})"
-            logger.debug(f"[Step7] _call_agent 开始: {agent_tag} prompt_len={len(prompt_text)}")
-            cfg = agent.config or {}
-            api_key = cfg.get("api_key") or cfg.get("apiKey")
-            model = cfg.get("model") or "default"
-
-            # 快速失败：预检是否有任何可用路径
-            cli_cmd = cfg.get("cli_command")
-            has_cli = bool(cli_cmd and not cli_cmd.startswith("http"))
-            has_api = bool(agent.api_endpoint)
-            is_delegate = (agent.agent_type == "houfa" or agent.name == "hourong")
-            is_gateway = (agent.agent_type == "hermes")
-            if not (has_cli or has_api or is_delegate or is_gateway):
-                logger.warning(f"[Step7] _call_agent 快速跳过: {agent_tag} 未配置任何调用路径（无 cli_command、api_endpoint，非 houfa/hourong/hermes 类型）")
-                elapsed = time.time() - t_req
-                logger.error(f"[Step7] _call_agent 失败: {agent_tag} 耗时={elapsed:.1f}s 未配置调用路径")
-                return ""
-
-            cli_cmd = cfg.get("cli_command") or agent.api_endpoint
-            if cli_cmd and not cli_cmd.startswith("http"):
-                import shlex
-                prompt_quoted = shlex.quote(prompt_text)
-                if "{prompt}" in cli_cmd:
-                    full_cmd = cli_cmd.replace("{prompt}", prompt_quoted)
-                    cmd_parts = shlex.split(full_cmd)
-                    use_stdin = False
-                else:
-                    cmd_parts = shlex.split(cli_cmd)
-                    use_stdin = True
-                for attempt in range(1, 4):
-                    try:
-                        proc = await asyncio.create_subprocess_exec(
-                            *cmd_parts,
-                            stdin=asyncio.subprocess.PIPE if use_stdin else asyncio.subprocess.DEVNULL,
-                            stdout=asyncio.subprocess.PIPE,
-                            stderr=asyncio.subprocess.PIPE,
-                        )
-                        out_bytes, err_bytes = await asyncio.wait_for(
-                            proc.communicate(input=prompt_text.encode() if use_stdin else None), timeout=timeout,
-                        )
-                        text = out_bytes.decode().strip() if out_bytes else ""
-                        if text:
-                            elapsed = time.time() - t_req
-                            logger.info(f"[Step7] _call_agent success (CLI): {agent_tag} 耗时={elapsed:.1f}s reply_len={len(text)}")
-                            return text
-                        if proc.returncode != 0:
-                            err = (err_bytes.decode().strip() if err_bytes else "")[:500]
-                            logger.warning(f"Step7 agent {agent.name} CLI exit {proc.returncode} (attempt {attempt}/3): {err}")
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Step7 agent {agent.name} CLI timeout (attempt {attempt}/3)")
-                    except Exception as e:
-                        logger.warning(f"Step7 agent {agent.name} CLI error (attempt {attempt}/3): {e}")
-                    await asyncio.sleep(2 ** attempt)
-                logger.error(f"Step7 agent {agent.name} CLI all attempts failed")
-
-            if agent.api_endpoint:
-                ep = agent.api_endpoint.rstrip("/")
-                headers = {"Content-Type": "application/json"}
-                if api_key:
-                    headers["Authorization"] = f"Bearer {api_key}"
-                last_err = None
-                for attempt in range(1, 4):
-                    try:
-                        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as hc:
-                            resp = await hc.post(
-                                f"{ep}/v1/chat/completions",
-                                headers=headers,
-                                json={
-                                    "model": model,
-                                    "messages": [{"role": "user", "content": prompt_text}],
-                                    "max_tokens": 32000,
-                                    "temperature": 0.7,
-                                },
-                            )
-                            if resp.status_code == 401:
-                                logger.warning(f"Step7 agent {agent.name} ({agent.agent_type}) API key rejected at {ep}")
-                                break
-                            resp.raise_for_status()
-                            content = resp.json().get("choices", [{}])[0].get("message", {}).get("content", "")
-                            if content.strip():
-                                elapsed = time.time() - t_req
-                                logger.info(f"[Step7] _call_agent success (HTTP): {agent_tag} 耗时={elapsed:.1f}s reply_len={len(content)}")
-                                return content
-                    except httpx.TimeoutException as e:
-                        last_err = e
-                        logger.warning(f"Step7 agent {agent.name} timeout (attempt {attempt}/3): {ep}")
-                        await asyncio.sleep(2 ** attempt)
-                    except httpx.ConnectError as e:
-                        last_err = e
-                        logger.warning(f"Step7 agent {agent.name} unreachable (attempt {attempt}/3): {ep}")
-                        await asyncio.sleep(2 ** attempt)
-                    except Exception as e:
-                        last_err = e
-                        logger.warning(f"Step7 agent {agent.name} error (attempt {attempt}/3): {e}")
-                        await asyncio.sleep(2 ** attempt)
-                if last_err:
-                    fallback = "GatewayClient" if agent.agent_type == "hermes" else "已无可用路径"
-                    logger.info(f"Step7 agent {agent.name} direct API failed after 3 attempts, {fallback}")
-
-            # 路径: houfa → delegate_task 子 Agent
-            if agent.agent_type == "houfa" or agent.name == "hourong":
-                try:
-                    from app.api.ws.step3_qa_1 import delegate_task as _delegate_task
-                    _profile = "hourong" if agent.name == "hourong" else "houfa"
-                    task_payload = json.dumps({
-                        "save_path": os.path.join(docs_dir, f"{agent.name}_reply_{int(time.time())}.json"),
-                        "task": prompt_text,
-                    }, ensure_ascii=False)
-                    results = await _delegate_task(tasks=[task_payload], profile_name=_profile, timeout=timeout)
-                    if results and results[0]:
-                        result_path = results[0]
-                        if os.path.exists(result_path):
-                            with open(result_path, "r", encoding="utf-8") as f:
-                                raw = f.read()
-                            # hourong 保存的是原始文本，可能不是 JSON，先尝试 JSON 解析
-                            reply = ""
-                            try:
-                                report = json.loads(raw)
-                                reply = report.get("summary", "") or report.get("content", "") or report.get("result", "")
-                            except json.JSONDecodeError:
-                                # 非 JSON 原始文本直接作为回复
-                                reply = raw.strip()
-                            if reply.strip():
-                                elapsed = time.time() - t_req
-                                logger.info(f"[Step7] _call_agent success (delegate_task): {agent_tag} 耗时={elapsed:.1f}s reply_len={len(reply)}")
-                                return reply
-                except Exception as e:
-                    logger.warning(f"Step7 agent {agent.name} delegate_task failed: {e}")
-
-            if agent.agent_type == "hermes":
-                profile = agent.role_name or agent.name or agent.agent_type
-                try:
-                    gc = GatewayClient(profile_name=profile, timeout=timeout)
-                    gc_chunks = []
-                    async for chunk in gc.chat_isolated(
-                        messages=[{"role": "user", "content": prompt_text}],
-                        project_id=project_id, project_name=proj_name, project_description=proj_desc,
-                        core_goal=core_goal, agent_name=agent.name, stream=False, max_tokens=32000,
-                        project_slug=slug,
-                    ):
-                        gc_chunks.append(chunk)
-                    reply = "".join(gc_chunks)
-                    if reply.strip():
-                        elapsed = time.time() - t_req
-                        logger.info(f"[Step7] _call_agent success (GatewayClient): {agent_tag} 耗时={elapsed:.1f}s reply_len={len(reply)}")
-                        return reply
-                except Exception as e:
-                    logger.warning(f"Step7 agent {agent.name} GatewayClient failed: {e}")
-
-            elapsed = time.time() - t_req
-            logger.error(f"[Step7] _call_agent 失败: {agent_tag} 耗时={elapsed:.1f}s 所有路径均失败")
-            return ""
+            from app.services.agent_utils import call_agent as _util_call
+            return await _util_call(
+                agent, prompt_text,
+                slug=slug, docs_dir=docs_dir,
+                project_id=project_id, proj_name=proj_name,
+                proj_desc=proj_desc, core_goal=core_goal,
+                timeout=timeout,
+            )
 
         # ── Step 5: 并行生成代码（Phase 1） ──
         # all_results 已在 Fallback 处初始化，此处不再重复赋值
@@ -770,7 +551,36 @@ async def run_step7_swarm(
                     if not found:
                         saved_results.append(result)
                     cur["subtask_results"] = saved_results
+                    # 同步持久化已通过索引（单独的 key，不会丢失）
+                    cur["_saved_passed_indices"] = sorted(completed_indices)
                     bg_engine.save_step7_artifacts(cur)
+
+                    # ── 同时保存到 swarm_tasks 表 ──
+                    if result.get("status") == "passed" and db_swarm is not None:
+                        try:
+                            st = bg_db.query(SwarmTask).filter(
+                                SwarmTask.swarm_id == db_swarm.id,
+                                SwarmTask.task_id == str(result.get("index"))
+                            ).first()
+                            now_utc = datetime.now(timezone.utc)
+                            if st:
+                                st.status = "检验通过"
+                                st.completed_at = now_utc
+                                st.assigned_agent_id = result.get("writer", "")
+                            else:
+                                st = SwarmTask(
+                                    swarm_id=db_swarm.id,
+                                    task_id=str(result.get("index")),
+                                    assigned_agent_id=result.get("writer", ""),
+                                    status="检验通过",
+                                    assigned_at=now_utc,
+                                    completed_at=now_utc,
+                                )
+                                bg_db.add(st)
+                            bg_db.commit()
+                        except Exception as db_err:
+                            logger.warning(f"Step7 save swarm_task to DB failed: {db_err}")
+                            bg_db.rollback()
             except Exception as e:
                 logger.warning(f"Step7 save subtask result failed: {e}")
 
@@ -785,6 +595,19 @@ async def run_step7_swarm(
             except Exception as e:
                 logger.warning(f"Step7 save subtask progress failed: {e}")
 
+        def _update_all_result(result: dict):
+            """Update all_results + completed_indices in-place by index."""
+            idx = result.get("index")
+            for i, r in enumerate(all_results):
+                if r.get("index") == idx:
+                    all_results[i] = result
+                    if result.get("status") == "passed":
+                        completed_indices.add(idx)
+                    return
+            all_results.append(result)
+            if result.get("status") == "passed":
+                completed_indices.add(idx)
+
         if not tester_agents:
             err_msg = "❌ 没有可用的测试Agent"
             bg_engine.save_step7_artifacts({"status": "error", "message": err_msg})
@@ -792,29 +615,76 @@ async def run_step7_swarm(
             return
         logger.info(f"[Step7] Agent池: writers={len(writer_agents)} testers={len(tester_agents)} subtasks={len(subtasks)}")
 
-        # 并发执行时随机选取 writer/tester 辅助函数
-        def _pick_writer_tester():
-            """从 Agent 池中随机选取 writer 和 tester，确保两者不同"""
-            w = random.choice(writer_agents) if writer_agents else None
-            t = random.choice(tester_agents) if tester_agents else None
-            # 避免自测：同一 agent 不能测自己写的代码
-            if w and t and w.id == t.id and len(tester_agents) > 1:
-                t = random.choice([a for a in tester_agents if a.id != w.id])
+        # ── 查找兜底 Agent：后发（houfa）和后荣（hourong）──
+        houfa_agent = bg_db.query(Agent).filter(Agent.name == "houfa").first()
+        hourong_agent = bg_db.query(Agent).filter(Agent.name == "hourong").first()
+        if houfa_agent:
+            logger.info(f"[Step7] 兜底编写Agent: houfa(id={houfa_agent.id})")
+        if hourong_agent:
+            logger.info(f"[Step7] 兜底检验Agent: hourong(id={hourong_agent.id})")
+
+        # ── 每子任务已尝试过的 Agent id 集合（用于 houfa 重新安排时避免重复）──
+        subtask_tried_writers: dict[int, set] = {}
+        subtask_tried_testers: dict[int, set] = {}
+
+        # 并发执行时选取 writer/tester 辅助函数
+        def _pick_writer_tester(subtask_idx: int = 0, is_fallback: bool = False):
+            """选择 writer 和 tester。
+            正常模式：从 Agent 池中随机选取（排除已尝试过的）。
+            兜底模式（is_fallback=True）：返回 houfa+hourong。
+            """
+            if is_fallback:
+                return houfa_agent, hourong_agent
+
+            tried_w = subtask_tried_writers.get(subtask_idx, set())
+            tried_t = subtask_tried_testers.get(subtask_idx, set())
+            # 从未尝试过的 Agent 中选取
+            avail_w = [a for a in writer_agents if a.id not in tried_w] or writer_agents
+            avail_t = [a for a in tester_agents if a.id not in tried_t] or tester_agents
+
+            w = random.choice(avail_w) if avail_w else (writer_agents[0] if writer_agents else None)
+            t = random.choice(avail_t) if avail_t else (tester_agents[0] if tester_agents else None)
+            # 绝对禁止：同一 agent 不能同时担任编写和测试
+            if w and t and w.id == t.id:
+                others = [a for a in avail_t if a.id != w.id] or avail_w
+                t = random.choice(others) if others else None
+
+            # 记录本次选择的 agent
+            if w:
+                subtask_tried_writers.setdefault(subtask_idx, set()).add(w.id)
+            if t:
+                subtask_tried_testers.setdefault(subtask_idx, set()).add(t.id)
             return w, t
 
         PARALLEL_SUBTASKS = max(6, min(len(subtasks), 12))
         subtask_sem = asyncio.Semaphore(PARALLEL_SUBTASKS)
 
-        async def _process_one_subtask(st, idx, saved_result=None):
+        async def _process_one_subtask(st, idx, saved_result=None, total_past_attempts=0):
             """处理单个子任务。
             saved_result=None → 正常 write→test 模式
             saved_result 有值且 status=failed → retest-only 模式（跳过写阶段）
+            total_past_attempts: 该子任务之前已经历的编写+测试轮次总数（跨批次累计）
             """
-            # ── 防御性检查：如果该子任务在 artifacts 中已经是 passed，绝对禁止执行 ──
+            # ── 防御性检查：用 completed_indices 集合判断（这是唯一真相来源）──
+            if idx in completed_indices:
+                logger.info(f"[Step7] 防御性跳过: [{st.get('name')}] 第{idx}子任务在 completed_indices 中已通过，禁止执行")
+                # 确保在 all_results 中（防御：初始化阶段可能漏掉）
+                if not any(r.get("index") == idx for r in all_results):
+                    all_results.append({
+                        "index": idx,
+                        "name": st.get("name", f"用例{idx}"),
+                        "status": "passed",
+                        "attempts": 1,
+                        "writer": "",
+                        "test_agent": "",
+                    })
+                return
+            # 额外检查 DB artifacts（兜底）
             arts = bg_engine.get_step7_artifacts() or {}
             for sr in arts.get("subtask_results", []):
                 if sr.get("index") == idx and sr.get("status") == "passed":
-                    logger.info(f"[Step7] 防御性跳过: [{st.get('name')}] 第{idx}子任务已通过，禁止执行")
+                    logger.info(f"[Step7] 防御性跳过: [{st.get('name')}] 第{idx}子任务在 artifacts 中已通过，禁止执行")
+                    completed_indices.add(idx)
                     return
             sname = st.get("name", f"用例{idx}")
             sdesc = st.get("description", "")
@@ -825,8 +695,13 @@ async def run_step7_swarm(
             if not file_path:
                 file_path = os.path.join(test_cases_dir, f"test_tdd_{idx:04d}_{slug}.py")
 
-            # 随机选取 writer 和 tester（每次调用都重新随机，确保分布均匀）
-            writer, tester = _pick_writer_tester()
+            # ── 根据累计轮次决定是否启用兜底模式 ──
+            is_fallback_mode = total_past_attempts >= 10
+            if is_fallback_mode:
+                await broadcast(project_id, {"type": "step7", "message": f"🏁 [{sname}] 已尝试 {total_past_attempts} 轮，启用兜底模式：后发编写 + 后荣检验"})
+
+            # 选取 writer 和 tester（兜底模式 → houfa+hourong；正常模式 → 池中选取并记录）
+            writer, tester = _pick_writer_tester(subtask_idx=idx, is_fallback=is_fallback_mode)
             if not writer or not tester:
                 logger.warning(f"[Step7] 无可用Agent: [{sname}] 跳过")
                 return
@@ -854,7 +729,7 @@ async def run_step7_swarm(
                             is_retest = False
 
                 # ── 主循环（正常 write→test / retest 的 test 部分共用） ──
-                max_attempts = 10
+                max_attempts = 20 if is_fallback_mode else 10
                 report_file = ""
                 test_reply = ""
                 # ── 若磁盘有代码文件但无中间进度，自动填入"已编写"状态 ──
@@ -868,20 +743,39 @@ async def run_step7_swarm(
                     logger.info(f"[Step7] 检测到已有代码文件，自动跳过首轮编写: [{sname}]")
 
                 for attempt in range(1, max_attempts + 1):
+                    # ── 第5轮失败后强制更换 agent（从池中选不同的 writer 和 tester）──
+                    if attempt == 6 and not is_fallback_mode:
+                        _old_w = writer
+                        _old_t = tester
+                        _avail_w = [a for a in writer_agents if a.id != _old_w.id] or writer_agents
+                        _avail_t = [a for a in tester_agents if a.id != _old_t.id] or tester_agents
+                        writer = random.choice(_avail_w) if _avail_w else _old_w
+                        tester = random.choice(_avail_t) if _avail_t else _old_t
+                        if writer and tester and writer.id == tester.id:
+                            _others = [a for a in _avail_t if a.id != writer.id]
+                            tester = random.choice(_others) if _others else tester
+                        await broadcast(project_id, {"type": "step7", "message": f"🔄 [{sname}] 5轮未通过，强制更换Agent：编写={writer.name} 测试={tester.name}"})
+                        logger.info(f"[Step7] 强制更换Agent: [{sname}] 第{attempt}轮 编写={writer.name}({writer.agent_type}) 测试={tester.name}({tester.agent_type})")
+
+                    # ⛔ 续跑时（total_past_attempts > 0）：不管是否有代码文件，必须重新编写
+                    # 必须基于最新检验报告修改代码，禁止跳过
+                    # 注意：定义在 if not is_retest 之前，让测试阶段的跳过检查也能访问
+                    _force_write = total_past_attempts > 0
+
                     # ── 编写（仅非 retest 模式） ──
                     if not is_retest:
-                        # 检查是否已有足够进度的代码文件，跳过编写
-                        if saved_phase == "written" and saved_attempt >= attempt and has_existing_code:
-                            logger.info(f"[Step7] 跳过编写: [{sname}] 第{attempt}轮 已有代码文件")
+                        if saved_phase == "written" and saved_attempt >= attempt and has_existing_code and not _force_write:
+                            logger.info(f"[Step7] 跳过编写: [{sname}] 第{attempt}轮 已有代码文件，跳过（非续跑模式）")
                             await broadcast(project_id, {"type": "step7", "message": f"♻️ [{sname}] 已有代码，跳过编写直接验证（第{attempt}轮）..."})
                         else:
                             logger.info(f"[Step7] 编写: [{sname}] 第{attempt}轮 writer={writer.name}({writer.agent_type})")
                             await broadcast(project_id, {"type": "step7", "message": f"✍️ [{sname}] {writer.name} 编写（第{attempt}轮）..."})
                             fb = ""
-                            if attempt > 1 and st.get("last_feedback"):
+                            _has_past = total_past_attempts > 0
+                            if (attempt > 1 or _has_past) and st.get("last_feedback"):
                                 fb = st["last_feedback"]
                             existing = ""
-                            if attempt > 1 and os.path.exists(file_path):
+                            if (attempt > 1 or _has_past) and os.path.exists(file_path):
                                 try:
                                     with open(file_path) as f:
                                         existing = f.read()
@@ -898,9 +792,12 @@ async def run_step7_swarm(
                             )
                             await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {writer.name} 提示词", "prompt": wp, "agent": writer.name, "subtask": sname})
                             code = await _call_agent(writer, wp)
-                            # ── 自检循环：空输出/语法错误 → 同 agent 自行修正 ──
+                            if code and not code.strip().lstrip()[:50].lstrip().startswith(('import', 'from', 'def', 'class', '@', 'async', '"')):
+                                logger.info(f"[Step7] DEBUG 原始输出({writer.name}): len={len(code)} head={code[:200]!r}")
+                            # ── 自检循环：空输出/语法错误 → 同 agent 自行修正
                             _SELF_CHECK_MAX = 3
                             _previous_bad_code = ""  # 追踪上一次输出的问题代码，用于对比
+                            _syntax_err = ""  # 防御：循环内可能因所有迭代都 continue 而未赋值
                             for _si in range(_SELF_CHECK_MAX):
                                 if not code.strip():
                                     _fix_msg = (
@@ -915,7 +812,7 @@ async def run_step7_swarm(
                                 if _syntax_ok:
                                     break
                                 # 提取错误行的内容，帮助 agent 定位问题
-                                _err_lines = code.split('\n')
+                                _err_lines = code.split('\\n')
                                 _err_line_idx = 0
                                 import re as _re_step7
                                 _m_step7 = _re_step7.search(r'第(\d+)行', _syntax_err)
@@ -983,7 +880,7 @@ async def run_step7_swarm(
                                         _syntax_ok2, _syntax_err2 = SwarmService.validate_code_syntax(code)
                                         if _syntax_ok2:
                                             break
-                                        _err_lines2 = code.split('\n')
+                                        _err_lines2 = code.split('\\n')
                                         _err_line_idx2 = 0
                                         import re as _re_step7_2
                                         _m_step7_2 = _re_step7_2.search(r'第(\d+)行', _syntax_err2)
@@ -1069,6 +966,8 @@ async def run_step7_swarm(
                         )
                         await broadcast(project_id, {"type": "step7", "message": f"📝 [{sname}] → {writer.name} 续测重写提示词", "prompt": wp, "agent": writer.name, "subtask": sname})
                         code = await _call_agent(writer, wp)
+                        if code and not code.strip().lstrip()[:50].lstrip().startswith(('import', 'from', 'def', 'class', '@', 'async', '"')):
+                            logger.info(f"[Step7] DEBUG retest原始输出({writer.name}): len={len(code)} head={code[:200]!r}")
                         _SELF_CHECK_MAX = 3
                         _prev_bad3 = ""
                         for _si in range(_SELF_CHECK_MAX):
@@ -1079,7 +978,7 @@ async def run_step7_swarm(
                             _sok, _serr = SwarmService.validate_code_syntax(code)
                             if _sok:
                                 break
-                            _err_lines3 = code.split('\n')
+                            _err_lines3 = code.split('\\n')
                             _err_line_idx3 = 0
                             import re as _re_step7_3
                             _m_step7_3 = _re_step7_3.search(r'第(\d+)行', _serr)
@@ -1115,7 +1014,7 @@ async def run_step7_swarm(
                                     _sok2, _serr2 = SwarmService.validate_code_syntax(code)
                                     if _sok2:
                                         break
-                                    _err_lines4 = code.split('\n')
+                                    _err_lines4 = code.split('\\n')
                                     _err_line_idx4 = 0
                                     import re as _re_step7_4
                                     _m_step7_4 = _re_step7_4.search(r'第(\d+)行', _serr2)
@@ -1155,8 +1054,9 @@ async def run_step7_swarm(
                         })
 
                     # ── 测试（retest 和正常模式共用） ──
-                    # 检查是否已有测试进度，跳过重复测试
-                    if saved_phase == "tested" and saved_attempt >= attempt and saved_progress.get("conclusion"):
+                    # ⛔ 续跑时（_force_write）：writer 刚写入新代码，saved_phase 是旧值不可信
+                    # 必须基于最新代码重新检验，不管之前是否有检验报告
+                    if saved_phase == "tested" and saved_attempt >= attempt and saved_progress.get("conclusion") and not _force_write:
                         prev_conclusion = saved_progress["conclusion"]
                         logger.info(f"[Step7] 跳过测试: [{sname}] 第{attempt}轮 已有结论={prev_conclusion}")
                         await broadcast(project_id, {"type": "step7", "message": f"♻️ [{sname}] 已有测试结论（第{attempt}轮），跳过重复验证"})
@@ -1207,6 +1107,7 @@ async def run_step7_swarm(
                     tp = SwarmService.build_tester_prompt(
                         sname=sname, saved_code=saved_code, tester_name=tester.name,
                         previous_report=previous_report,
+                        file_path=file_path, report_file_path=st.get("last_report_file", ""),
                     )
                     test_reply = await _call_agent(tester, tp)
                     # ── 保存本轮检验报告（只保存非空报告） ──
@@ -1229,8 +1130,8 @@ async def run_step7_swarm(
                         if not reply or not reply.strip():
                             return True, "报告为空"
                         import re as _re
-                        _lines = reply.strip().split('\n')
-                        # 扫描前 5 行找判定结果行，避免 Agent 在前置加了空行/签名
+                        _lines = reply.strip().split('\\n')
+                        # 优先扫描前5行（严格模式）
                         _found_judge = False
                         _found_score = False
                         for _li, _line in enumerate(_lines[:5]):
@@ -1241,9 +1142,32 @@ async def run_step7_swarm(
                                 _found_score = True
                             if _found_judge and _found_score:
                                 return False, ""
+                        # 如果前5行没找到，扫描全文（兼容 aider 等会输出思维链的 Agent）
+                        _found_judge_global = False
+                        _found_score_global = False
+                        _judge_line_idx = -1
+                        for _li, _line in enumerate(_lines):
+                            _sl = _line.strip()
+                            if "判定结果：通过" in _sl or "判定结果：未通过" in _sl:
+                                _found_judge_global = True
+                                _judge_line_idx = _li
+                            if _re.search(r'总分[：:]\s*\d+', _sl):
+                                _found_score_global = True
+                            if _found_judge_global and _found_score_global:
+                                break
+                        if _found_judge_global and _found_score_global and _judge_line_idx >= 0:
+                            _stripped = '\n'.join(_lines[_judge_line_idx:]).strip()
+                            nonlocal test_reply
+                            if _stripped != reply.strip():
+                                import logging as _lg
+                                _lg.getLogger('devflow.workflow').info(
+                                    f"[Step7] 全文扫描找到判定结果（行{_judge_line_idx}），已剥离前置思维链"
+                                )
+                                test_reply = _stripped
+                            return False, ""
                         if not _found_judge:
-                            return True, f"前5行缺少「判定结果」，首行内容：{_lines[0][:80]}"
-                        return True, f"前5行缺少「总分：XX分」，首行内容：{_lines[0][:80]}"
+                            return True, f"全文缺少「判定结果」，首行内容：{_lines[0][:80]}"
+                        return True, f"全文缺少「总分：XX分」，首行内容：{_lines[0][:80]}"
 
                     _TOTAL_MAX = 3
                     tester_retry = 0
@@ -1279,6 +1203,7 @@ async def run_step7_swarm(
                             await broadcast(project_id, {"type": "step7", "message": f"🔄 [{sname}] {tester.name} 无效（{err_msg}），切换 {alt_tester.name}..."})
                             alt_tp = SwarmService.build_tester_prompt(
                                 sname=sname, saved_code=saved_code, tester_name=alt_tester.name,
+                                file_path=file_path, report_file_path=st.get("last_report_file", ""),
                                 previous_report=previous_report,
                             )
                             alt_tester_retry = 0
@@ -1316,7 +1241,7 @@ async def run_step7_swarm(
                     conclusion = "未通过"
                     import re as _re
                     _score = 0
-                    for _line in test_reply.strip().split('\n')[:5]:
+                    for _line in test_reply.strip().split('\\n')[:5]:
                         _sl = _line.strip()
                         if "判定结果：通过" in _sl and "未通过" not in _sl:
                             _sm = _re.search(r'总分[：:]\s*(\d+)', _sl)
@@ -1369,7 +1294,7 @@ async def run_step7_swarm(
                                 "test_report_file": report_file,
                                 "tester_conclusion": conclusion,
                             }
-                            all_results.append(result)
+                            _update_all_result(result)
                         await _save_subtask_result(result)
                         logger.info(f"[Step7] 通过: [{sname}] 第{attempt}轮 编写={writer.name} 测试={tester.name}")
                         await broadcast(project_id, {"type": "step7", "message": f"✅ [{sname}] {tester.name} 测试通过（第{attempt}轮）", "test_report": test_reply[:1000], "test_report_full": test_reply, "test_report_file": report_file, "subtask": sname, "writerAgent": writer.name, "testAgent": tester.name})
@@ -1439,7 +1364,7 @@ async def run_step7_swarm(
                         "test_report_file": report_file,
                         "tester_conclusion": "未通过",
                     }
-                    all_results.append(result)
+                    _update_all_result(result)
                 await _save_subtask_result(result)
                 await broadcast(project_id, {"type": "step7", "message": f"❌ [{sname}] {max_attempts}轮{'续测' if saved_result else '编写+测试'}均未通过", "test_report": test_reply[:1000], "test_report_full": test_reply, "test_report_file": report_file, "subtask": sname})
 
@@ -1459,18 +1384,31 @@ async def run_step7_swarm(
                     sname = sr.get("name", "")
                     if sr_status == "passed":
                         passed_indices.add(sr_idx)
-                        all_results.append(sr)
+                        # 防御去重：all_results 已在初始化阶段从 completed_indices 填充
+                        if not any(r.get("index") == sr_idx for r in all_results):
+                            all_results.append(sr)
                         await broadcast(project_id, {"type": "step7", "message": f"✅ [{sname}] 已通过（第{sr.get('attempts', 1)}轮），跳过", "test_report_full": sr.get("test_report_full", ""), "test_report_file": sr.get("test_report_file", ""), "subtask": sname, "writerAgent": sr.get("writer", ""), "testAgent": sr.get("test_agent", "")})
                     elif sr_status == "failed":
-                        await broadcast(project_id, {"type": "step7", "message": f"🔄 [{sname}] 之前未通过，已重置为待执行，将重新从头生成..."})
-                        logger.info(f"[Step7] 续跑重置: [{sname}] 失败状态已清空，作为新子任务重新执行")
+                        _report = sr.get("test_report_full", "") or sr.get("test_report", "")
+                        _report_file = sr.get("test_report_file", "")
+                        if _report:
+                            # 务必注入检验报告到原 subtask，确保 writer 基于最新反馈修改
+                            _orig_idx = sr_idx - 1
+                            if 0 <= _orig_idx < len(subtasks):
+                                subtasks[_orig_idx]["last_feedback"] = _report
+                                if _report_file:
+                                    subtasks[_orig_idx]["last_report_file"] = _report_file
+                        await broadcast(project_id, {"type": "step7", "message": f"🔄 [{sname}] 之前未通过，最新检验报告已注入，将基于反馈重新编写..."})
+                        logger.info(f"[Step7] 续跑重置: [{sname}] 检验报告已注入 subtasks[{_orig_idx}]")
                     else:
                         # 没有 file_path 的失败结果，由正常逻辑重新生成
                         await broadcast(project_id, {"type": "step7", "message": f"♻️ [{sname}] 结果不完整，需重新生成"})
 
                 # 从 subtasks 中去掉已通过的（保留原始索引）
-                subtasks_left = [(i + 1, st) for i, st in enumerate(subtasks) if (i + 1) not in passed_indices]
-                logger.info(f"[Step7] 续跑过滤: passed_indices={passed_indices} subtasks_left={len(subtasks_left)} retest={len(retest_subtasks)}")
+                # 同时用 completed_indices 补充（来自 _saved_passed_indices 或 swarm_tasks）
+                skip_indices = passed_indices | completed_indices
+                subtasks_left = [(i + 1, st) for i, st in enumerate(subtasks) if (i + 1) not in skip_indices]
+                logger.info(f"[Step7] 续跑过滤: passed_indices={passed_indices} completed_indices={completed_indices} subtasks_left={len(subtasks_left)} retest={len(retest_subtasks)}")
                 if not subtasks_left and not retest_subtasks:
                     await broadcast(project_id, {"type": "step7", "message": "♻️ 续跑：所有子任务已完成，跳过蜂群执行"})
 
@@ -1482,9 +1420,7 @@ async def run_step7_swarm(
         if subtasks_left:
             await broadcast(project_id, {"type": "step7", "message": f"🚀 启动 {len(subtasks_left)} 个新子任务的编写→测试迭代（最多 {PARALLEL_SUBTASKS} 个并发）..."})
             logger.info(f"[Step7] 子任务启动: {len(subtasks_left)}个 并发上限={PARALLEL_SUBTASKS}")
-            all_subtask_tasks.extend([_process_one_subtask(st, idx) for idx, st in subtasks_left if idx not in passed_indices_from_prev])
-            if len([idx for idx, st in subtasks_left if idx in passed_indices_from_prev]) > 0:
-                logger.warning(f"[Step7] 防御性过滤: {len([idx for idx, st in subtasks_left if idx in passed_indices_from_prev])} 个子任务从 subtasks_left 中拦截")
+            all_subtask_tasks.extend([_process_one_subtask(st, idx) for idx, st in subtasks_left])
 
         # 续测子任务（retest-only）
         for rts in retest_subtasks:
@@ -1494,13 +1430,95 @@ async def run_step7_swarm(
             await broadcast(project_id, {"type": "step7", "message": f"♻️ 准备重新检验 [{st['name']}]..."})
             all_subtask_tasks.append(_process_one_subtask(st, idx, saved_result=sr))
 
-        if all_subtask_tasks:
-            await asyncio.gather(*all_subtask_tasks)
+        # ── 自动续跑循环：检验未通过的子任务交由 houfa 重新安排 agent，继续执行 ──
+        # 跨批次累计尝试轮次（每个子任务的总编写+测试次数）
+        cumulative_attempts: dict[int, int] = {}
+        retry_batch = 0
+        MAX_RETRY_BATCHES_SAFETY = 100  # 安全上限，防止死循环
+        while True:
+            if all_subtask_tasks:
+                await asyncio.gather(*all_subtask_tasks)
+
+            passed = [r for r in all_results if r["status"] == "passed"]
+            failed_ = [r for r in all_results if r["status"] == "failed"]
+
+            # 累加已完成的轮次
+            for r in all_results:
+                idx = r.get("index", 0)
+                rounds = r.get("attempts", 0)
+                if idx not in cumulative_attempts or rounds > cumulative_attempts.get(idx, 0):
+                    cumulative_attempts[idx] = max(cumulative_attempts.get(idx, 0), rounds)
+
+            if not failed_:
+                break  # 全部通过
+
+            retry_batch += 1
+            if retry_batch >= MAX_RETRY_BATCHES_SAFETY:
+                logger.warning(f"[Step7] 已达安全上限{MAX_RETRY_BATCHES_SAFETY}次续跑，强制终止失败子任务: {[r['name'] for r in failed_]}")
+                await broadcast(project_id, {"type": "step7", "message": f"⏹️ 已达安全上限{MAX_RETRY_BATCHES_SAFETY}次续跑，{len(failed_)}个子任务最终标记为失败"})
+                break
+
+            # 交由 houfa 重新安排 agent：清理已尝试记录 + 记录本轮失败 agent 已用尽
+            failed_indices = set(r["index"] for r in failed_)
+            # ⚠️ 核心安全防线：排除所有在 completed_indices 中的任务
+            already_done = failed_indices & completed_indices
+            if already_done:
+                logger.warning(f"[Step7] 安全过滤: {sorted(already_done)} 虽然在 all_results 中标记为失败，但已在 completed_indices 中，禁止重跑")
+                failed_indices -= completed_indices
+                if not failed_indices:
+                    await broadcast(project_id, {"type": "step7", "message": f"✅ 剩余 {len(already_done)} 个子任务已在 completed_indices 中，全部通过"})
+                    break
+            for r in failed_:
+                idx = r.get("index", 0)
+                total = cumulative_attempts.get(idx, 0)
+                sname = r.get("name", f"用例{idx}")
+                # 记录失败信息
+                logger.info(f"[Step7] houfa 重新安排: [{sname}] idx={idx} 已尝试{total}轮 writer={r.get('writer','?')} tester={r.get('test_agent','?')}")
+                await broadcast(project_id, {"type": "step7", "message": f"🔄 [{sname}] houfa 重新安排 Agent（已尝试 {total} 轮）..."})
+
+            # 仅重置失败子任务为 pending（同时写回 DB，防止重启后丢失）
+            for r in all_results:
+                if r["index"] in failed_indices:
+                    r["status"] = "pending"
+            # 持久化：将每个失败子任务的 pending 状态写入 artifacts
+            for r in all_results:
+                if r["index"] in failed_indices:
+                    await _save_subtask_result(dict(r))
+
+            await broadcast(project_id, {"type": "step7", "message": f"🔄 {len(failed_)}个子任务检验未通过，houfa 重新安排Agent后自动续跑（第{retry_batch}次）..."})
+            logger.info(f"[Step7] 自动续跑第{retry_batch}批: {len(failed_)}个失败子任务，累计轮次: {dict((i, cumulative_attempts.get(i, 0)) for i in sorted(failed_indices))}")
+
+            # 重建续跑任务（仅失败子任务），注入最新检验报告到 subtask（不传 saved_result，
+            # 否则会触发 is_retest=True 跳过编写阶段）
+            all_subtask_tasks = []
+            for idx in sorted(failed_indices):
+                if not (1 <= idx <= len(subtasks)):
+                    continue
+                _st = dict(subtasks[idx - 1])  # 复制原 subtask
+                # 从 all_results 中查找该子任务的最新失败记录，注入检验报告
+                for r in all_results:
+                    if r.get("index") == idx and r.get("status") == "failed":
+                        _latest_report = r.get("test_report_full", "") or r.get("test_report", "")
+                        _latest_report_file = r.get("test_report_file", "")
+                        if _latest_report:
+                            _st["last_feedback"] = _latest_report
+                        if _latest_report_file:
+                            _st["last_report_file"] = _latest_report_file
+                        logger.info(f"[Step7] 续跑注入反馈: [{_st.get('name')}] idx={idx} report_len={len(_latest_report)}")
+                        break
+                all_subtask_tasks.append(
+                    _process_one_subtask(
+                        _st, idx,
+                        total_past_attempts=cumulative_attempts.get(idx, 0),
+                    )
+                )
+
+        # ── 续跑循环结束 ──
 
         passed = [r for r in all_results if r["status"] == "passed"]
         failed_ = [r for r in all_results if r["status"] == "failed"]
         elapsed = time.time() - t0
-        logger.info(f"[Step7] 全部完成: {len(passed)}通过/{len(failed_)}失败 耗时={elapsed:.1f}s")
+        logger.info(f"[Step7] 全部批次完成: {len(passed)}通过/{len(failed_)}失败 耗时={elapsed:.1f}s")
         await broadcast(project_id, {"type": "step7", "message": f"📊 子任务完成：{len(passed)}通过 / {len(failed_)}失败"})
 
         # ── Step 6: hourong 1% 随机抽检 ──
@@ -1529,10 +1547,26 @@ async def run_step7_swarm(
             if r.get("file_path") and os.path.exists(r["file_path"]) else f"# {r['name']}\n\n(失败)"
             for r in all_results
         )
-        final_ok = len(failed_) == 0 and len(spot_failures) == 0
+        final_ok = len(passed) == len(subtasks) and len(spot_failures) == 0
         final_msg = (
             f"✅ TDD蜂群编写完成：{len(passed)}通过/{len(failed_)}失败"
             + (f"，抽检{len(spot_failures)}项不合格" if spot_failures else "，抽检全部合格")
+        )
+
+        # ── 生成 Step7 → Step8 交接文档 ──
+        _all_subtask_names = [st.get("name", f"用例{i+1}") for i, st in enumerate(subtasks)]
+        _passed_names = [r.get("name", "") for r in passed]
+        _spot_detail = ""
+        if spot_failures:
+            _spot_detail = f"抽检{len(spot_failures)}项不合格：{'；'.join(s.get('name','') for s in spot_failures)}"
+        handover_doc = _build_step7_handover(
+            proj_name=proj_name,
+            subtask_count=len(subtasks),
+            passed_count=len(passed),
+            failed_count=len(failed_),
+            subtask_names=_all_subtask_names,
+            passed_subtask_names=_passed_names,
+            spot_check_detail=_spot_detail,
         )
 
         bg_engine.save_step7_artifacts({
@@ -1540,16 +1574,17 @@ async def run_step7_swarm(
             "subtask_results": all_results,
             "spot_check_results": spot_checked,
             "tdd_cases": combined,
+            "handover_doc": handover_doc,
             "status": "done" if final_ok else "error",
             "message": final_msg,
             "qa_passed": final_ok,
+            "_saved_passed_indices": sorted(completed_indices),
         })
 
         if final_ok:
             bg_engine.complete_step(7)
             await broadcast(project_id, {"type": "done", "message": final_msg})
         else:
-            bg_engine.reset_step(7)
             await broadcast(project_id, {"type": "error", "message": f"❌ {len(failed_)}个子任务失败，{len(spot_failures)}个抽检不合格"})
 
     except Exception as e:
@@ -1602,10 +1637,12 @@ async def execute_step7_async(project_id: str, db: Session = Depends(get_db), cu
     except Exception as e:
         return APIResponse(code=1, message=f"无法开始步骤7: {str(e)[:200]}")
 
-    # ── 如果所有子任务均已通过，立即返回，禁止执行任何蜂群代码 ──
+    # ── 如果所有子任务均已通过且数量匹配，才跳过 ──
     if resume and saved_arts.get("subtask_results"):
+        total_expected = saved_arts.get("total_subtask_count", 0) or len(saved_arts["subtask_results"])
         all_passed = all(sr.get("status") == "passed" for sr in saved_arts["subtask_results"])
-        if all_passed:
+        has_pending = any(sr.get("status") == "pending" for sr in saved_arts["subtask_results"])
+        if not has_pending and all_passed and len(saved_arts["subtask_results"]) >= total_expected:
             logger.info(f"[Step7] 所有 {len(saved_arts['subtask_results'])} 个子任务均已通过，跳过执行")
             engine.save_step7_artifacts({
                 "status": "done",

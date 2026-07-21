@@ -139,6 +139,13 @@ class WorkflowEngine:
         from app.models.project import Project
 
         for s in self.steps:
+            # 使用 merge/upsert 模式：先查是否存在，存在则跳过，不存在再插入
+            existing = self.db.query(WorkflowStep).filter(
+                WorkflowStep.project_id == self.project_id,
+                WorkflowStep.step_number == s.step_number,
+            ).first()
+            if existing:
+                continue
             row = WorkflowStep(
                 project_id=self.project_id,
                 step_number=s.step_number,

@@ -37,7 +37,7 @@ class Agent(Base):
         Index("idx_agents_hermes", "hermes_agent_id"),
         Index("idx_agents_role_name", "role_name"),
         CheckConstraint(
-            "agent_type IN ('hermes','trae','codearts','opencode','cursor','claude_code','codebuddy','lingma','devika','codex','pi_coding_agent','reasonix','codeium','aider-chat','openhands','goose','atom','atomcode')",
+            "agent_type IN ('hermes','trae','codearts','opencode','cursor','claude_code','codebuddy','lingma','devika','codex','pi_coding_agent','reasonix','codeium','aider-chat','goose','atom','atomcode')",
             name="ck_agents_type",
         ),
         CheckConstraint("status IN ('online','offline','busy')", name="ck_agents_status"),

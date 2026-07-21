@@ -38,14 +38,23 @@ def _init_database():
 
 
 def _register_cli_tools():
-    """自动注册系统上已安装的 CLI 编程 Agent（goose、aider 等）。"""
+    """自动注册系统上已安装的 CLI 编程 Agent（claude、goose、aider 等）。
+    使用带 {prompt} 占位符的非交互式调用命令，避免 TTY 依赖问题。"""
     import shutil
+    # (agent_type, binary_check, cli_command_with_flags, label)
     CLI_TOOLS = [
-        ("goose",      "goose",      "Goose CLI Agent"),
-        ("aider-chat", "aider",      "Aider Chat Agent"),
-        ("openhands",  "openhands",  "OpenHands Agent"),
-        ("atom",       "atom",       "Atom Agent"),
-        ("atomcode",   "atomcode",   "AtomCode Agent"),
+        # 已确认支持 -p / --print / --message 等非交互模式的工具
+        ("claude_code",     "claude",      "claude -p {prompt}",              "Claude Code CLI"),
+        ("goose",           "goose",       "goose run --text {prompt} --no-session -q", "Goose CLI Agent"),
+        ("aider-chat",      "aider",       "aider --message {prompt} --yes --no-browser --no-gui --no-show-model-warnings", "Aider Chat Agent"),
+        ("atomcode",         "atomcode",    "atomcode -p {prompt} -y",         "AtomCode Agent"),
+        ("opencode",        "opencode",    "opencode run --format json {prompt}",           "OpenCode Agent"),
+        ("pi_coding_agent", "pi",          "pi --print {prompt}",             "PI Coding Agent"),
+        ("codebuddy",       "codebuddy",   "codebuddy -p {prompt} -y",       "CodeBuddy Agent"),
+        ("reasonix",        "reasonix",    "reasonix run {prompt}",           "Reasonix Agent"),
+        # TUI-only / 未知标志的工具：仅注册，不设 cli_command（留待 _auto_configure_agent 按需处理）
+        ("codearts",        "codearts",    "",                                "CodeArts Agent"),
+        ("atom",            "atom",        "",                                "Atom Agent"),
     ]
     try:
         from app.database import SessionLocal
@@ -53,32 +62,49 @@ def _register_cli_tools():
 
         db = SessionLocal()
         try:
-            for agent_type, cli_cmd, label in CLI_TOOLS:
-                if not shutil.which(cli_cmd):
+            for agent_type, binary, cli_cmd, label in CLI_TOOLS:
+                if not shutil.which(binary):
                     continue
                 existing = db.query(Agent).filter(
                     Agent.agent_type == agent_type, Agent.is_named_role == False
                 ).first()
                 if existing:
                     cfg = dict(existing.config or {})
-                    if not cfg.get("cli_command"):
+                    # 仅当 DB 中无 cli_command 或为裸命令（不含 {prompt} 且不在非交互模式列表中）时更新
+                    existing_cmd = cfg.get("cli_command", "")
+                    should_update = False
+                    if not existing_cmd:
+                        should_update = True
+                    elif cli_cmd and "{prompt}" not in existing_cmd and existing_cmd == binary:
+                        # 旧格式裸命令 → 升级到带 {prompt} 的版本
+                        should_update = True
+                    if should_update and cli_cmd:
                         cfg["cli_command"] = cli_cmd
                         existing.config = cfg
                         if existing.status == "offline":
                             existing.status = "online"
                         db.commit()
                         logger.info(f"  更新 CLI Agent: {label} ({agent_type}) → cli_command={cli_cmd}")
+                    elif should_update and not cli_cmd:
+                        # TUI-only 工具：确保不设裸命令
+                        cfg.pop("cli_command", None)
+                        existing.config = cfg
+                        if existing.status == "offline":
+                            existing.status = "online"
+                        db.commit()
+                        logger.info(f"  更新 CLI Agent: {label} ({agent_type}) → 无 cli_command（TUI-only）")
                 else:
+                    cfg = {"cli_command": cli_cmd} if cli_cmd else {}
                     agent = Agent(
                         name=agent_type,
                         agent_type=agent_type,
                         status="online",
-                        config={"cli_command": cli_cmd},
+                        config=cfg,
                         discovered_by="profile_scan",
                     )
                     db.add(agent)
                     db.commit()
-                    logger.info(f"  注册 CLI Agent: {label} ({agent_type}) → cli_command={cli_cmd}")
+                    logger.info(f"  注册 CLI Agent: {label} ({agent_type}) → cli_command={cli_cmd or '（无，TUI-only）'}")
         finally:
             db.close()
     except Exception as e:
