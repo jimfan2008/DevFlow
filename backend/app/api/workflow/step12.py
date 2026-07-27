@@ -1,3 +1,5 @@
+import json
+from datetime import datetime, timezone
 import glob
 from app.api.workflow.core import (
     router, _get_engine, logger, APIResponse, Depends, get_db,
@@ -17,13 +19,14 @@ async def step12_chat(project_id: str, body: Step12ChatRequest,
         engine = _get_engine(project_id, db)
         step2 = engine.get_step2_artifacts()
         core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
         messages = body.messages + [{"role": "user", "content": body.message}]
         client = GatewayClient(profile_name="houhua", timeout=1200)
         reply_chunks = []
-        async for chunk in client.chat_isolated(messages=messages, project_id=project_id, project_name=project.name, project_description=project.description or "", core_goal=core_goal, agent_name="后华（HouHua）安全员", stream=False, project_slug=project.slug if project.slug else project_id):
+        async for chunk in client.chat_completions(messages=messages, stream=False):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
         if not reply or len(reply.strip()) < 5:
@@ -36,22 +39,28 @@ async def step12_chat(project_id: str, body: Step12ChatRequest,
         return APIResponse(code=1, message="与后华对话失败", data=None)
 
 
-async def _inspect_security(project_id: str, doc_path: str, project_name: str = "", project_description: str = "", core_goal: str = "", agent_label: str = "", max_retries: int = 3, failed_keys: list = None) -> dict:
+async def _inspect_security(project_id: str, doc_path: str, project_name: str = "", project_description: str = "", core_goal: str = "", agent_label: str = "", max_retries: int = 3, focus_items: Optional[list[str]] = None) -> dict:
     import json as _json, asyncio as _asyncio
-    from app.api.ws.step3_qa import _inspect_via_subagent
-    from app.api.ws.step4_progress import broadcast
-    active_dims = [d for d in SECURITY_INSPECTION_DIMENSIONS if not failed_keys or d["key"] in failed_keys]
+    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step12_progress import broadcast
+    active_dims = [d for d in SECURITY_INSPECTION_DIMENSIONS if not focus_items or d["key"] in focus_items]
+    if not active_dims:
+        return {"passed": True, "detail": "无待检验项", "failed_details": [], "failed_keys": [], "results": []}
     dims_json = str([{'检验项目': d['label'], '检验标准': d['description'], '检验维': d['key']} for d in active_dims])
     for attempt in range(1, max_retries + 1):
         if attempt > 1:
             await _asyncio.sleep(2)
-            await broadcast(project_id, {"type": "step12", "message": f"🔄 hourong 第{attempt}次重新检验安全审计..."})
-        focus_hint = f"\n⚠️ 本次只需重新检验以下 {len(active_dims)} 项（上一轮不合格项）：{[d['label'] for d in active_dims]}\n请只针对这些项目做出通过/不通过判定，禁止扩大检验范围。" if failed_keys else ""
-        insp_prompt = f"你是一个专业的安全审计QA检验员（后荣）。请严格检验以下安全审计报告。\n\n=== 检验项目与标准 ===\n{dims_json}\n{focus_hint}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。\n评分规则：每个检验维起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims)
-        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=max_retries)
+            await broadcast(project_id, {"type": "progress", "message": f"🔄 hourong 第{attempt}次重新检验安全审计..."})
+        focus_hint = f"\n⚠️ 本轮只检验以下项目（上一轮未通过）：{[d['label'] for d in active_dims]}" if focus_items else ""
+        insp_prompt = f"你是一个专业的安全审计QA检验员（后荣）。请严格检验以下安全审计报告。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + f"{focus_hint}\n"
+        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
+        qa_chunks = []
+        async for chunk in qa_cli.chat_completions(messages=[{"role": "user", "content": insp_prompt}], stream=True, max_tokens=8192):
+            qa_chunks.append(chunk)
+        qa_r = "".join(qa_chunks).strip()
         if not qa_r:
             if attempt < max_retries:
-                await broadcast(project_id, {"type": "step12", "message": f"⚠️ hourong 未返回，重试（第{attempt}次）"})
+                await broadcast(project_id, {"type": "progress", "message": f"⚠️ hourong 未返回，重试（第{attempt}次）"})
                 continue
             return {"detail": f"后荣{max_retries}次均未返回"}
         brace_s, brace_e = qa_r.find('['), qa_r.rfind(']') + 1
@@ -61,15 +70,14 @@ async def _inspect_security(project_id: str, doc_path: str, project_name: str = 
             parsed = _json.loads(qa_r)
         except Exception:
             if attempt < max_retries:
-                await broadcast(project_id, {"type": "step12", "message": f"⚠️ hourong 格式异常，重试（第{attempt}次）"})
+                await broadcast(project_id, {"type": "progress", "message": f"⚠️ hourong 格式异常，重试（第{attempt}次）"})
                 continue
             return {"detail": "后荣未返回检验结果"}
         if isinstance(parsed, list) and parsed:
-            scores = [int(r.get("score", 100)) for r in parsed]
-            avg_score = sum(scores) / len(scores)
-            return {"passed": avg_score > 90, "score": avg_score, "total_score": sum(scores), "max_score": len(scores) * 100, "detail": "", "failed_details": [r.get("detail", "") for r in parsed if int(r.get("score", 100)) < 90], "results": parsed}
+            failed_keys = [r.get("key", "") for r in parsed if not r.get("passed")]
+            return {"passed": all(bool(r.get("passed")) for r in parsed), "detail": "", "failed_details": [r.get("detail", "") for r in parsed if not r.get("passed")], "failed_keys": failed_keys, "results": parsed}
         if attempt < max_retries:
-            await broadcast(project_id, {"type": "step12", "message": f"⚠️ hourong 格式异常，重试（第{attempt}次）"})
+            await broadcast(project_id, {"type": "progress", "message": f"⚠️ hourong 格式异常，重试（第{attempt}次）"})
             continue
         return {"detail": "后荣未返回检验结果"}
     return {"detail": "后荣检验失败"}
@@ -89,23 +97,37 @@ async def execute_step12_async(project_id: str, db: Session = Depends(get_db), c
                 engine.reset_step(12)
                 engine = WorkflowEngine(project_id=project_id, db=db)
                 _wf_engines[project_id] = engine
-            engine.advance_step(12)
-            existing = {}
+            try:
+                from sqlalchemy import text
+                engine.db.execute(
+                    text("UPDATE workflow_steps SET status='in_progress', started_at=:now, output_artifacts=:arts WHERE project_id=:pid AND step_number=12"),
+                    {"now": datetime.now(timezone.utc).isoformat(), "arts": json.dumps({"status": "generating", "message": "Step 12 started..."}), "pid": project_id}
+                )
+                engine.db.execute(
+                    text("UPDATE projects SET current_step=12 WHERE id=:pid"),
+                    {"pid": project_id}
+                )
+                engine.db.commit()
+                engine.current_step = 12
+            except Exception as e:
+                logger.error(f"[STEP12_DEBUG] start failed: {e}")
+                return APIResponse(code=1, message=f"无法开始步骤12: {str(e)[:200]}")
     except Exception as e:
         return APIResponse(code=1, message=f"无法开始步骤12: {str(e)[:200]}")
     step4 = engine.get_step4_artifacts() or {}
     design_doc = step4.get("design_doc") or ""
+
     step9 = engine.get_step9_artifacts() or {}
     code = step9.get("code") or step9.get("content") or ""
+
     step2 = engine.get_step2_artifacts() or {}
     core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
-    engine.save_step12_artifacts({"status": "generating", "message": "🔒 后华正在执行安全审计..."})
-
+    
     async def _generate():
         try:
             from app.database import SessionLocal
             from app.models.project import Project
-            from app.api.ws.step4_progress import broadcast
+            from app.api.ws.step12_progress import broadcast
             bg_db = SessionLocal()
             try:
                 bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
@@ -116,9 +138,10 @@ async def execute_step12_async(project_id: str, db: Session = Depends(get_db), c
                 proj_name = proj.name if proj else ""
                 proj_desc = proj.description or ""
 
+
                 prev = existing if resume else {}
                 if resume and prev.get("qa_passed") and prev.get("doc_path") and os.path.exists(prev["doc_path"]):
-                    await broadcast(project_id, {"type": "step12", "message": "♻️ 续跑：安全审计已通过检验，跳过"})
+                    await broadcast(project_id, {"type": "progress", "message": "♻️ 续跑：安全审计已通过检验，跳过"})
                     bg_engine.save_step12_artifacts({**prev, "status": "done", "message": "♻️ 续跑：安全审计已通过"})
                     bg_engine.complete_step(12)
                     await broadcast(project_id, {"type": "done", "message": "✅ 安全审计已完成（续跑）"})
@@ -131,18 +154,12 @@ async def execute_step12_async(project_id: str, db: Session = Depends(get_db), c
                     if m:
                         max_ver = max(max_ver, int(m.group(1)))
                 convergence_log, final_path, final_content = [], "", ""
-                start_round = 1
-                if resume and prev:
-                    saved_round = prev.get("current_fix_round", 0)
-                    saved_convergence = prev.get("convergence", [])
-                    if saved_round > 0:
-                        start_round = saved_round + 1
-                        convergence_log = list(saved_convergence)
-                        await broadcast(project_id, {"type": "step12", "message": f"♻️ 续跑：从第{start_round}轮继续"})
-                for fix_round in range(start_round, 11):
+                fix_round = 0
+                while True:
+                    fix_round += 1
                     nv = max_ver + fix_round
                     gen_path = os.path.join(docs_dir, f"{slug}_security_V{nv}.md")
-                    await broadcast(project_id, {"type": "step12", "message": f"🔒 后华正在{'修复' if fix_round > 1 else '执行'}安全审计（第{fix_round}轮）..."})
+                    await broadcast(project_id, {"type": "progress", "message": f"🔒 后华正在{'修复' if fix_round > 1 else '执行'}安全审计（第{fix_round}轮）..."})
                     feedback = ""
                     if fix_round > 1 and convergence_log:
                         failed = convergence_log[-1].get("failed_details", [])
@@ -153,13 +170,13 @@ async def execute_step12_async(project_id: str, db: Session = Depends(get_db), c
                         + (f"=== 上次检验未通过项 ===\n{feedback}\n只针对不合格项修改，不要扩大修改范围。\n\n" if feedback else "")
                         + f"请将安全审计报告保存到：{gen_path}\n要求：1.代码审计（SQL注入/XSS/CSRF等）\n2.合规审查 3.渗透测试\n4.漏洞修复建议\n不要输出推理过程。"
                     )
-                    from app.services.gateway_client import GatewayClient
                     client = GatewayClient(profile_name="houhua", timeout=3600)
                     chunks = []
-                    async for chunk in client.chat_isolated(messages=[{"role": "user", "content": prompt}], project_id=project_id, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, agent_name="后华（HouHua）-安全审计", stream=True, max_tokens=64000, project_slug=slug):
+                    await broadcast(project_id, {"type": "stage", "message": f"🤖 后华正在{'修复' if fix_round > 1 else '执行'}安全审计（第{fix_round}轮）..."})
+                    async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=True, max_tokens=64000):
                         if chunk.strip():
                             chunks.append(chunk)
-                            await broadcast(project_id, {"type": "step12", "content": chunk})
+                            await broadcast(project_id, {"type": "content", "content": chunk})
                     if os.path.exists(gen_path):
                         content = open(gen_path, "r", encoding="utf-8").read()
                     else:
@@ -167,41 +184,44 @@ async def execute_step12_async(project_id: str, db: Session = Depends(get_db), c
                         with open(gen_path, "w", encoding="utf-8") as f:
                             f.write(content)
                     if not content.strip():
-                        await broadcast(project_id, {"type": "step12", "message": "❌ 后华未生成有效内容，重试"})
+                        await broadcast(project_id, {"type": "progress", "message": "❌ 后华未生成有效内容，重试"})
                         continue
                     final_path, final_content = gen_path, content
-                    bg_engine.save_step12_artifacts({"security_report": content, "doc_path": gen_path, "status": "generating", "current_fix_round": fix_round, "convergence": convergence_log})
-                    await broadcast(project_id, {"type": "step12", "message": f"🔍 hourong 正在检验安全审计（文件：{gen_path}）"})
-                    failed_keys = []
+                    bg_engine.save_step12_artifacts({"security_report": content, "doc_path": gen_path, "status": "generating"})
+                    await broadcast(project_id, {"type": "progress", "message": f"🔍 hourong 正在检验安全审计（文件：{gen_path}）"})
+                    focus_items = []
                     if fix_round > 1 and convergence_log:
-                        last_results = convergence_log[-1].get("results", [])
-                        if last_results:
-                            failed_keys = [r.get("key", "") for r in last_results if int(r.get("score", 100)) < 90]
-                    qa_result = await _inspect_security(project_id, gen_path, project_name=proj_name, project_description=proj_desc, core_goal=core_goal, failed_keys=failed_keys if failed_keys else None)
-                    convergence_log.append({"round": fix_round, "detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", []), "results": qa_result.get("results", [])})
+                        focus_items = convergence_log[-1].get("failed_keys", [])
+                    qa_result = await _inspect_security(project_id, gen_path, focus_items=focus_items or None)
+                    convergence_log.append({"detail": qa_result.get("detail", ""), "passed": qa_result.get("passed", False), "failed_details": qa_result.get("failed_details", []), "failed_keys": qa_result.get("failed_keys", [])})
+                    bg_engine.save_step12_artifacts({"security_report": content, "doc_path": gen_path, "convergence": convergence_log, "status": "generating", "message": f"第{fix_round}轮QA结果已保存"})
                     if qa_result.get("passed"):
-                        await broadcast(project_id, {"type": "step12", "message": f"✅ 安全审计已通过 hourong 检验（共{fix_round}轮）"})
+                        await broadcast(project_id, {"type": "progress", "message": f"✅ 安全审计已通过 hourong 检验（共{fix_round}轮）"})
                         bg_engine.save_step12_artifacts({"security_report": content, "doc_path": gen_path, "convergence": convergence_log, "status": "done", "qa_passed": True, "message": "✅ 安全审计完成"})
                         bg_engine.complete_step(12)
                         await broadcast(project_id, {"type": "done", "message": "✅ 安全审计已完成"})
                         return
-                    await broadcast(project_id, {"type": "step12", "message": f"⚠️ 未通过，修复中"})
-                await broadcast(project_id, {"type": "error", "message": "❌ 经10轮仍未通过检验"})
-                bg_engine.save_step12_artifacts({"security_report": final_content, "doc_path": final_path, "convergence": convergence_log, "status": "error"})
-                bg_engine.reset_step(12)
+                    await broadcast(project_id, {"type": "progress", "message": f"⚠️ 未通过，修复中"})
+                await broadcast(project_id, {"type": "progress", "message": f"🔄 第{fix_round}轮未通过，自动退回重做..."})
             except Exception as e:
                 logger.error(f"Step12: {e}")
                 try:
                     bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
                     bg_engine.save_step12_artifacts({"status": "error", "message": f"失败: {str(e)[:200]}"})
                     bg_engine.reset_step(12)
-                except Exception:
-                    pass
+                except Exception as e2:
+                    logger.error(f"Step12 failed to reset: {e2}", exc_info=True)
             finally:
                 bg_db.close()
         except Exception as e:
             logger.error(f"Step12 fatal: {e}")
-    _asyncio.create_task(_generate())
+        finally:
+            from app.services.haimei_executor import HaimeiStepExecutor
+            HaimeiStepExecutor._tasks.pop(f"{project_id}:step12", None)
+    task = _asyncio.create_task(_generate())
+    from app.services.haimei_executor import HaimeiStepExecutor
+    task_key = f"{project_id}:step12"
+    HaimeiStepExecutor._tasks[task_key] = task
     return APIResponse(code=0, data={"message": "第十二步已启动", "status": "generating"})
 
 
@@ -228,7 +248,7 @@ def save_step12_artifacts_route(project_id: str, body: dict = Body(...), db: Ses
 
 @router.post("/{project_id}/step12/inspect")
 async def inspect_step12(project_id: str, body: Step3InspectRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from app.api.ws.step3_qa import _inspect_via_subagent
+    from app.services.gateway_client import GatewayClient
     import json as _json
     content, focus_items = body.content, body.focus_items
     if not content or len(content.strip()) < 20:
@@ -236,11 +256,13 @@ async def inspect_step12(project_id: str, body: Step3InspectRequest, db: Session
     active_dims = [d for d in SECURITY_INSPECTION_DIMENSIONS if not focus_items or d["key"] in focus_items]
     dims_json = _json.dumps([{'检验项目': d['label'], '检验标准': d['description']} for d in active_dims], ensure_ascii=False, indent=2)
     focus_hint = f"\n⚠️ 本次只检验：{[d['label'] for d in active_dims]}" if focus_items else ""
-    convergence_hint = "\n⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。后续Agent将只修改不合格项，禁止扩大范围。已合格项目不得提出修改要求。"
-    scoring_hint = "\n评分规则：每个维度起始100分，每发现一个缺陷扣减相应分数（轻微缺陷扣5-10分，一般缺陷扣15-20分，严重缺陷扣25-30分）。维度得分≥90则该维度passed为true。所有维度平均分>90分为整体合格。"
-    prompt = f"你是一个专业的安全审计QA检验员（后荣）。\n\n=== 安全审计报告 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n{convergence_hint}\n{scoring_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "score": 100, "deduction": "", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
+    prompt = f"你是一个专业的安全审计QA检验员（后荣）。\n\n=== 安全审计报告 ===\n{content}\n\n=== 检验项目 ===\n{dims_json}\n{focus_hint}\n\n直接输出 JSON 数组：\n[\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "..."}}' for d in active_dims) + "\n]"
     try:
-        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
+        client = GatewayClient(profile_name="hourong", timeout=120)
+        chunks = []
+        async for chunk in client.chat_completions(messages=[{"role": "user", "content": prompt}], stream=False, max_tokens=2000):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
         if not reply:
             raise ValueError("后荣未返回")
         parsed = _json.loads(reply)
@@ -251,26 +273,15 @@ async def inspect_step12(project_id: str, body: Step3InspectRequest, db: Session
     results = []
     for dim in active_dims:
         m = next((r for r in parsed if r.get("key") == dim["key"]), None)
-        results.append({"key": dim["key"], "label": dim["label"], "score": int(m.get("score", 100)) if m else 0, "passed": int(m.get("score", 100)) >= 90 if m else False, "detail": m.get("detail", "") if m else ""})
-    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
-    all_passed = avg_score > 90
-    _engine = _get_engine(project_id, db)
-    _engine.save_step12_artifacts({
-        "inspect_result": {"passed": all_passed, "avg_score": avg_score, "dimensions": results, "inspected_at": __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat()},
-        "qa_passed": all_passed, "qa_checked": True,
-    })
-    return APIResponse(code=0, data={"passed": avg_score > 90, "score": avg_score, "dimensions": results})
+        results.append({"key": dim["key"], "label": dim["label"], "passed": bool(m.get("passed", False)) if m else False, "detail": m.get("detail", "") if m else ""})
+    return APIResponse(code=0, data={"passed": all(r["passed"] for r in results), "dimensions": results})
 
 
 @router.post("/{project_id}/step12/qa")
 def qa_step12(project_id: str, body: QAResultRequest, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    from datetime import datetime, timezone
     engine = _get_engine(project_id, db)
-    now_iso = datetime.now(timezone.utc).isoformat()
     if body.result == "passed":
         result = engine.pass_qa(12)
-        engine.save_step12_artifacts({"qa_passed": True, "qa_status": "passed", "qa_checked_at": now_iso})
     else:
         result = engine.fail_qa(12, reason=body.reason or "", suggestions=body.suggestions)
-        engine.save_step12_artifacts({"qa_passed": False, "qa_status": "failed", "qa_checked_at": now_iso, "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
     return APIResponse(code=0, data={"message": f"第十二步QA{'通过' if body.result == 'passed' else '未通过'}", "qa": result})

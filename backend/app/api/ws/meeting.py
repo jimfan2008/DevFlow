@@ -301,7 +301,7 @@ async def handle_start_meeting(
                 history.append({"role": msg["role"], "content": msg["content"]})
 
             asyncio.create_task(
-                dispatch_to_agents(group_id, group["members"], task_announcement, history, group["members"])
+                dispatch_to_agents(group_id, group["members"], task_announcement, history)
             )
 
     except Exception as e:

@@ -1,0 +1,812 @@
+"""v4.0 基于需求自动生成TDD计划 - 完整TDD测试用例
+覆盖 SRS 8.1.6 (第六步 TDD测试用例计划) + hourong 检验报告解析修复
+
+验收标准：
+- 基于需求文档自动生成TDD测试用例计划
+- hourong检验报告JSON解析支持多种格式
+- 收敛检测防止反复报相同问题
+- 检验失败时返回结构化错误
+"""
+import pytest
+import json
+import re as _re
+from datetime import datetime, timezone
+from app.api.workflow.core import (
+    TDD_PLAN_DIMENSIONS,
+    TDD_TESTCASE_DIMENSIONS,
+)
+from app.api.workflow.step4 import (
+    _build_inspect_prompt,
+    _inspect_doc as step4_inspect_doc,
+    SUB_FLOW_CONFIGS,
+    CHAPTER_MARKER_START,
+    CHAPTER_MARKER_END,
+    _split_chapters,
+)
+from app.services.qa_gate_service import QAGateService
+from app.services.workflow_engine import WorkflowEngine, get_default_steps
+
+# ============================================================
+# 模块1: TDD计划检验维度 (SRS 8.1.6)
+# ============================================================
+
+class TestTDDPlanDimensions:
+    """TDD计划检验维度定义 - 与core.py数据定义一致"""
+
+    def test_tdd_plan_dimensions_count(self):
+        assert len(TDD_PLAN_DIMENSIONS) == 3
+
+    def test_tdd_plan_dimension_keys(self):
+        keys = {d["key"] for d in TDD_PLAN_DIMENSIONS}
+        assert keys == {"coverage", "atomicity", "measurability"}
+
+    def test_tdd_plan_coverage_dimension(self):
+        d = next(x for x in TDD_PLAN_DIMENSIONS if x["key"] == "coverage")
+        assert "覆盖率" in d["label"]
+        assert len(d["description"]) > 0
+
+    def test_tdd_plan_atomicity_dimension(self):
+        d = next(x for x in TDD_PLAN_DIMENSIONS if x["key"] == "atomicity")
+        assert "原子化" in d["label"]
+        assert "最小不可再分" in d["description"]
+
+    def test_tdd_plan_measurability_dimension(self):
+        d = next(x for x in TDD_PLAN_DIMENSIONS if x["key"] == "measurability")
+        assert "可量化" in d["label"]
+        assert "可验证" in d["description"]
+
+    def test_tdd_plan_all_dimensions_have_full_structure(self):
+        for d in TDD_PLAN_DIMENSIONS:
+            assert "key" in d and "label" in d and "description" in d
+            assert len(d["key"]) > 0 and len(d["label"]) > 0
+
+    def test_tdd_plan_no_duplicate_keys(self):
+        keys = [d["key"] for d in TDD_PLAN_DIMENSIONS]
+        assert len(keys) == len(set(keys))
+
+
+# ============================================================
+# 模块2: hourong 检验报告JSON解析策略 (修复 解析失败 bug)
+# ============================================================
+
+class TestHourongInspectPromptBuilding:
+    """检验提示词构建 - 覆盖不同参数组合"""
+
+    def test_build_inspect_prompt_basic(self):
+        dim = {"key": "coverage", "label": "需求覆盖率", "description": "是否覆盖所有功能需求"}
+        standards = [
+            {"name": "完整覆盖", "description": "是否覆盖所有验收标准", "weight": "critical"},
+            {"name": "边界覆盖", "description": "是否覆盖边界条件", "weight": "major"},
+        ]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/tdd_plan.md", dim=dim, standards=standards,
+            dim_key="coverage",
+        )
+        assert "需求覆盖率" in prompt
+        assert "/docs/tdd_plan.md" in prompt
+        assert "JSON" in prompt
+        assert "[CRITICAL]" in prompt
+        assert "[MAJOR]" in prompt
+
+    def test_build_inspect_prompt_score_threshold(self):
+        dim = {"key": "measurability", "label": "可量化性", "description": "测试"}
+        standards = [{"name": "可验证", "description": "测试", "weight": "critical"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="measurability",
+        )
+        assert "score≥90" in prompt
+
+    def test_build_inspect_prompt_with_prev_feedback(self):
+        dim = {"key": "atomicity", "label": "原子化程度", "description": "测试"}
+        standards = [{"name": "原子性", "description": "测试", "weight": "critical"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="atomicity",
+            prev_feedback="上次问题：测试用例粒度过大",
+        )
+        assert "收敛性检查" in prompt
+        assert "上次检验报告" in prompt
+        assert "粒度过大" in prompt
+
+    def test_build_inspect_prompt_with_chapter_label(self):
+        dim = {"key": "coverage", "label": "覆盖率", "description": "测试"}
+        standards = [{"name": "完整", "description": "测试", "weight": "major"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="coverage", chapter_label="functional",
+        )
+        assert "functional" in prompt
+
+    def test_build_inspect_prompt_output_is_json_only(self):
+        dim = {"key": "coverage", "label": "覆盖率", "description": "测试"}
+        standards = [{"name": "完整", "description": "测试", "weight": "major"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="coverage",
+        )
+        assert "只输出 JSON" in prompt
+        assert "不要 markdown" in prompt
+
+    def test_build_inspect_prompt_dim_key_in_output(self):
+        dim = {"key": "measurability", "label": "可量化性", "description": "测试"}
+        standards = [{"name": "可验证", "description": "测试", "weight": "critical"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="measurability",
+        )
+        assert '"key": "measurability"' in prompt
+
+
+class TestHourongJSONExtractionStrategies:
+    """hourong检验报告JSON提取策略 - 核心修复项
+    覆盖 `_inspect_doc` 函数中的7种JSON提取策略，
+    确保各类LLM返回格式都能正确解析。
+    """
+
+    @staticmethod
+    def _extract_json(reply: str):
+        """复制 step4.py _inspect_doc 中的完整解析逻辑"""
+        qa_r = reply
+        single = {}
+
+        # Strip thinking/analysis tags
+        _lt, _gt = chr(60), chr(62)
+        _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
+        _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
+        qa_r = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
+
+        candidates = []
+
+        # Strategy 1: code fences
+        fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', qa_r, _re.DOTALL)
+        for fc in fenced:
+            stripped = fc.strip()
+            if stripped:
+                candidates.append(stripped)
+
+        # Strategy 2: brace extraction
+        brace_start = qa_r.find('{')
+        brace_end = qa_r.rfind('}')
+        if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+            candidates.append(qa_r[brace_start:brace_end + 1])
+
+        # Strategy 3: JSON-like regex
+        json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', qa_r)
+        for jl in json_like:
+            if len(jl) > 10:
+                candidates.append(jl)
+
+        # Strategy 4: strip non-JSON prefix/suffix
+        stripped = qa_r.strip()
+        bs2 = stripped.find('{')
+        if bs2 > 0:
+            candidates.append(stripped[bs2:])
+        be2 = stripped.rfind('}')
+        if be2 >= 0 and be2 < len(stripped) - 1:
+            candidates.append(stripped[:be2 + 1])
+
+        candidates.append(qa_r)
+
+        def _repair_json(text):
+            t = text.strip()
+            t = _re.sub(r',\s*([}\]])', r'\1', t)
+            try:
+                return json.loads(t)
+            except Exception:
+                pass
+            core = t.lstrip('\n\r\t ')
+            while core and core[0] not in '{[":':
+                core = core[1:]
+            while core and core[-1] not in '}]\n\r\t ':
+                core = core[:-1]
+            try:
+                return json.loads(core.strip())
+            except Exception:
+                pass
+            return None
+
+        for candidate in candidates:
+            try:
+                parsed = json.loads(candidate)
+                if isinstance(parsed, dict) and parsed:
+                    single = parsed
+                    break
+            except Exception:
+                pass
+            repaired = _repair_json(candidate)
+            if repaired and isinstance(repaired, dict) and repaired:
+                single = repaired
+                break
+
+        return single
+
+    # ── 策略1: 标准JSON（直接输出）──
+    def test_parse_standard_json(self):
+        reply = '{"key": "coverage", "score": 95, "passed": true, "detail": "完整覆盖"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result.get("score") == 95
+        assert result.get("passed") is True
+
+    # ── 策略2: 代码块包裹 ──
+    def test_parse_json_in_code_fence_without_lang(self):
+        reply = '```\n{"key": "coverage", "score": 90, "passed": true, "detail": "通过"}\n```'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result.get("score") == 90
+
+    def test_parse_json_in_code_fence_with_lang(self):
+        reply = '```json\n{"key": "atomicity", "score": 88, "passed": false, "detail": "粒度过大"}\n```'
+        result = self._extract_json(reply)
+        assert result.get("key") == "atomicity"
+        assert result.get("passed") is False
+
+    def test_parse_json_in_code_fence_multiline(self):
+        reply = '```json\n{\n  "key": "measurability",\n  "score": 92,\n  "passed": true,\n  "detail": "可量化"}\n```'
+        result = self._extract_json(reply)
+        assert result.get("key") == "measurability"
+        assert result.get("score") == 92
+
+    # ── 策略3: 花括号提取 ──
+    def test_parse_json_with_prefix_text(self):
+        reply = '以下是我的检验结果：{"key": "coverage", "score": 85, "passed": false, "detail": "覆盖不足"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result.get("score") == 85
+
+    def test_parse_json_with_suffix_text(self):
+        reply = '{"key": "coverage", "score": 95, "passed": true, "detail": "通过"}附加说明'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result.get("passed") is True
+
+    def test_parse_json_with_prefix_and_suffix(self):
+        reply = '思考分析：{"key": "atomicity", "score": 70, "passed": false, "detail": "不原子化"}完毕'
+        result = self._extract_json(reply)
+        assert result.get("key") == "atomicity"
+        assert result.get("score") == 70
+
+    # ── 策略4: 思考标签剥离 ──
+    def test_parse_json_with_thinking_tag(self):
+        reply = '<thinking>我需要先检查文档内容...</thinking>{"key": "coverage", "score": 95, "passed": true, "detail": "覆盖完整"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result.get("score") == 95
+
+    def test_parse_json_with_think_tag(self):
+        reply = '<think>Let me analyze the document...</think>{"key": "atomicity", "score": 80, "passed": false, "detail": "需要拆分"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "atomicity"
+        assert result.get("score") == 80
+
+    def test_parse_json_with_analysis_tag(self):
+        reply = '<analysis>检验中...</analysis>{"key": "measurability", "score": 92, "passed": true, "detail": "合格"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "measurability"
+        assert result.get("passed") is True
+
+    def test_parse_json_with_nested_thinking_tags(self):
+        reply = '<thinking>外部思考<thinking>内部思考</thinking>继续</thinking>{"key": "coverage", "score": 95, "passed": true, "detail": "通过"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+
+    # ── 策略5: JSON修复 ──
+    def test_parse_json_trailing_comma_fix(self):
+        reply = '{"key": "coverage", "score": 95, "passed": true, "detail": "通过",}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result.get("score") == 95
+
+    def test_parse_json_nested_trailing_comma_fix(self):
+        reply = '{"key": "coverage", "score": 95, "passed": true, "metrics": {"a": 1, "b": 2,}, "detail": "通过"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+
+    def test_parse_json_with_newlines_before_brace(self):
+        reply = '\n\n\n{"key": "coverage", "score": 95, "passed": true, "detail": "通过"}'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+
+    def test_parse_json_with_trailing_garbage(self):
+        reply = '{"key": "coverage", "score": 95, "passed": true, "detail": "通过"} some extra stuff here'
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+
+    def test_parse_json_with_unicode_content(self):
+        reply = '{"key": "coverage", "score": 95, "passed": true, "detail": "覆盖率测试通过 ✅"}'
+        result = self._extract_json(reply)
+        assert result.get("detail") == "覆盖率测试通过 ✅"
+
+    # ── 策略6: 多层嵌套花括号 ──
+    def test_parse_json_deeply_nested(self):
+        reply = ('{"key": "coverage", "score": 92, "passed": true, '
+                 '"detail": "通过", "metadata": {"sub": {"deep": true}}}')
+        result = self._extract_json(reply)
+        assert result.get("key") == "coverage"
+        assert result["metadata"]["sub"]["deep"] is True
+
+    def test_parse_json_with_empty_fields(self):
+        reply = '{"key": "coverage", "score": 0, "passed": false, "detail": ""}'
+        result = self._extract_json(reply)
+        assert result.get("score") == 0
+        assert result.get("passed") is False
+
+    # ── 策略7: 纯字符串退化情况 ──
+    def test_parse_non_json_returns_empty(self):
+        reply = "这个文档很好，没有问题。"
+        result = self._extract_json(reply)
+        assert result == {}
+
+    def test_parse_empty_string(self):
+        reply = ""
+        result = self._extract_json(reply)
+        assert result == {}
+
+    def test_parse_whitespace_only(self):
+        reply = "   \n\n  "
+        result = self._extract_json(reply)
+        assert result == {}
+
+    def test_parse_none_response(self):
+        result = self._extract_json("")
+        assert result == {}
+
+
+class TestHourongInspectDocResultFormat:
+    """检验结果格式验证 - _inspect_doc 返回值的结构化校验"""
+
+    def test_inspect_result_has_key_field(self):
+        """无论通过与否，都必须包含 key 字段"""
+        # 使用模拟的解析结果，验证字段完整性
+        dim = {"key": "coverage", "label": "覆盖率", "description": "测试"}
+        standards = [{"name": "完整", "description": "测试", "weight": "critical"}]
+
+        result_passed = {"key": "coverage", "score": 95, "passed": True, "detail": "通过"}
+        result_failed = {"key": "coverage", "score": 60, "passed": False, "detail": "不通过"}
+        result_empty = {"key": "coverage", "passed": False, "detail": "后荣未返回检验结果（空响应）"}
+
+        assert "key" in result_passed
+        assert "key" in result_failed
+        assert "key" in result_empty
+
+    def test_inspect_result_score_range(self):
+        """score 应在 0-100 范围内"""
+        results = [
+            {"key": "coverage", "score": 95, "passed": True, "detail": ""},
+            {"key": "coverage", "score": 0, "passed": False, "detail": "失败"},
+            {"key": "coverage", "score": 100, "passed": True, "detail": "完美"},
+        ]
+        for r in results:
+            assert 0 <= r.get("score", 0) <= 100
+
+    def test_inspect_result_detail_not_empty_when_failed(self):
+        """失败时 detail 必须有内容"""
+        r = {"key": "coverage", "score": 60, "passed": False, "detail": "覆盖率不足，缺少边界条件测试"}
+        if not r["passed"]:
+            assert len(r.get("detail", "")) > 0
+
+    def test_inspect_result_detail_can_be_empty_when_passed(self):
+        r = {"key": "coverage", "score": 95, "passed": True, "detail": ""}
+        assert r["passed"] is True
+
+
+# ============================================================
+# 模块3: TDD计划QA检验逻辑 (SRS 8.1.6)
+# ============================================================
+
+class TestTDDPlanQAGate:
+    """TDD计划QA检验 - QAGateService 调用"""
+
+    def test_tdd_plan_qa_pass(self):
+        service = QAGateService()
+        record = service.inspect(
+            artifact_type="tdd_plan",
+            project_id="proj-tdd-001",
+            workflow_step_id=6,
+        )
+        assert record["status"] == "passed"
+        assert record["artifact_type"] == "tdd_plan"
+        assert record["workflow_step_id"] == 6
+
+    def test_tdd_plan_qa_fail_with_reason(self):
+        service = QAGateService()
+        record = service.inspect(
+            artifact_type="tdd_plan",
+            project_id="proj-tdd-001",
+            workflow_step_id=6,
+            result="failed",
+            reason="覆盖不足，缺少核心模块",
+            suggestions=["补充用户模块测试", "增加边界条件"],
+        )
+        assert record["status"] == "failed"
+        assert "覆盖不足" in record["problem_details"]
+        assert len(record["fix_suggestions"]) == 2
+
+    def test_tdd_plan_qa_rollback(self):
+        service = QAGateService()
+        record = service.rollback(
+            task_id="tdd-plan-task-1",
+            project_id="proj-tdd-001",
+            workflow_step_id=6,
+            reason="原子化不足",
+            suggestions=["拆分复合用例"],
+        )
+        assert record["status"] == "failed"
+        assert record["task_id"] == "tdd-plan-task-1"
+
+    def test_tdd_plan_qa_dimensions_count(self):
+        service = QAGateService()
+        dims = service.INSPECTION_DIMENSIONS.get("tdd_plan", [])
+        assert len(dims) == 3
+
+    def test_tdd_plan_qa_dimension_names(self):
+        service = QAGateService()
+        dims = service.INSPECTION_DIMENSIONS.get("tdd_plan", [])
+        expected = {"覆盖率", "原子化程度", "验收标准可量化性"}
+        assert set(dims) == expected
+
+    def test_tdd_plan_qa_get_inspection_status(self):
+        service = QAGateService()
+        service.inspect(artifact_type="tdd_plan", project_id="proj-1", workflow_step_id=6)
+        status = service.get_inspection_status(step_id=6)
+        assert status["records_count"] >= 1
+        assert status["latest_status"] == "passed"
+
+    def test_tdd_plan_qa_get_all_records(self):
+        service = QAGateService()
+        service.inspect(artifact_type="tdd_plan", project_id="proj-1", workflow_step_id=6)
+        records = service.get_all_records(project_id="proj-1")
+        assert len(records) >= 1
+        assert records[0]["artifact_type"] == "tdd_plan"
+
+    def test_tdd_plan_qa_invalid_type_raises(self):
+        service = QAGateService()
+        with pytest.raises(ValueError, match="未知的产出类型"):
+            service.inspect(artifact_type="invalid_type", project_id="proj-1", workflow_step_id=6)
+
+
+class TestTDDPlanWorkflowEngine:
+    """TDD计划 - WorkflowEngine 集成测试"""
+
+    def test_step6_is_tdd_plan_step(self):
+        steps = get_default_steps()
+        step6 = next(s for s in steps if s.step_number == 6)
+        assert "TDD" in step6.name or "测试" in step6.name
+        assert step6.executor_role == "haimei"
+
+    def test_step6_is_qa_required(self):
+        engine = WorkflowEngine(project_id="test-project")
+        assert 6 in engine.QA_REQUIRED_STEPS
+
+    def test_step6_advance_and_complete(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        assert engine._step_states[6].status == "in_progress"
+        engine.complete_step(6)
+        assert engine._step_states[6].status == "qa_review"
+
+    def test_step6_pass_qa(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        record = engine.pass_qa(6)
+        assert record.status == "passed"
+        assert engine._step_states[6].status == "completed"
+
+    def test_step6_fail_qa(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        engine.fail_qa(6, reason="覆盖率不足", suggestions=["补充模块"])
+        assert engine._step_states[6].status == "qa_review"
+
+    def test_step6_fail_then_reset_then_pass(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        engine.fail_qa(6, reason="不足", suggestions=["修复"])
+        engine.reset_step(6)
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": "修正后计划"})
+        record = engine.pass_qa(6)
+        assert record.status == "passed"
+
+    def test_step6_artifacts_save_and_retrieve(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.save_step6_artifacts({
+            "tdd_plan": "# TDD计划\n1. 用户模块\n2. 订单模块",
+        })
+        artifacts = engine.get_step6_artifacts()
+        assert "TDD计划" in artifacts.get("tdd_plan", "")
+
+    def test_step6_to_step7_transition(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        engine.pass_qa(6)
+        engine.advance_step(7)
+        assert engine.current_step == 7
+
+    def test_step6_cannot_skip_to_step7_without_qa(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        with pytest.raises((ValueError, Exception)):
+            engine.advance_step(7)
+
+    def test_step6_engine_current_status_after_qa(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        engine.pass_qa(6)
+        status = engine.get_current_status()
+        assert status.get("current_step") is not None
+
+
+class TestTDDPlanFromRequirements:
+    """基于需求文档自动生成TDD计划 - 核心流程"""
+
+    def test_tdd_plan_requires_requirements(self):
+        steps = get_default_steps()
+        step6 = next(s for s in steps if s.step_number == 6)
+        assert "software_requirements" in step6.required_inputs or \
+               "srs" in step6.required_inputs or \
+               "requirement" in " ".join(step6.required_inputs).lower()
+
+    def test_tdd_plan_has_expected_outputs(self):
+        steps = get_default_steps()
+        step6 = next(s for s in steps if s.step_number == 6)
+        outputs = " ".join(step6.expected_outputs).lower()
+        assert "tdd" in outputs or "test" in outputs
+
+    def test_tdd_plan_generated_from_requirements(self):
+        """模拟需求输入并生成TDD计划"""
+        requirement_text = """
+        ## 用户管理模块
+        - 用户注册：输入用户名、密码、邮箱，校验通过后创建账户
+        - 用户登录：输入用户名密码，生成JWT token
+        - 用户信息修改：支持修改昵称、头像、签名
+        
+        ## 订单管理模块
+        - 创建订单：用户选择商品加入购物车后创建订单
+        - 订单支付：调用第三方支付接口完成支付
+        - 订单查询：支持按状态、时间范围查询
+        
+        ## 支付模块
+        - 支付接口对接：微信支付、支付宝
+        - 退款处理：支持整单退款和部分退款
+        - 支付记录查询：查询历史支付记录
+        """
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={
+            "tdd_plan": requirement_text,
+            "requirement_source": "SRS V23",
+        })
+        record = engine.pass_qa(6)
+        assert record.status == "passed"
+        artifacts = engine.get_step6_artifacts()
+        assert "requirement_source" in artifacts
+
+    def test_tdd_plan_with_empty_requirements(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": ""})
+        engine.fail_qa(6, reason="需求文档为空，无法生成TDD计划", suggestions=["请先完成需求分析"])
+        assert engine._step_states[6].status == "qa_review"
+
+
+class TestTDDPlanEdgeCases:
+    """TDD计划边界情况"""
+
+    def test_tdd_plan_status_tracking(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.save_step6_artifacts({"status": "generating"})
+        arts = engine.get_step6_artifacts()
+        assert arts.get("status") == "generating"
+
+    def test_tdd_plan_status_done(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.save_step6_artifacts({"status": "done", "qa_passed": True})
+        arts = engine.get_step6_artifacts()
+        assert arts.get("status") == "done"
+        assert arts.get("qa_passed") is True
+
+    def test_tdd_plan_empty_artifacts(self):
+        engine = WorkflowEngine(project_id="test-project")
+        arts = engine.get_step6_artifacts()
+        assert arts == {}
+
+    def test_tdd_plan_required_inputs_complete(self):
+        steps = get_default_steps()
+        step6 = next(s for s in steps if s.step_number == 6)
+        assert len(step6.required_inputs) > 0
+
+    def test_tdd_plan_follows_step5(self):
+        steps = get_default_steps()
+        step5 = next(s for s in steps if s.step_number == 5)
+        step6 = next(s for s in steps if s.step_number == 6)
+        assert step5.step_number < step6.step_number
+
+    def test_tdd_plan_round_number_increments_on_retry(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6)
+        engine.fail_qa(6, reason="不足", suggestions=["修复"])
+        engine.reset_step(6)
+        engine.advance_step(6)
+        engine.complete_step(6)
+        record = engine.pass_qa(6)
+        assert record.status == "passed"
+
+
+class TestTDDSwarmIntegration:
+    """TDD蜂群编写集成 - step6到step7衔接"""
+
+    def test_step7_requires_step6(self):
+        steps = get_default_steps()
+        step7 = next(s for s in steps if s.step_number == 7)
+        assert step7.executor_role == "houfa"
+        assert "蜂群" in step7.name or "TDD" in step7.name
+
+    def test_step7_is_qa_required(self):
+        engine = WorkflowEngine(project_id="test-project")
+        assert 7 in engine.QA_REQUIRED_STEPS
+
+    def test_step7_full_flow(self):
+        engine = WorkflowEngine(project_id="test-project")
+        # Step 6
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": "TDD计划"})
+        engine.pass_qa(6)
+        # Step 7
+        engine.advance_step(7)
+        engine.complete_step(7, artifacts={"tdd_test_cases": "测试用例代码"})
+        engine.pass_qa(7)
+        assert engine._step_states[7].status == "completed"
+
+    def test_step7_qa_fail_and_retry(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": "计划"})
+        engine.pass_qa(6)
+
+        engine.advance_step(7)
+        engine.complete_step(7, artifacts={"tdd_test_cases": "缺陷代码"})
+        engine.fail_qa(7, reason="正确性不足", suggestions=["修正断言"])
+        assert engine._step_states[7].status == "qa_review"
+
+        engine.reset_step(7)
+        engine.advance_step(7)
+        engine.complete_step(7, artifacts={"tdd_test_cases": "修正代码"})
+        engine.pass_qa(7)
+        assert engine._step_states[7].status == "completed"
+
+    def test_step7_artifacts_saved(self):
+        engine = WorkflowEngine(project_id="test-project")
+        engine.save_step7_artifacts({
+            "swarm_summary": {"total": 10, "passed": 8, "failed": 2},
+        })
+        arts = engine.get_step7_artifacts()
+        assert arts["swarm_summary"]["total"] == 10
+
+    def test_tdd_plan_to_code_plan_dependency(self):
+        steps = get_default_steps()
+        step8 = next(s for s in steps if s.step_number == 8)
+        inputs = " ".join(step8.required_inputs)
+        assert "tdd" in inputs.lower()
+
+
+class TestTDDTestCaseDimensions:
+    """TDD测试用例检验维度 - SRS 8.1.7"""
+
+    def test_tdd_testcase_dimensions_count(self):
+        assert len(TDD_TESTCASE_DIMENSIONS) == 4
+
+    def test_tdd_testcase_dimension_keys(self):
+        keys = {d["key"] for d in TDD_TESTCASE_DIMENSIONS}
+        assert keys == {"correctness", "coverage", "atomicity", "acceptance_match"}
+
+    def test_tdd_testcase_correctness_dimension(self):
+        d = next(x for x in TDD_TESTCASE_DIMENSIONS if x["key"] == "correctness")
+        assert "正确性" in d["label"]
+
+    def test_tdd_testcase_acceptance_match_dimension(self):
+        d = next(x for x in TDD_TESTCASE_DIMENSIONS if x["key"] == "acceptance_match")
+        assert "验收标准匹配度" in d["label"]
+        assert "验收标准" in d["description"]
+
+    def test_tdd_testcase_no_duplicate_keys(self):
+        keys = [d["key"] for d in TDD_TESTCASE_DIMENSIONS]
+        assert len(keys) == len(set(keys))
+
+    def test_tdd_testcase_all_dimensions_complete(self):
+        for d in TDD_TESTCASE_DIMENSIONS:
+            assert "key" in d and "label" in d and "description" in d
+            assert len(d["key"]) > 0 and len(d["label"]) > 0
+
+
+# ============================================================
+# 模块4: 收敛检测
+# ============================================================
+
+class TestConvergenceDetection:
+    """hourong收敛检测 - 防止反复报相同问题"""
+
+    def test_convergence_with_prev_feedback(self):
+        """有前一���反馈时，提示词应包含收敛性检查"""
+        dim = {"key": "coverage", "label": "覆盖率", "description": "测试"}
+        standards = [{"name": "完整", "description": "测试", "weight": "critical"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="coverage",
+            prev_feedback="上次问题：覆盖率不足",
+        )
+        assert "收敛性检查" in prompt
+        assert "上次检验报告" in prompt
+        assert "覆盖率不足" in prompt
+        assert "禁止报告与上次相同的问题" in prompt
+
+    def test_convergence_without_prev_feedback(self):
+        """首次检验不应包含收敛性提示"""
+        dim = {"key": "coverage", "label": "覆盖率", "description": "测试"}
+        standards = [{"name": "完整", "description": "测试", "weight": "critical"}]
+        prompt = _build_inspect_prompt(
+            doc_path="/docs/plan.md", dim=dim, standards=standards,
+            dim_key="coverage",
+        )
+        assert "收敛性检查" not in prompt
+        assert "上次检验报告" not in prompt
+
+    def test_convergence_fix_instructions_in_houwang_prompt(self):
+        """houwang修复提示词应包含收敛性要求"""
+        fix_detail = "覆盖率不足，缺少边界测试"
+        prompt = (
+            f"=== 后荣详细检验意见 ===\n{fix_detail}\n\n"
+            "⚠️ 收敛性要求（极其重要）：\n"
+            "1. **只**修改后荣报告中指出的不合格项\n"
+            "2. 如果后荣说某标准已通过，绝对不要修改相关内容\n"
+        )
+        assert "收敛性要求" in prompt
+        assert "只" in prompt
+        assert "不合格项" in prompt
+
+
+# ============================================================
+# 模块5: 从需求自动生成TDD计划 - 端到端
+# ============================================================
+
+class TestTDDPlanAutoGenerationE2E:
+    """端到端：从需求文档自动生成TDD计划"""
+
+    def test_full_workflow_step4_to_step7(self):
+        """完整流程：架构设计(4) -> 环境搭建(5) -> TDD计划(6) -> TDD用例(7)"""
+        engine = WorkflowEngine(project_id="test-project")
+        for step_num in [4, 5, 6, 7]:
+            engine.advance_step(step_num)
+            engine.complete_step(step_num, artifacts={f"step{step_num}_output": "done"})
+            engine.pass_qa(step_num)
+        assert engine.current_step > 7
+
+    def test_tdd_plan_revision_loop(self):
+        """TDD计划修改闭环"""
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": "初始计划"})
+        engine.fail_qa(6, reason="覆盖率不足", suggestions=["补充模块"])
+
+        engine.reset_step(6)
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": "修正计划"})
+        engine.pass_qa(6)
+        assert engine._step_states[6].status == "completed"
+
+    def test_user_dissatisfaction_rollback(self):
+        """用户不满意触发迭代"""
+        engine = WorkflowEngine(project_id="test-project")
+        engine.advance_step(6)
+        engine.complete_step(6, artifacts={"tdd_plan": "计划"})
+        engine.pass_qa(6)
+        result = engine.user_dissatisfied("TDD计划不完整")
+        assert result.get("reset_from_step", 0) > 0 or "step" in result

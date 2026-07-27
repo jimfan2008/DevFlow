@@ -1,0 +1,253 @@
+import time
+import pytest
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker
+
+from app.main import app
+from app.database import get_db, Base
+
+TEST_DB_URL = "sqlite://"
+TEST_ENGINE = create_engine(
+    TEST_DB_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
+
+
+def setup_db():
+    Base.metadata.create_all(bind=TEST_ENGINE)
+
+
+def teardown_db():
+    with TEST_ENGINE.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            try:
+                table.drop(conn, checkfirst=True)
+            except Exception:
+                pass
+        conn.commit()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session():
+    setup_db()
+    session = TestSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        teardown_db()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session):
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+    app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Content-Type": "application/json"},
+        follow_redirects=True,
+    ) as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+UNKNOWN_GET_ROUTES = [
+    "/nonexistent",
+    "/api/unknown",
+    "/api/v1/notfound",
+    "/this/path/does/not/exist",
+    "/api/boards/99999",
+    "/api/tasks/nonexistent-task-id",
+    "/random-page-123",
+    "/api/v99/unknown",
+]
+
+KNOWN_API_PREFIXES = [
+    "/api/auth",
+    "/api/boards",
+    "/api/tasks",
+    "/api/projects",
+    "/api/agents",
+    "/api/v1/workflow",
+    "/api/v1/qa",
+    "/api/v1/swarms",
+]
+
+CUSTOM_404_INDICATORS = [
+    "404",
+    "返回首页",
+    "搜索",
+    "home",
+    "search",
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.tdd
+class Test404UnknownRoute:
+
+    async def test_unknown_root_path_returns_404(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+
+    async def test_unknown_api_path_returns_404(self, client):
+        for route in UNKNOWN_GET_ROUTES:
+            response = await client.get(route)
+            assert response.status_code == 404, (
+                "unknown route %s returned %d, expected 404" % (route, response.status_code)
+            )
+
+    async def test_unknown_post_returns_404(self, client):
+        response = await client.post("/api/nonexistent-resource")
+        assert response.status_code == 404
+
+    async def test_unknown_put_returns_404(self, client):
+        response = await client.put("/api/unknown-item-999")
+        assert response.status_code == 404
+
+    async def test_unknown_delete_returns_404(self, client):
+        response = await client.delete("/api/v1/unknown-delete")
+        assert response.status_code == 404
+
+    async def test_unknown_patch_returns_404(self, client):
+        response = await client.patch("/api/unknown-patch-target")
+        assert response.status_code == 404
+
+    async def test_deeply_nested_unknown_path_returns_404(self, client):
+        deep_routes = [
+            "/a/b/c/d/e/f/g",
+            "/api/v1/workflow/unknown-step-99",
+            "/api/projects/unknown/sprints/backlog",
+            "/api/boards/not-a-board/tasks/nonexistent",
+        ]
+        for route in deep_routes:
+            response = await client.get(route)
+            assert response.status_code == 404, (
+                "deep unknown route %s returned %d, expected 404" % (route, response.status_code)
+            )
+
+    async def test_unknown_path_response_is_json(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+        content_type = response.headers.get("content-type", "")
+        assert "json" in content_type, (
+            "404 Content-Type is not JSON: %s" % content_type
+        )
+
+    async def test_404_response_has_error_structure(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+        data = response.json()
+        assert "code" in data, "404 response missing code field"
+        assert "message" in data, "404 response missing message field"
+        assert data["code"] == "HTTP_404", (
+            "404 response code should be HTTP_404, got %s" % data.get("code")
+        )
+
+    async def test_404_response_with_path_after_known_prefix(self, client):
+        for prefix in KNOWN_API_PREFIXES:
+            route = prefix + "/non-existent-resource"
+            response = await client.get(route)
+            assert response.status_code == 404, (
+                "known prefix %s unknown path returned %d, expected 404" % (prefix, response.status_code)
+            )
+
+    async def test_404_response_time_within_500ms(self, client):
+        warmup = await client.get("/nonexistent")
+        assert warmup.status_code == 404
+        for route in UNKNOWN_GET_ROUTES:
+            start = time.perf_counter()
+            response = await client.get(route)
+            elapsed = time.perf_counter() - start
+            assert response.status_code == 404
+            assert elapsed <= 0.5, (
+                "route %s 404 response took %.3fs, exceeds 500ms" % (route, elapsed)
+            )
+
+    async def test_404_response_time_within_500ms_on_second_call(self, client):
+        for route in UNKNOWN_GET_ROUTES:
+            _ = await client.get(route)
+        for route in UNKNOWN_GET_ROUTES:
+            start = time.perf_counter()
+            response = await client.get(route)
+            elapsed = time.perf_counter() - start
+            assert response.status_code == 404
+            assert elapsed <= 0.5, (
+                "route %s second 404 call took %.3fs, exceeds 500ms" % (route, elapsed)
+            )
+
+    async def test_cors_headers_on_404_response(self, client):
+        response = await client.options(
+            "/nonexistent",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+            },
+        )
+        cors_origin = response.headers.get("access-control-allow-origin", "")
+        assert cors_origin, "404 OPTIONS response missing Access-Control-Allow-Origin header"
+
+    async def test_custom_404_page_contains_return_home_button(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+        text = response.text.lower()
+        assert "返回首页" in response.text, "自定义404页面缺少'返回首页'按钮"
+        assert "home" in text or "返回首页" in response.text, (
+            "自定义404页面缺少首页入口链接"
+        )
+
+    async def test_custom_404_page_contains_search_entry(self, client):
+        response = await client.get("/api/v99/invalid-path")
+        assert response.status_code == 404
+        text = response.text.lower()
+        search_keywords = ["搜索", "search", "查找"]
+        found = any(kw in response.text for kw in search_keywords)
+        assert found, "自定义404页面缺少搜索入口"
+
+    async def test_custom_404_page_not_blank(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+        body = response.text.strip()
+        assert len(body) > 0, "404页面内容为空（白屏）"
+        assert response.text != "", "404页面不应为空白字符串"
+        assert response.text is not None, "404页面不应为None"
+
+    async def test_custom_404_page_has_correct_status_line(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+        assert response.reason_phrase == "Not Found" or response.reason_phrase == ""
+
+    async def test_non_ascii_unknown_path_returns_404(self, client):
+        response = await client.get("/路径/不存在")
+        assert response.status_code == 404
+
+    async def test_unknown_path_with_query_string_returns_404(self, client):
+        response = await client.get("/nonexistent?foo=bar&baz=1")
+        assert response.status_code == 404
+
+    async def test_unknown_path_with_fragment_returns_404(self, client):
+        response = await client.get("/nonexistent#section")
+        assert response.status_code == 404
+
+    async def test_unknown_path_response_has_detail_message(self, client):
+        response = await client.get("/nonexistent")
+        assert response.status_code == 404
+        data = response.json()
+        assert "detail" in data or "message" in data, (
+            "404 response should have detail or message field"
+        )
+        msg = data.get("detail") or data.get("message", "")
+        assert isinstance(msg, str), "404 message should be a string"
+        assert len(msg) > 0, "404 message should not be empty"

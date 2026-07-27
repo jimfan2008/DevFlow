@@ -1,5 +1,5 @@
 <template>
-  <div id="app" style="width:1750px;" :class="{ 'is-logout': !isLoggedIn }">
+  <div id="app" :class="{ 'is-logout': !isLoggedIn }">
     <template v-if="isLoggedIn">
       <app-header />
       <div class="app-layout">
@@ -43,23 +43,27 @@ watch(isLoggedIn, (val) => {
   display: flex;
   height: calc(100vh - #{$global-nav-height});
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .app-main {
   flex: 1;
   overflow-y: auto;
-  background-color: $canvas-parchment;
+  background: $bg-base;
   display: flex;
   flex-direction: column;
 
   &__inner {
     max-width: $grid-max-width;
     margin: 0 auto;
-    padding: 20px;
+    padding: $spacing-section $spacing-xxl;
     min-height: 0;
     display: flex;
     flex-direction: column;
     flex: 1;
+    position: relative;
+    z-index: 1;
 
     &:has(.step3-view) {
       padding: 0;
@@ -68,6 +72,6 @@ watch(isLoggedIn, (val) => {
 }
 
 .is-logout {
-  background-color: $canvas;
+  background: $bg-deep;
 }
 </style>

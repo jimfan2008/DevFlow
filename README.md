@@ -247,7 +247,7 @@ pip install -r requirements.txt
 cp .env.example .env
 
 # 使用 SQLite 快速启动（无需 PostgreSQL）
-# 编辑 .env，设置: DATABASE_URL=sqlite+aiosqlite:////home/jim/DevFlow/devflow.db
+# 编辑 .env，设置: DATABASE_URL=sqlite+aiosqlite:///./devflow.db
 
 # 启动开发服务器
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000

@@ -7,8 +7,16 @@ set -euo pipefail
 # =============================================================================
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# 从配置文件读取端口
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a
+    source "$PROJECT_DIR/.env"
+    set +a
+fi
+
 export BACKEND_PORT=${BACKEND_PORT:-9000}
-export FRONTEND_PORT=${FRONTEND_PORT:-5173}
+export FRONTEND_PORT=${FRONTEND_PORT:-6000}
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; NC='\033[0m'
@@ -69,7 +77,7 @@ start_backend() {
     cd "$PROJECT_DIR"
     PYTHONPATH="$PROJECT_DIR/backend" \
     HERMES_PROFILES_PATH="${HERMES_PROFILES_PATH:-$HOME/.hermes}" \
-    DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:////home/jim/DevFlow/devflow.db}" \
+    DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:///./devflow.db}" \
     uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --log-level info &
     BACKEND_PID=$!
     for i in $(seq 1 30); do

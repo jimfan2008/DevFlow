@@ -2,7 +2,7 @@
   <header class="global-nav">
     <div class="global-nav__left">
       <router-link to="/boards" class="global-nav__logo">
-        <span class="global-nav__mark"></span>
+        <span class="global-nav__mark">◈</span>
         <span class="global-nav__title">DevFlow</span>
       </router-link>
     </div>
@@ -94,8 +94,11 @@ function handleCommand(command: string) {
   align-items: center;
   height: $global-nav-height;
   padding: 0 $spacing-xxl;
-  background: $surface-black;
-  color: $body-on-dark;
+  background: $glass-bg;
+  backdrop-filter: $frosted-blur;
+  -webkit-backdrop-filter: $frosted-blur;
+  border-bottom: 1px solid $border-subtle;
+  color: $text-primary;
   position: sticky;
   top: 0;
   z-index: 200;
@@ -111,19 +114,25 @@ function handleCommand(command: string) {
     align-items: center;
     gap: $spacing-xs;
     text-decoration: none;
-    color: $body-on-dark;
+    color: $text-primary;
   }
 
   &__mark {
-    font-size: 18px;
-    line-height: 1;
+    font-family: $font-mono;
+    font-size: 16px;
+    font-weight: 700;
+    background: $gradient-primary;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 
   &__title {
-    font-family: $font-text;
+    font-family: $font-display;
     font-size: $nav-link-size;
-    font-weight: $nav-link-weight;
-    letter-spacing: $nav-link-tracking;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
     opacity: 0.8;
   }
 
@@ -137,15 +146,30 @@ function handleCommand(command: string) {
   &__link {
     font-family: $font-text;
     font-size: $nav-link-size;
-    font-weight: $nav-link-weight;
-    letter-spacing: $nav-link-tracking;
-    color: rgba(255, 255, 255, 0.65);
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    color: $text-muted;
     text-decoration: none;
-    transition: color 0.15s;
+    transition: color $transition-fast;
     white-space: nowrap;
+    padding: 4px 0;
+    position: relative;
 
-    &:hover { color: $body-on-dark; }
-    &.active { color: $body-on-dark; }
+    &:hover { color: $text-primary; }
+    &.active {
+      color: $primary;
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: $primary;
+        border-radius: 1px;
+        box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+      }
+    }
   }
 
   &__right {
@@ -158,23 +182,22 @@ function handleCommand(command: string) {
     width: 180px;
 
     :deep(.el-input__wrapper) {
-      background: rgba(255, 255, 255, 0.12);
-      border: none;
-      border-radius: $radius-pill;
-      box-shadow: none;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border: 1px solid $border-subtle !important;
+      border-radius: 8px !important;
       height: 28px;
       padding: 0 12px;
     }
 
     :deep(.el-input__inner) {
-      color: $body-on-dark;
+      color: $text-primary;
       font-family: $font-text;
       font-size: $nav-link-size;
-      &::placeholder { color: rgba(255, 255, 255, 0.4); }
+      &::placeholder { color: $text-disabled; }
     }
 
     :deep(.el-input__prefix) {
-      color: rgba(255, 255, 255, 0.4);
+      color: $text-muted;
     }
   }
 
@@ -184,13 +207,13 @@ function handleCommand(command: string) {
     justify-content: center;
     width: 32px;
     height: 32px;
-    color: rgba(255, 255, 255, 0.65);
+    color: $text-muted;
     background: transparent;
     border: none;
-    border-radius: $radius-pill;
+    border-radius: 8px;
     cursor: pointer;
-    transition: color 0.15s;
-    &:hover { color: $body-on-dark; }
+    transition: color $transition-fast, background $transition-fast;
+    &:hover { color: $text-primary; background: rgba(255, 255, 255, 0.05); }
   }
 
   &__user-btn {
@@ -200,14 +223,14 @@ function handleCommand(command: string) {
     width: 32px;
     height: 32px;
     background: transparent;
-    border: none;
-    border-radius: $radius-pill;
+    border: 1px solid $border-default;
+    border-radius: 8px;
     cursor: pointer;
   }
 
   &__avatar {
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: $body-on-dark !important;
+    background: $primary-dim !important;
+    color: $primary !important;
     font-size: 11px !important;
     font-weight: 600;
   }

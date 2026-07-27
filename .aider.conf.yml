@@ -1,0 +1,5 @@
+# Aider configuration - using same LLM as Hermes (HaiMei)
+# Model: Qwen3.6-27B-AWQ-INT4 via local LiteLLM/vLLM server
+
+model: openai/Qwen3.6-27B-AWQ-INT4
+openai-api-base: http://10.34.1.96:8000/v1

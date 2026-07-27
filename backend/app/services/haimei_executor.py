@@ -139,21 +139,6 @@ class HaimeiStepExecutor:
         return task is not None and not task.done()
 
     @classmethod
-    def register_task(cls, project_id: str, step_number: int, task: asyncio.Task) -> str:
-        """注册后台任务，供 zombie 检测跟踪"""
-        task_key = f"{project_id}:step{step_number}"
-        cls._tasks[task_key] = task
-        logger.info(f"已注册步骤{step_number}的后台任务 (key={task_key})")
-        return task_key
-
-    @classmethod
-    def unregister_task(cls, project_id: str, step_number: int):
-        """注销已完成的后台任务"""
-        task_key = f"{project_id}:step{step_number}"
-        cls._tasks.pop(task_key, None)
-        logger.info(f"已注销步骤{step_number}的后台任务 (key={task_key})")
-
-    @classmethod
     async def get_running_info(cls) -> Dict[str, Any]:
         """获取所有正在运行的任务信息"""
         info = {}

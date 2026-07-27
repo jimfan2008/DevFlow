@@ -2,7 +2,7 @@ import asyncio
 import json
 import re
 from typing import List, Dict, Callable, AsyncGenerator, Optional
-from app.services.gateway_client import GatewayClient
+from app.services.gateway_client import gateway_client
 
 
 class MeetingState:
@@ -577,11 +577,13 @@ class ConversationCoordinator:
         conversation_history: List[Dict[str, str]] = None
     ) -> AsyncGenerator[str, None]:
         async with self.semaphore:
-            client = GatewayClient(profile_name=profile_name)
-            async for chunk in client.send_message(
-                message, conversation_history
-            ):
-                yield chunk
+            try:
+                async for chunk in gateway_client.send_message(
+                    profile_name, message, conversation_history
+                ):
+                    yield chunk
+            except Exception as e:
+                yield f"[发言出错: {str(e)}]"
 
     async def discussion_mode(
         self,
@@ -590,19 +592,10 @@ class ConversationCoordinator:
         conversation_history: List[Dict[str, str]] = None,
         progress_callback: Callable[[str, str], None] = None
     ) -> AsyncGenerator[Dict[str, str], None]:
-        for profile_name in profile_names:
-            try:
-                first_chunk = True
-                async for chunk in self._send_to_agent(profile_name, message, conversation_history or []):
-                    if first_chunk and progress_callback:
-                        progress_callback(profile_name, "typing")
-                        first_chunk = False
-                    yield {"profile": profile_name, "content": chunk}
-            except Exception as e:
-                yield {"profile": profile_name, "error": str(e)}
-            finally:
-                if progress_callback:
-                    progress_callback(profile_name, "idle")
+        async for result in self.broadcast_message(
+            profile_names, message, conversation_history, progress_callback
+        ):
+            yield result
 
     async def broadcast_message(
         self,
@@ -611,10 +604,43 @@ class ConversationCoordinator:
         conversation_history: List[Dict[str, str]] = None,
         progress_callback: Callable[[str, str], None] = None
     ) -> AsyncGenerator[Dict[str, str], None]:
-        async for result in self.discussion_mode(
-            profile_names, message, conversation_history, progress_callback
-        ):
-            yield result
+        tasks = []
+
+        for profile_name in profile_names:
+            task = asyncio.create_task(
+                self._collect_agent_response(profile_name, message, conversation_history, progress_callback)
+            )
+            tasks.append((profile_name, task))
+
+        for profile_name, task in tasks:
+            try:
+                result = await task
+                for chunk in result:
+                    yield chunk
+            except Exception as e:
+                yield {"profile": profile_name, "error": str(e)}
+
+    async def _collect_agent_response(
+        self,
+        profile_name: str,
+        message: str,
+        conversation_history: List[Dict[str, str]] = None,
+        progress_callback: Callable[[str, str], None] = None
+    ) -> List[Dict[str, str]]:
+        chunks = []
+        first_chunk_sent = False
+
+        try:
+            async for chunk in self._send_to_agent(profile_name, message, conversation_history):
+                if not first_chunk_sent and progress_callback:
+                    progress_callback(profile_name, "typing")
+                    first_chunk_sent = True
+                chunks.append({"profile": profile_name, "content": chunk})
+        finally:
+            if progress_callback:
+                progress_callback(profile_name, "idle")
+
+        return chunks
 
 
 coordinator = ConversationCoordinator()

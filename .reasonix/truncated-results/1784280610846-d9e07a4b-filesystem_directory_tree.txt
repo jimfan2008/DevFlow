@@ -1,0 +1,1234 @@
+[
+  {
+    "name": "- The code provided is",
+    "type": "file"
+  },
+  {
+    "name": "- The provided code snippet is just",
+    "type": "file"
+  },
+  {
+    "name": ".aider.chat.history.md",
+    "type": "file"
+  },
+  {
+    "name": ".aider.conf.yml",
+    "type": "file"
+  },
+  {
+    "name": ".aider.input.history",
+    "type": "file"
+  },
+  {
+    "name": ".aider.tags.cache.v4",
+    "type": "directory",
+    "children": [
+      {
+        "name": "35",
+        "type": "directory",
+        "children": [
+          {
+            "name": "5c",
+            "type": "directory",
+            "children": [
+              {
+                "name": "a270bed52a12f01e01fa7fa0b098.val",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "80",
+        "type": "directory",
+        "children": [
+          {
+            "name": "c9",
+            "type": "directory",
+            "children": [
+              {
+                "name": "cb5a2a2124144b427ecf35e34705.val",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "cache.db",
+        "type": "file"
+      },
+      {
+        "name": "cache.db-shm",
+        "type": "file"
+      },
+      {
+        "name": "cache.db-wal",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": ".claude",
+    "type": "directory",
+    "children": [
+      {
+        "name": "settings.local.json",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": ".codegraph",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-shm",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-wal",
+        "type": "file"
+      },
+      {
+        "name": "daemon.log",
+        "type": "file"
+      },
+      {
+        "name": "daemon.pid",
+        "type": "file"
+      },
+      {
+        "name": "daemon.sock",
+        "type": "file"
+      },
+      {
+        "name": "errors.log",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": ".coverage",
+    "type": "file"
+  },
+  {
+    "name": ".env",
+    "type": "file"
+  },
+  {
+    "name": ".env.example",
+    "type": "file"
+  },
+  {
+    "name": ".env.production",
+    "type": "file"
+  },
+  {
+    "name": ".github",
+    "type": "directory",
+    "children": [
+      {
+        "name": "workflows",
+        "type": "directory",
+        "children": [
+          {
+            "name": "ci.yml",
+            "type": "file"
+          },
+          {
+            "name": "deploy.yml",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".gitignore",
+    "type": "file"
+  },
+  {
+    "name": ".mimo-code.json",
+    "type": "file"
+  },
+  {
+    "name": ".pytest_cache",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "CACHEDIR.TAG",
+        "type": "file"
+      },
+      {
+        "name": "README.md",
+        "type": "file"
+      },
+      {
+        "name": "v",
+        "type": "directory",
+        "children": [
+          {
+            "name": "cache",
+            "type": "directory",
+            "children": [
+              {
+                "name": "lastfailed",
+                "type": "file"
+              },
+              {
+                "name": "nodeids",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".reasonix",
+    "type": "directory",
+    "children": [
+      {
+        "name": "truncated-results",
+        "type": "directory",
+        "children": [
+          {
+            "name": "1783392592966-cf948641-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392614159-b86269f1-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392711212-3683678e-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392713826-b2197b17-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392783845-30fab603-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398027868-b3b6019d-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398038596-550ce97b-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398038662-a61022b2-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398044165-945a2cc9-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403754432-6cb2b785-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403766452-91f47a70-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403766501-03e7b5b5-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403773991-c8a4a4fa-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403786086-e3c8f285-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016588997-dcd0fc75-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016771564-5cbd8603-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016911964-f41e3640-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784017132486-41979287-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784021838662-5af0f256-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784021896159-2a5ad6c9-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784022304780-0f1eb3c6-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784022367341-8764a349-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784022397855-e2ba0f60-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784023206768-aa50849b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784023339686-15e0bbfe-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784023398118-0821a33f-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784023419823-495644cb-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784023930351-06c8206f-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024019971-d263e526-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024052329-9e4d7c48-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024056242-69184330-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024089178-2e605333-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024129005-8194f0e8-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024178656-3e89c1bc-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024276814-0c96de21-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024287415-cb8efd35-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024287662-62f8c4b4-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024300372-c7a80508-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024312529-df236ffe-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024349246-86d6b1d2-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024366111-beef489d-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024368330-51fb43ec-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024413115-1df8667d-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024426005-9d58b345-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024437536-704ada89-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024479980-e41dcee4-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024505691-c29de0cf-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024539826-616d5454-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024552711-3ffca653-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024558288-ee45480a-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024623450-636efa6e-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024653077-b97d1bdc-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024788224-341240b2-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024793051-4f12ac2c-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024799080-892a532b-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024892571-a5342807-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024940508-2b0529bf-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784024946842-ccb8904b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784025014954-84fbb093-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784025055479-2eb24086-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784025070681-42da7d30-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784025084259-7f2d6654-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784025328793-ecd30491-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784025668071-886e95b0-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784073780727-487a6bd1-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784073824940-63058e39-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784073937746-6ad4f43c-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784074032029-4feb7613-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784074128712-ae40f17c-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784084756733-23dd7b2b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784084887019-b1ac9441-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784086071773-ac22c4d7-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784086097602-cab69ed1-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784086146662-9546296d-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784086326066-d246c3bd-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784086406454-b0ece9ae-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784086504119-b50bcd1e-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784095580446-69ecb85f-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784096407665-53495674-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784096420610-03cfdd73-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784096815747-99360b63-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784098270048-ad500ac5-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784098739559-f96c1243-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784098786866-a818603f-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784098913405-16b5b5eb-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784099300869-876a5b95-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784100175268-06c1e89d-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784100245259-7e5ad0fa-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784102165736-63c772bd-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784103529220-80580b49-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784105007173-029936a0-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784105110356-2fceb906-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784110178688-00ebf731-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784110258438-6d52a1de-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784167052288-6a91d204-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784167524440-b08360e8-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784167600198-835c2923-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784168272738-ee22ed00-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784169566923-d76f3f60-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784171364080-d4c6eba7-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784172324822-1b08af2c-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784172688035-06de84ba-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784175713518-b8d4a823-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784175914621-45b715f1-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784179192293-5d0f46af-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784181293962-e4faca01-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784182569391-857a0365-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784182671730-d42c4d64-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784183123889-568c2a4e-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784183137081-894cd78a-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784184300516-42881379-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784184432903-5bfdaae5-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784185301063-fe3a9aca-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784185432779-599344c6-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784185539919-0cc0abba-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784185658820-4f323fc0-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784185822207-4d7f7c07-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784185834378-189810bf-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784186050838-cb2a033f-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784186186993-9f6b1301-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784186341971-77416ef6-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784186628600-6fc61a2c-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784186958364-eba910f6-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784187034381-d76299d1-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784187220064-2e060e3a-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784187502521-6a29439f-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784188263531-816947de-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784188463401-f519843f-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784188617638-66ba68b3-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784188986638-ba76969b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189220436-d1e67f02-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189294665-a4ddcb5d-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189333972-ba281777-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189359158-77cef6ea-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189443364-ba7a39a5-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189508503-3182eab3-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189511045-8c24288e-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189521587-df1c7046-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189565597-6b170463-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784189882932-1c8bfa3b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784190319233-d8c46e82-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784190725356-3810347a-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784247274214-89e1ec2b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784247316022-cf66d8a8-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784250617516-3d01c510-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784250618310-5d269554-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784250633029-afd16f52-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784250952436-f0a73770-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784250974875-f7111a08-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784272400806-775baac2-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784272566587-ad0dca0d-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273049808-9f1bff6c-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273050527-de91302f-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273070429-2267395b-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273367231-e786919a-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273397071-615e9c69-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273468231-4d733dfe-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273634220-56db8c8e-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273681986-d8485f91-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273966371-06ac72fc-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784273992034-fa5bacba-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784274179834-e7970023-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784274193270-fc63885f-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784274196503-01dff5ef-filesystem_search_files.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784274200611-efb86c98-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784274214946-6e383a51-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784279969840-1f02899b-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784279988175-afd556ed-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784279991445-515ca677-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784280043380-3f0f74d2-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784280418157-80973c52-filesystem_directory_tree.txt",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".superpowers",
+    "type": "directory",
+    "children": [
+      {
+        "name": "sdd",
+        "type": "directory",
+        "children": [
+          {
+            "name": ".gitignore",
+            "type": "file"
+          },
+          {
+            "name": "progress.md",
+            "type": "file"
+          },
+          {
+            "name": "review-102ce14..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-102ce14..8039683.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2995d02..012be04.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2995d02..fe92408.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2fce59a..6240d77.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2fce59a..abe8617.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-49a1b25..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-49a1b25..56e6a41.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..b75dfe6.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..b75dfe68.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-6240d77..102ce14.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-b75dfe6..2995d02.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-fe92408..2fce59a.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-fe92408..718cc51.diff",
+            "type": "file"
+          },
+          {
+            "name": "task-1-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-1-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-2-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-2-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-3-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-3-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-4-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-4-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-5-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-5-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-6-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-6-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-7-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-7-report.md",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "AGENTS.md",
+    "type": "file"
+  },
+  {
+    "name": "BACKUP_GUIDE.md",
+    "type": "file"
+  },
+  {
+    "name": "DESIGN.md",
+    "type": "file"
+  },
+  {
+    "name": "DESIGN.md:Zone.Identifier",
+    "type": "file"
+  },
+  {
+    "name": "DevFlow_SRS_v1.0.md",
+    "type": "file"
+  },
+  {
+    "name": "Dockerfile",
+    "type": "file"
+  },
+  {
+    "name": "Let's analyze the provided code",
+    "type": "file"
+  },
+  {
+    "name": "Let's check `check_permission` fix",
+    "type": "file"
+  },
+  {
+    "name": "Let's draft it.",
+    "type": "file"
+  },
+  {
+    "name": "Makefile",
+    "type": "file"
+  },
+  {
+    "name": "Output Generation.",
+    "type": "file"
+  },
+  {
+    "name": "README.md",
+    "type": "file"
+  },
+  {
+    "name": "REASONIX.md",
+    "type": "file"
+  },
+  {
+    "name": "SRS_DevFlow.md",
+    "type": "file"
+  },
+  {
+    "name": "SRS_软件需求规格说明书.md",
+    "type": "file"
+  },
+  {
+    "name": "The code provided is literally just",
+    "type": "file"
+  },
+  {
+    "name": "The provided code is",
+    "type": "file"
+  },
+  {
+    "name": "The provided code snippet is incomplete. It cuts off at",
+    "type": "file"
+  },
+  {
+    "name": "The user previously pasted a code snippet",
+    "type": "file"
+  },
+  {
+    "name": "[Done]",
+    "type": "file"
+  },
+  {
+    "name": "[Output Generation] (matches the refined version)",
+    "type": "file"
+  },
+  {
+    "name": "[Output Generation] -> *Proceeds",
+    "type": "file"
+  },
+  {
+    "name": "[Output Generation] -> Proceeds.",
+    "type": "file"
+  },
+  {
+    "name": "_check_bash.mjs",
+    "type": "file"
+  },
+  {
+    "name": "_check_bom.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_bom_swarm.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_bytes.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_bytes2.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_chars.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_dash.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_ellipsis.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_ellipsis_target.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_fix.py",
+    "type": "file"
+  },
+  {
+    "name": "_check_our_syntax.py",
+    "type": "file"
+  },
+  {
+    "name": "_c
+
+[…truncated 729428 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+,
+      {
+        "name": "test_tdd_0010_devflow.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_0060_devflow.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_multi_device_login.py",
+        "type": "file"
+      },
+      {
+        "name": "test_unauthenticated_access.py",
+        "type": "file"
+      },
+      {
+        "name": "test_user_project_roles.py",
+        "type": "file"
+      },
+      {
+        "name": "test_user_role_by_project.py",
+        "type": "file"
+      },
+      {
+        "name": "test_view_role_permissions.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "trigger_step4.py",
+    "type": "file"
+  },
+  {
+    "name": "uv.lock",
+    "type": "file"
+  },
+  {
+    "name": "仔细看 `_render_inline_code` 的逻辑：",
+    "type": "file"
+  },
+  {
+    "name": "在之前的对话中，用户发送过：",
+    "type": "file"
+  },
+  {
+    "name": "待检验代码内容：",
+    "type": "file"
+  },
+  {
+    "name": "待检验代码非常短，只有：",
+    "type": "file"
+  },
+  {
+    "name": "待检验代码：",
+    "type": "file"
+  }
+]

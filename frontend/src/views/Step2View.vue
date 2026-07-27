@@ -510,7 +510,7 @@ function formatTime(t?: string) {
         font-size: $display-md-size;
         font-weight: $display-lg-weight;
         line-height: $display-lg-leading;
-        color: $ink;
+        color: $text-primary;
       }
     }
 
@@ -522,7 +522,7 @@ function formatTime(t?: string) {
   &__subtitle {
     margin: $spacing-xxs 0 0;
     font-size: $caption-size;
-    color: $ink-muted-48;
+    color: $text-muted;
   }
 
   &__alert {
@@ -536,9 +536,10 @@ function formatTime(t?: string) {
     gap: 0;
     margin-bottom: $spacing-4;
     padding: $spacing-sm $spacing-4;
-    background: $canvas;
-    border: 1px solid $hairline;
-    border-radius: $radius-lg;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 12px;
     overflow-x: auto;
 
     &-step {
@@ -556,8 +557,8 @@ function formatTime(t?: string) {
         top: 50%;
         width: 8px;
         height: 8px;
-        border-right: 2px solid $hairline;
-        border-bottom: 2px solid $hairline;
+        border-right: 2px solid $border-default;
+        border-bottom: 2px solid $border-default;
         transform: translateY(-50%) rotate(-45deg);
       }
 
@@ -567,20 +568,22 @@ function formatTime(t?: string) {
 
       &--done {
         .step2-view__progress-indicator {
-          background: $status-done;
-          color: $on-primary;
-          border-color: $status-done;
+          background: $secondary;
+          color: $text-inverse;
+          border-color: $secondary;
+          box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
         }
         .step2-view__progress-label {
-          color: $status-done;
+          color: $secondary;
         }
       }
 
       &--active {
         .step2-view__progress-indicator {
           background: $primary;
-          color: $on-primary;
+          color: $text-inverse;
           border-color: $primary;
+          box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
         }
         .step2-view__progress-label {
           color: $primary;
@@ -593,24 +596,24 @@ function formatTime(t?: string) {
       width: 24px;
       height: 24px;
       border-radius: 50%;
-      border: 2px solid $hairline;
+      border: 2px solid $border-default;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: $fine-print-size;
       font-weight: 600;
-      color: $ink-muted-48;
+      color: $text-muted;
       flex-shrink: 0;
     }
 
     &-label {
       font-size: $caption-size;
-      color: $ink-muted-48;
+      color: $text-muted;
       white-space: nowrap;
     }
   }
 
-  // ── Chat Section (intro / chatting / confirming) ─
+  // ── Chat Section ─────────────────────────────
   &__chat-section {
     flex: 1;
     display: grid;
@@ -622,9 +625,10 @@ function formatTime(t?: string) {
   &__chat-panel {
     display: flex;
     flex-direction: column;
-    background: $canvas;
-    border-radius: $radius-lg;
-    border: 1px solid $hairline;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border-radius: 12px;
+    border: 1px solid $glass-border;
     overflow: hidden;
   }
 
@@ -633,7 +637,7 @@ function formatTime(t?: string) {
     justify-content: space-between;
     align-items: center;
     padding: $spacing-sm $spacing-4;
-    border-bottom: 1px solid $hairline;
+    border-bottom: 1px solid $border-subtle;
     h3 {
       margin: 0;
       font-family: $font-text;
@@ -642,6 +646,7 @@ function formatTime(t?: string) {
       display: flex;
       align-items: center;
       gap: $spacing-xxs;
+      color: $text-primary;
     }
   }
 
@@ -653,10 +658,10 @@ function formatTime(t?: string) {
 
   &__round-count {
     font-size: $fine-print-size;
-    color: $ink-muted-48;
-    background: $canvas-parchment;
+    color: $text-muted;
+    background: rgba(255, 255, 255, 0.06);
     padding: 2px 8px;
-    border-radius: $radius-pill;
+    border-radius: 6px;
   }
 
   &__haimei-icon, &__goal-icon {
@@ -670,7 +675,7 @@ function formatTime(t?: string) {
     display: flex;
     flex-direction: column;
     gap: $spacing-sm;
-    background: $canvas-parchment;
+    background: rgba(0, 0, 0, 0.2);
 
     &-empty {
       flex: 1;
@@ -679,7 +684,7 @@ function formatTime(t?: string) {
       align-items: center;
       justify-content: center;
       gap: $spacing-sm;
-      color: $ink-muted-48;
+      color: $text-muted;
     }
 
     &-msg {
@@ -690,25 +695,27 @@ function formatTime(t?: string) {
       &.user {
         flex-direction: row-reverse;
         .step2-view__chat-bubble {
-          background: $primary;
-          color: $on-primary;
-          border-bottom-right-radius: $radius-xs;
+          background: $gradient-primary;
+          color: $text-inverse;
+          border: none;
+          border-bottom-right-radius: 6px;
+          box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
         }
       }
 
       &.haimei {
         .step2-view__chat-bubble {
-          background: $canvas;
-          color: $ink;
-          border: 1px solid $hairline;
-          border-bottom-left-radius: $radius-xs;
+          background: $glass-bg;
+          color: $text-primary;
+          border: 1px solid $glass-border;
+          border-bottom-left-radius: 6px;
         }
       }
 
       &.system {
         .step2-view__chat-bubble {
           background: transparent;
-          color: $ink-muted-48;
+          color: $text-muted;
           font-size: $caption-size;
           border: none;
           padding: 4px 0;
@@ -727,7 +734,7 @@ function formatTime(t?: string) {
     &-bubble {
       max-width: 80%;
       padding: 10px 14px;
-      border-radius: $radius-sm;
+      border-radius: 8px;
       font-family: $font-text;
       font-size: $body-size;
       line-height: $body-leading;
@@ -737,7 +744,7 @@ function formatTime(t?: string) {
     }
 
     &-thinking {
-      color: $ink-muted-48;
+      color: $text-muted;
     }
   }
 
@@ -745,9 +752,9 @@ function formatTime(t?: string) {
     display: flex;
     gap: $spacing-xs;
     padding: $spacing-sm $spacing-4;
-    border-top: 1px solid $hairline;
+    border-top: 1px solid $border-subtle;
     align-items: flex-end;
-    background: $canvas;
+    background: rgba(0, 0, 0, 0.15);
   }
 
   &__send-btn {
@@ -759,9 +766,10 @@ function formatTime(t?: string) {
   &__goal-panel {
     display: flex;
     flex-direction: column;
-    background: $canvas;
-    border-radius: $radius-lg;
-    border: 1px solid $hairline;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border-radius: 12px;
+    border: 1px solid $glass-border;
     overflow: hidden;
   }
 
@@ -777,12 +785,12 @@ function formatTime(t?: string) {
 
   &__goal-actions {
     padding: $spacing-sm $spacing-4;
-    border-top: 1px solid $hairline;
+    border-top: 1px solid $border-subtle;
   }
 
   &__action-btn {
     width: 100%;
-    border-radius: $radius-pill !important;
+    border-radius: 8px !important;
   }
 
   // ── Empty State ──────────────────────────────
@@ -806,11 +814,12 @@ function formatTime(t?: string) {
       font-family: $font-display;
       font-size: $display-md-size;
       font-weight: $display-lg-weight;
+      color: $text-primary;
     }
   }
 
   &__org-subtitle {
-    color: $ink-muted-48;
+    color: $text-muted;
     margin: 0 0 $spacing-4;
     font-size: $body-size;
   }
@@ -825,7 +834,7 @@ function formatTime(t?: string) {
 
   &__org-count {
     font-size: $caption-size;
-    color: $ink-muted-48;
+    color: $text-muted;
     white-space: nowrap;
   }
 
@@ -840,15 +849,21 @@ function formatTime(t?: string) {
     display: flex;
     gap: $spacing-sm;
     padding: $spacing-4;
-    background: $canvas;
-    border: 1px solid $hairline;
-    border-radius: $radius-md;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 12px;
     transition: all 0.3s ease;
     align-items: flex-start;
 
+    &:hover {
+      border-color: $glass-border-hover;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.08);
+    }
+
     &--activated {
-      border-color: $status-done;
-      background: linear-gradient(135deg, $canvas 0%, #f0fdf4 100%);
+      border-color: rgba(52, 211, 153, 0.3);
+      background: rgba(52, 211, 153, 0.06);
     }
 
     &-icon {
@@ -859,8 +874,8 @@ function formatTime(t?: string) {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: $canvas-parchment;
-      border-radius: $radius-sm;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
     }
 
     &-info {
@@ -871,13 +886,13 @@ function formatTime(t?: string) {
     &-name {
       font-size: $body-strong-size;
       font-weight: $body-strong-weight;
-      color: $ink;
+      color: $text-primary;
       margin-bottom: 2px;
     }
 
     &-en {
       font-size: $caption-size;
-      color: $ink-muted-48;
+      color: $text-muted;
       font-weight: 400;
     }
 
@@ -890,7 +905,7 @@ function formatTime(t?: string) {
 
     &-desc {
       font-size: $fine-print-size;
-      color: $ink-muted-48;
+      color: $text-muted;
       line-height: 1.4;
     }
 
@@ -918,17 +933,19 @@ function formatTime(t?: string) {
     max-width: 520px;
     width: 100%;
     padding: $spacing-8;
-    background: $canvas;
-    border: 1px solid $hairline;
-    border-radius: $radius-lg;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 16px;
     text-align: center;
     h2 {
       font-family: $font-display;
       font-size: $display-md-size;
       margin: 0 0 $spacing-xs;
+      color: $text-primary;
     }
     p {
-      color: $ink-muted-48;
+      color: $text-muted;
       margin: 0 0 $spacing-4;
     }
   }
@@ -962,10 +979,14 @@ function formatTime(t?: string) {
     max-width: 560px;
     width: 100%;
     padding: $spacing-8;
-    background: $canvas;
-    border: 1px solid $hairline;
-    border-radius: $radius-lg;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 16px;
     text-align: center;
+    h2 {
+      color: $text-primary;
+    }
   }
 
   &__qa-header {
@@ -985,19 +1006,19 @@ function formatTime(t?: string) {
   }
 
   &__qa-subtitle {
-    color: $ink-muted-48;
+    color: $text-muted;
     margin: $spacing-xs 0 $spacing-6;
   }
 
   &__qa-result {
     &--passed {
       :deep(.el-result__icon) {
-        --el-result-icon-color: $status-done;
+        --el-result-icon-color: $secondary;
       }
     }
     &--failed {
       :deep(.el-result__icon) {
-        --el-result-icon-color: $priority-urgent;
+        --el-result-icon-color: $danger;
       }
     }
   }
@@ -1015,15 +1036,16 @@ function formatTime(t?: string) {
     max-width: 600px;
     width: 100%;
     padding: $spacing-8;
-    background: $canvas;
-    border: 1px solid $hairline;
-    border-radius: $radius-lg;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 16px;
     text-align: center;
     h2 {
       font-family: $font-display;
       font-size: $display-lg-size;
       margin: 0 0 $spacing-xs;
-      color: $status-done;
+      color: $secondary;
     }
   }
 
@@ -1033,7 +1055,7 @@ function formatTime(t?: string) {
   }
 
   &__complete-subtitle {
-    color: $ink-muted-48;
+    color: $text-muted;
     margin: 0 0 $spacing-4;
     font-size: $body-size;
   }
@@ -1050,8 +1072,8 @@ function formatTime(t?: string) {
     align-items: center;
     gap: $spacing-sm;
     padding: $spacing-sm $spacing-4;
-    background: $canvas-parchment;
-    border-radius: $radius-sm;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
 
     &-icon {
       font-size: 24px;
@@ -1065,12 +1087,12 @@ function formatTime(t?: string) {
 
     &-label {
       font-size: $caption-size;
-      color: $ink-muted-48;
+      color: $text-muted;
     }
 
     &-value {
       font-size: $body-size;
-      color: $ink;
+      color: $text-primary;
       font-weight: 500;
     }
   }

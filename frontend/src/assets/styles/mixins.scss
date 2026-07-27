@@ -1,115 +1,144 @@
 @use "variables" as *;
 
-/* ── Apple Button: Primary Pill ─────────────────────────── */
-@mixin apple-button-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 11px 22px;
-  font-family: $font-text;
-  font-size: $body-size;
-  font-weight: $body-weight;
-  line-height: 1;
-  color: $on-primary;
-  background: $primary;
-  border: none;
-  border-radius: $radius-pill;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  user-select: none;
-  &:hover { opacity: 0.92; }
-  &:active { transform: scale(0.95); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-}
+/* ═══════════════════════════════════════════════════════════
+   AI-Native Mixins — Cybernetic Design System
+   ═══════════════════════════════════════════════════════════ */
 
-/* ── Apple Button: Secondary Pill (ghost) ──────────────── */
-@mixin apple-button-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 11px 22px;
-  font-family: $font-text;
-  font-size: $body-size;
-  font-weight: $body-weight;
-  line-height: 1;
-  color: $primary;
-  background: transparent;
-  border: 1px solid $primary;
-  border-radius: $radius-pill;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  user-select: none;
-  &:hover { opacity: 0.85; }
-  &:active { transform: scale(0.95); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-}
-
-/* ── Apple Button: Dark Utility ─────────────────────────── */
-@mixin apple-button-utility {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 15px;
-  font-family: $font-text;
-  font-size: $button-utility-size;
-  font-weight: $button-utility-weight;
-  line-height: $button-utility-leading;
-  letter-spacing: $button-utility-tracking;
-  color: $on-dark;
-  background: $ink;
-  border: none;
-  border-radius: $radius-sm;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  &:active { transform: scale(0.95); }
-}
-
-/* ── Apple Tile: Light ──────────────────────────────────── */
-@mixin apple-tile-light {
-  background: $canvas;
-  color: $ink;
-  padding: $spacing-section 0;
-  border-radius: 0;
-}
-
-/* ── Apple Tile: Parchment ──────────────────────────────── */
-@mixin apple-tile-parchment {
-  background: $canvas-parchment;
-  color: $ink;
-  padding: $spacing-section 0;
-  border-radius: 0;
-}
-
-/* ── Apple Tile: Dark ───────────────────────────────────── */
-@mixin apple-tile-dark {
-  background: $surface-tile-1;
-  color: $body-on-dark;
-  padding: $spacing-section 0;
-  border-radius: 0;
-}
-
-/* ── Apple Utility Card ─────────────────────────────────── */
-@mixin apple-utility-card {
-  background: $canvas;
-  color: $ink;
-  border: 1px solid $hairline;
-  border-radius: $radius-lg;
-  padding: $spacing-lg;
-}
-
-/* ── Product Shadow (for imagery only) ─────────────────── */
-@mixin apple-product-shadow {
-  box-shadow: $product-shadow;
-}
-
-/* ── Frosted Glass ─────────────────────────────────────── */
-@mixin apple-frosted {
-  background: rgba($canvas-parchment, 0.8);
+/* ── Glass Card ──────────────────────────────────────────── */
+@mixin glass-card($glow-color: $primary, $opacity: 0.75) {
+  background: rgba(30, 30, 50, $opacity);
   backdrop-filter: $frosted-blur;
   -webkit-backdrop-filter: $frosted-blur;
+  border: 1px solid $glass-border;
+  border-radius: 12px;
+  transition: border-color $transition-base, box-shadow $transition-base, transform $transition-base;
+
+  &:hover {
+    border-color: $glass-border-hover;
+    box-shadow: 0 0 20px rgba($glow-color, 0.1);
+  }
+}
+
+/* ── Glow Button ─────────────────────────────────────────── */
+@mixin glow-button($gradient: $gradient-primary, $glow-color: $primary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-family: $font-text;
+  font-size: $body-size;
+  font-weight: 500;
+  line-height: 1;
+  color: $text-inverse;
+  background: $gradient;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: box-shadow $transition-base, transform $transition-base;
+  box-shadow: 0 0 15px rgba($glow-color, 0.2);
+
+  &:hover {
+    box-shadow: 0 0 25px rgba($glow-color, 0.4);
+    transform: translateY(-1px);
+  }
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 0 10px rgba($glow-color, 0.3);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+/* ── Cyber Input ─────────────────────────────────────────── */
+@mixin cyber-input {
+  background: $glass-bg;
+  border: 1px solid $border-default;
+  border-radius: 8px;
+  color: $text-primary;
+  padding: 10px 16px;
+  font-family: $font-text;
+  font-size: $body-size;
+  outline: none;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+
+  &:focus {
+    border-color: $border-cyan;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15);
+  }
+  &::placeholder { color: $text-muted; }
+}
+
+/* ── Glow Border ─────────────────────────────────────────── */
+@mixin glow-border($color: $primary, $width: 1px) {
+  border: $width solid rgba($color, 0.3);
+  box-shadow: 0 0 12px rgba($color, 0.15), inset 0 0 12px rgba($color, 0.05);
+}
+
+/* ── Gradient Text ───────────────────────────────────────── */
+@mixin gradient-text {
+  background: $gradient-primary;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Pulse Glow Animation ────────────────────────────────── */
+@mixin pulse-glow($color: $primary, $duration: 2s) {
+  animation: pulse-glow-#{unique-id()} $duration ease-in-out infinite;
+
+  @keyframes pulse-glow-#{unique-id()} {
+    0%, 100% { box-shadow: 0 0 10px rgba($color, 0.2); }
+    50% { box-shadow: 0 0 25px rgba($color, 0.5); }
+  }
+}
+
+/* ── Cyber Border (gradient pseudo-border) ───────────────── */
+@mixin cyber-border {
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(0, 212, 255, 0.3), transparent 40%, transparent 60%, rgba(139, 92, 246, 0.3));
+    z-index: -1;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    padding: 1px;
+  }
+}
+
+/* ── Typing Indicator (dots animation) ───────────────────── */
+@mixin typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $text-muted;
+    animation: typing-bounce 1.4s ease-in-out infinite;
+
+    &:nth-child(1) { animation-delay: 0s; }
+    &:nth-child(2) { animation-delay: 0.2s; }
+    &:nth-child(3) { animation-delay: 0.4s; }
+  }
+
+  @keyframes typing-bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+  }
 }
 
 /* ── Legacy Flex Helpers ────────────────────────────────── */
@@ -162,193 +191,20 @@
   flex-direction: column;
   gap: $spacing-4;
   padding: $spacing-section;
-  color: $ink-muted-48;
+  color: $text-muted;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DESIGN.md Components (Apple Design System Spec)
-   ═══════════════════════════════════════════════════════════ */
+/* ── Status Glow (for active/running indicators) ─────────── */
+@mixin status-glow($color: $primary) {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $color;
+  box-shadow: 0 0 8px rgba($color, 0.6);
+  animation: status-pulse 2s ease-in-out infinite;
 
-/* ── Button: Store Hero (larger primary CTA) ────────────── */
-@mixin apple-button-store-hero {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 14px 28px;
-  font-family: $font-text;
-  font-size: $button-large-size;
-  font-weight: $button-large-weight;
-  line-height: $button-large-leading;
-  letter-spacing: $button-large-tracking;
-  color: $on-primary;
-  background: $primary;
-  border: none;
-  border-radius: $radius-pill;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  &:hover { opacity: 0.92; }
-  &:active { transform: scale(0.95); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-}
-
-/* ── Button: Pearl Capsule ──────────────────────────────── */
-@mixin apple-button-pearl-capsule {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-family: $font-text;
-  font-size: $caption-size;
-  font-weight: $caption-weight;
-  line-height: $caption-leading;
-  letter-spacing: $caption-tracking;
-  color: $ink-muted-80;
-  background: $surface-pearl;
-  border: 3px solid $divider-soft;
-  border-radius: $radius-md;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  &:hover { opacity: 0.85; }
-  &:active { transform: scale(0.95); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-}
-
-/* ── Button: Icon Circular (44x44) ──────────────────────── */
-@mixin apple-button-icon-circular {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  color: $ink;
-  background: rgba($surface-chip-translucent, 0.64);
-  border: none;
-  border-radius: $radius-full;
-  cursor: pointer;
-  transition: transform 0.15s ease;
-  &:hover { opacity: 0.85; }
-  &:active { transform: scale(0.95); }
-}
-
-/* ── Search Input (pill-shaped, 44px) ───────────────────── */
-@mixin apple-search-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  height: 44px;
-  font-family: $font-text;
-  font-size: $body-size;
-  font-weight: $body-weight;
-  line-height: $body-leading;
-  letter-spacing: $body-tracking;
-  color: $ink;
-  background: $canvas;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: $radius-pill;
-  outline: none;
-  transition: border-color 0.15s;
-  &:focus { border-color: $primary; }
-  &::placeholder { color: $ink-muted-48; }
-}
-
-/* ── Sub-Nav Frosted (52px, backdrop blur) ──────────────── */
-@mixin apple-sub-nav-frosted {
-  height: $sub-nav-height;
-  padding: 0 $spacing-section;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba($canvas-parchment, 0.8);
-  backdrop-filter: $frosted-blur;
-  -webkit-backdrop-filter: $frosted-blur;
-  border-bottom: 1px solid $hairline;
-}
-
-/* ── Floating Sticky Bar ────────────────────────────────── */
-@mixin apple-floating-sticky-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 64px;
-  padding: 12px 32px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba($canvas-parchment, 0.8);
-  backdrop-filter: $frosted-blur;
-  -webkit-backdrop-filter: $frosted-blur;
-  border-top: 1px solid $hairline;
-  z-index: 100;
-}
-
-/* ── Configurator Option Chip (pill chip) ───────────────── */
-@mixin apple-configurator-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  font-family: $font-text;
-  font-size: $caption-size;
-  font-weight: $caption-weight;
-  line-height: $caption-leading;
-  letter-spacing: $caption-tracking;
-  color: $ink;
-  background: $canvas;
-  border: 1px solid $hairline;
-  border-radius: $radius-pill;
-  cursor: pointer;
-  transition: border-color 0.15s, transform 0.15s;
-  &:hover { border-color: $primary; }
-  &:active { transform: scale(0.95); }
-  &.is-selected { border: 2px solid $primary-focus; }
-}
-
-/* ── Product Tile (full-bleed section) ──────────────────── */
-@mixin apple-product-tile($surface: light) {
-  padding: $spacing-section 0;
-  border-radius: 0;
-  text-align: center;
-  @if $surface == 'light' {
-    background: $canvas;
-    color: $ink;
-  } @else if $surface == 'parchment' {
-    background: $canvas-parchment;
-    color: $ink;
-  } @else {
-    background: $surface-tile-1;
-    color: $body-on-dark;
-  }
-}
-
-/* ── Footer Section ─────────────────────────────────────── */
-@mixin apple-footer {
-  padding: 64px 0;
-  background: $canvas-parchment;
-  color: $ink-muted-80;
-  font-family: $font-text;
-  font-size: $fine-print-size;
-  font-weight: $fine-print-weight;
-  line-height: $fine-print-leading;
-  letter-spacing: $fine-print-tracking;
-  a { color: $ink-muted-80; text-decoration: none; &:hover { color: $ink; } }
-  h5 {
-    font-family: $font-text;
-    font-size: $caption-strong-size;
-    font-weight: $caption-strong-weight;
-    line-height: $caption-strong-leading;
-    letter-spacing: $caption-strong-tracking;
-    margin: 0 0 $spacing-sm;
-    color: $ink;
-  }
-  .link-column {
-    a {
-      display: block;
-      line-height: $dense-link-leading;
-      padding: 2px 0;
-    }
+  @keyframes status-pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba($color, 0.6); }
+    50% { box-shadow: 0 0 14px rgba($color, 0.9); }
   }
 }

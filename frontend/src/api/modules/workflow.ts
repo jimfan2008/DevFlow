@@ -54,9 +54,6 @@ export const workflowApi = {
   executeStep5(projectId: string) {
     return apiClient.post<ApiResponse<{ message: string; status: string }>>(`/v1/workflow/${projectId}/step5/execute`, {}, { timeout: 30000 })
   },
-  executeStep(projectId: string, stepNumber: number) {
-    return apiClient.post<ApiResponse<{ message: string; status: string }>>(`/v1/workflow/${projectId}/step${stepNumber}/execute`, {}, { timeout: 30000 })
-  },
   getStep5Status(projectId: string) {
     return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/step5/status`)
   },
@@ -91,22 +88,10 @@ export const workflowApi = {
   haimeiGetTaskList(projectId: string) {
     return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/haimei/task-list`)
   },
-  haimeiGetReport(projectId: string) {
+   haimeiGetReport(projectId: string) {
     return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/haimei/report`)
   },
-  uploadStep3Ref(projectId: string, name: string, content: string) {
-    return apiClient.post(`/v1/workflow/${projectId}/step3/upload-ref`, { name, content })
-  },
-  listStep3Refs(projectId: string) {
-    return apiClient.post<ApiResponse<{ refs: { name: string; path: string; size: number; preview: string }[] }>>(`/v1/workflow/${projectId}/step3/list-refs`, {})
-  },
-  readStep3File(projectId: string, path: string) {
-    return apiClient.post<ApiResponse<{ path: string; name: string; content: string }>>(`/v1/workflow/${projectId}/step3/read-file`, { path })
-  },
-  getShardIndex(projectId: string, body?: Record<string, unknown>) {
-    return apiClient.post<ApiResponse<{ shards: { key: string; title: string; path: string; summary: string; has_content: boolean }[]; index_path: string; index_content: string; total_shards: number; docs_dir: string }>>(`/v1/workflow/${projectId}/step3/shard-index`, body || {})
-  },
-  getStep7Status(projectId: string) {
-    return apiClient.get<ApiResponse<Record<string, unknown>>>(`/v1/workflow/${projectId}/step7/status`)
+  executeStep(projectId: string, step: number) {
+    return apiClient.post<ApiResponse<{ message: string; status: string }>>(`/v1/workflow/${projectId}/step${step}/execute`, {}, { timeout: 30000 })
   },
 }

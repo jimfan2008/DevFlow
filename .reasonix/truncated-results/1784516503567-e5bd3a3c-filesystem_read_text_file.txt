@@ -1,0 +1,893 @@
+"""v4.0 - 16步 AI Agent 全自动开发流程状态机引擎（DB持久化）
+海梅(HaiMei)全程担任项目经理总控，负责：
+1. 每个步骤前：调动指定Agent、检查Agent健康状态
+2. 每个步骤中：监控Agent运行状态，检测异常
+3. 每个步骤后：审核Agent产出，确认可以进入下一步
+4. 全项目周期：持续检查所有Agent状态，异常时自动恢复
+"""
+from dataclasses import dataclass, field
+from typing import List, Optional, Dict, Any, Set
+from datetime import datetime, timezone
+import json
+import uuid
+
+
+@dataclass
+class StepDefinition:
+    step_number: int
+    name: str
+    executor_role: Optional[str]
+    supervisor_role: Optional[str] = "haimei"
+    required_inputs: List[str] = field(default_factory=list)
+    expected_outputs: List[str] = field(default_factory=list)
+
+
+def get_default_steps() -> List[StepDefinition]:
+    return [
+        StepDefinition(1, "人类用户创建项目", None, supervisor_role=None),
+        StepDefinition(2, "海梅确认��心目标与搭建组织架构", "haimei"),
+        StepDefinition(3, "后兴需求分析", "houxing"),
+        StepDefinition(4, "后旺架构设计", "houwang"),
+        StepDefinition(5, "后富建立开发环境", "houfu"),
+        StepDefinition(6, "海梅制订TDD测试用例计划", "haimei"),
+        StepDefinition(7, "后发蜂群编写TDD测试用例", "houfa"),
+        StepDefinition(8, "海梅制订代码编写计划", "haimei"),
+        StepDefinition(9, "后发蜂群编写功能代码", "houfa"),
+        StepDefinition(10, "后富部署到测试环境", "houfu"),
+        StepDefinition(11, "后达蜂群全面测试", "houda"),
+        StepDefinition(12, "后华安全审计", "houhua"),
+        StepDefinition(13, "后富部署到生产环境", "houfu"),
+        StepDefinition(14, "后贵完善项目文档", "hougui"),
+        StepDefinition(15, "海梅报告交付成果", "haimei"),
+        StepDefinition(16, "用户满意度确认与迭代", "haimei"),
+    ]
+
+
+QA_REQUIRED_STEPS = {2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 14}
+
+# Agent健康状态枚举
+AGENT_HEALTHY = "healthy"
+AGENT_BUSY = "busy"
+AGENT_ERROR = "error"
+AGENT_OFFLINE = "offline"
+AGENT_RECOVERING = "recovering"
+
+
+def _get_default_agent_health() -> Dict[str, str]:
+    """所有Agent的初始健康状态"""
+    return {
+        "haimei": AGENT_HEALTHY,
+        "houxing": AGENT_HEALTHY,
+        "houwang": AGENT_HEALTHY,
+        "houfu": AGENT_HEALTHY,
+        "houfa": AGENT_HEALTHY,
+        "houda": AGENT_HEALTHY,
+        "houhua": AGENT_HEALTHY,
+        "hougui": AGENT_HEALTHY,
+        "hourong": AGENT_HEALTHY,
+    }
+
+
+class WorkflowEngine:
+    def __init__(self, project_id: str, db=None, auto_supervise: bool = True):
+        self.project_id = project_id
+        self.db = db
+        self.steps = get_default_steps()
+        self.current_step = 1
+        self._cached_step2_artifacts: dict = {}
+        self._cached_step3_artifacts: dict = {}
+        self._cached_step4_artifacts: dict = {}
+        self.agent_health: Dict[str, str] = dict(_get_default_agent_health())
+        self._load_from_db()
+        # 海梅自主监控：初始化时自动推进项目
+        if auto_supervise and self.db:
+            try:
+                self.haimei_auto_advance()
+            except Exception:
+                pass
+
+    def _load_from_db(self):
+        if not self.db:
+            return
+        from app.models.workflow_step import WorkflowStep
+        rows = self.db.query(WorkflowStep).filter(
+            WorkflowStep.project_id == self.project_id
+        ).order_by(WorkflowStep.step_number).all()
+
+        if not rows:
+            self._init_default_steps()
+            # 海梅：初始化后生成任务清单
+            try:
+                self.haimei_auto_advance()
+            except Exception:
+                pass
+            return
+
+        def _step_is_active_or_done(r) -> bool:
+            if r.status in ("in_progress", "completed"):
+                return True
+            if r.status == "qa_review" and (r.output_artifacts or {}).get("qa_passed"):
+                return True
+            return False
+
+        max_step = 1
+        for r in rows:
+            if _step_is_active_or_done(r):
+                max_step = max(max_step, r.step_number)
+            if r.step_number == 2 and r.output_artifacts:
+                self._cached_step2_artifacts = r.output_artifacts
+            if r.step_number == 3 and r.output_artifacts:
+                self._cached_step3_artifacts = r.output_artifacts
+            if r.step_number == 4 and r.output_artifacts:
+                self._cached_step4_artifacts = r.output_artifacts
+
+        from app.models.project import Project
+        project = self.db.query(Project).filter(Project.id == self.project_id).first()
+        if project and project.current_step > max_step:
+            max_step = project.current_step
+
+        self.current_step = max_step
+
+        # 海梅：加载后自动检查Agent状态并推进
+        try:
+            self.haimei_auto_advance()
+        except Exception:
+            pass
+
+    def _init_default_steps(self):
+        from app.models.workflow_step import WorkflowStep
+        from app.models.project import Project
+
+        for s in self.steps:
+            # 使用 merge/upsert 模式：先查是否存在，存在则跳过，不存在再插入
+            existing = self.db.query(WorkflowStep).filter(
+                WorkflowStep.project_id == self.project_id,
+                WorkflowStep.step_number == s.step_number,
+            ).first()
+            if existing:
+                continue
+            row = WorkflowStep(
+                project_id=self.project_id,
+                step_number=s.step_number,
+                step_name=s.name,
+                executor_agent_id=s.executor_role,
+                status="completed" if s.step_number == 1 else "pending",
+            )
+            self.db.add(row)
+        self.db.query(Project).filter(Project.id == self.project_id).update(
+            {"current_step": 1}
+        )
+        self.db.commit()
+
+    def _ensure_steps(self):
+        from app.models.workflow_step import WorkflowStep
+        row = self.db.query(WorkflowStep).filter(
+            WorkflowStep.project_id == self.project_id
+        ).first()
+        if not row:
+            self._init_default_steps()
+
+    def _get_step_row(self, step_number: int):
+        from app.models.workflow_step import WorkflowStep
+        return self.db.query(WorkflowStep).filter(
+            WorkflowStep.project_id == self.project_id,
+            WorkflowStep.step_number == step_number,
+        ).first()
+
+    def _generate_step_handover(self, step_number: int):
+        """生成步骤 N → N+1 交接文档并存入 DB（跳过已存在 handover_doc 的步骤）"""
+        row = self._get_step_row(step_number)
+        if not row:
+            return
+        existing = row.output_artifacts or {}
+        if existing.get("handover_doc"):
+            return
+
+        next_step = step_number + 1
+        step_defs = {s.step_number: s for s in self.steps}
+        step_name = step_defs[step_number].name if step_number in step_defs else f"步骤{step_number}"
+        next_name = step_defs[next_step].name if next_step in step_defs else f"步骤{next_step}"
+
+        include_keys = [k for k in existing.keys()
+                        if k not in ("status", "message", "saved_at",
+                                     "qa_passed", "qa_checked", "qa_inspections",
+                                     "handover_path", "handover_doc")]
+        lines = [
+            f"# 步骤 {step_number} → 步骤 {next_step} 交接文档",
+            "",
+            f"## 完成步骤",
+            f"{step_name}",
+            "",
+            f"## 下一步",
+            f"{next_name}",
+            "",
+            f"## 完成时间",
+            f"{datetime.now(timezone.utc).isoformat()}",
+            "",
+            "## 关键产物",
+        ]
+        for k in include_keys:
+            v = existing[k]
+            if isinstance(v, str) and len(v) > 200:
+                lines.append(f"- {k}: {v[:200]}...")
+            elif isinstance(v, str):
+                lines.append(f"- {k}: {v}")
+            elif isinstance(v, (dict, list)):
+                import json as _j
+                short = _j.dumps(v, ensure_ascii=False)[:200]
+                lines.append(f"- {k}: {short}")
+            else:
+                lines.append(f"- {k}: {v}")
+        lines += [
+            "",
+            "## 交接说明",
+            f"{step_name} 已完成并通过检验。{next_name} 请基于以上产出成果推进下一步。",
+        ]
+        handover = "\n".join(lines)
+        row.output_artifacts = {**existing, "handover_doc": handover}
+        self.db.commit()
+
+    def advance_step(self, target_step: int):
+        if target_step > 16 or target_step < 2:
+            raise ValueError(f"步骤号必须在2-16之间，当前: {target_step}")
+
+        self._ensure_steps()
+
+        # 海梅前置监督：检查前一步完成状态和Agent就绪
+        supervision = self.haimei_supervise_step(target_step)
+        if not supervision["approved"]:
+            raise ValueError(f"海梅监督未通过: {supervision['message']}")
+
+        current = self.current_step
+        if target_step > current:
+            for s in range(current, target_step):
+                row = self._get_step_row(s)
+                if row and row.status != "completed":
+                    raise ValueError(f"第{s}步必须通过QA检验才能进入下一步")
+
+        # 海梅调动执行Agent
+        self.haimei_mobilize_agent(target_step)
+
+        self.current_step = target_step
+        row = self._get_step_row(target_step)
+        if row:
+            row.status = "in_progress"
+            row.started_at = datetime.now(timezone.utc)
+            existing = dict(row.output_artifacts or {})
+            existing["haimei_supervision"] = supervision
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def complete_step(self, step_number: int, artifacts: Optional[Dict] = None) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(step_number)
+        if not row:
+            raise ValueError(f"步��� {step_number} 不存在")
+
+        # 海梅标记该步骤的Agent工作完成，恢复Agent为健康状态
+        if row.executor_agent_id and row.executor_agent_id in self.agent_health:
+            self.agent_health[row.executor_agent_id] = AGENT_HEALTHY
+
+        # 海梅审核：将监督记录写入产物
+        haimei_review = {
+            "haimei_reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "haimei_review_action": "海梅已审核该步骤产出，准备进入下一步",
+            "haimei_supervisor": "haimei",
+        }
+
+        # If internal hourong QA already passed (qa_passed=True), skip qa_review
+        existing_arts = (artifacts or row.output_artifacts or {})
+        if existing_arts.get("qa_passed"):
+            row.status = "completed"
+            row.completed_at = datetime.now(timezone.utc)
+            self._generate_step_handover(step_number)
+        elif step_number in QA_REQUIRED_STEPS:
+            row.status = "qa_review"
+        else:
+            row.status = "completed"
+            row.completed_at = datetime.now(timezone.utc)
+            self._generate_step_handover(step_number)
+
+        if artifacts:
+            artifacts.update(haimei_review)
+            row.output_artifacts = artifacts
+        else:
+            existing = dict(row.output_artifacts or {})
+            existing.update(haimei_review)
+            row.output_artifacts = existing
+
+        if step_number == 2:
+            from app.models.project import Project
+            core_goal = (artifacts or {}).get("core_goal", "")
+            if core_goal:
+                self.db.query(Project).filter(Project.id == self.project_id).update(
+                    {"core_goal": core_goal, "current_step": 2}
+                )
+            self._cached_step2_artifacts = artifacts
+
+        self.db.commit()
+        return row.to_dict() if row else {}
+
+    def reset_step(self, step_number: int):
+        """将步骤重置为 pending 状态（用于执行失败时回滚）"""
+        self._ensure_steps()
+        row = self._get_step_row(step_number)
+        if row:
+            # 海梅记录重置原因
+            existing = dict(row.output_artifacts or {})
+            existing["haimei_reset"] = {
+                "action": "海梅重置该步骤",
+                "previous_status": row.status,
+                "reset_at": datetime.now(timezone.utc).isoformat(),
+            }
+            row.status = "pending"
+            row.started_at = None
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def pass_qa(self, step_number: int, qa_agent_id: str = "hourong") -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(step_number)
+        if not row:
+            raise ValueError(f"步骤 {step_number} 不存在")
+        if row.status == "completed":
+            self.current_step = max(self.current_step, step_number + 1)
+            existing = dict(row.output_artifacts or {})
+            existing["haimei_qa_approval"] = {
+                "action": "海梅确认QA检验通过",
+                "qa_agent": qa_agent_id,
+                "approved_at": datetime.now(timezone.utc).isoformat(),
+                "message": f"海梅已确认第{step_number}步QA检验通过，准予进入下一步",
+            }
+            row.output_artifacts = existing
+            self.db.commit()
+            return row.to_dict() if hasattr(row, 'to_dict') else {}
+        if row.status != "qa_review":
+            raise ValueError(f"第{step_number}步必须先完成步骤再进行QA检验")
+
+        row.status = "completed"
+        row.completed_at = datetime.now(timezone.utc)
+        self.current_step = step_number + 1
+        self._generate_step_handover(step_number)
+
+        # 海梅记录QA通过
+        existing = dict(row.output_artifacts or {})
+        existing["haimei_qa_approval"] = {
+            "action": "海梅确认QA检验通过",
+            "qa_agent": qa_agent_id,
+            "approved_at": datetime.now(timezone.utc).isoformat(),
+            "message": f"海梅已确认第{step_number}步QA检验通过，准予进入下一步",
+        }
+        row.output_artifacts = existing
+
+        from app.models.project import Project
+        self.db.query(Project).filter(Project.id == self.project_id).update(
+            {"current_step": self.current_step}
+        )
+
+        from app.models.qa_record import QARecord
+        qa = QARecord(
+            project_id=self.project_id,
+            workflow_step_id=row.id,
+            qa_agent_id=qa_agent_id,
+            status="passed",
+            inspected_at=datetime.now(timezone.utc),
+        )
+        self.db.add(qa)
+        self.db.commit()
+        return qa.to_dict()
+
+    def fail_qa(self, step_number: int, qa_agent_id: str = "hourong",
+                reason: str = "", suggestions: Optional[List[str]] = None) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(step_number)
+        if not row:
+            raise ValueError(f"步骤 {step_number} 不存在")
+
+        row.status = "rejected"
+
+        # 海梅记录QA失败，标记异常
+        existing = dict(row.output_artifacts or {})
+        existing["haimei_qa_rejection"] = {
+            "action": "海梅记录QA检验未通过",
+            "qa_agent": qa_agent_id,
+            "reason": reason or "未提供原因",
+            "rejected_at": datetime.now(timezone.utc).isoformat(),
+            "message": f"海梅已记录第{step_number}步QA未通过，等待修复后重新提交",
+        }
+        row.output_artifacts = existing
+
+        # 海梅记录执行Agent异常
+        if row.executor_agent_id:
+            self.haimei_report_agent_error(
+                row.executor_agent_id,
+                f"第{step_number}步QA未通过: {reason}"
+            )
+
+        from app.models.qa_record import QARecord
+        qa = QARecord(
+            project_id=self.project_id,
+            workflow_step_id=row.id,
+            qa_agent_id=qa_agent_id,
+            status="failed",
+            problem_details=reason or None,
+            fix_suggestions="\n".join(suggestions) if suggestions else None,
+            inspected_at=datetime.now(timezone.utc),
+        )
+        self.db.add(qa)
+        self.db.commit()
+        return qa.to_dict()
+
+    def user_dissatisfied(self, feedback: str = "") -> dict:
+        """用户不满意，回到第三步重新迭代"""
+        self._ensure_steps()
+
+        # 海梅记录用户不满意反馈
+        haimei_iteration_note = {
+            "haimei_iteration": {
+                "action": "海梅启动迭代流程",
+                "feedback": feedback,
+                "iterated_at": datetime.now(timezone.utc).isoformat(),
+                "reset_from_step": 3,
+                "message": "海梅已记录用户反馈，启动迭代循环",
+            }
+        }
+
+        # 重置步骤 4-16 为 pending
+        for step_num in range(4, 17):
+            row = self._get_step_row(step_num)
+            if row:
+                existing = dict(row.output_artifacts or {})
+                existing["haimei_iteration_reset"] = {
+                    "action": "海梅因用户不满意重��该步骤",
+                    "reset_at": datetime.now(timezone.utc).isoformat(),
+                }
+                row.status = "pending"
+                row.started_at = None
+                row.completed_at = None
+                row.output_artifacts = existing
+
+        # 清除步骤4的缓存产物
+        self._cached_step4_artifacts = {}
+
+        # 保持步骤 2-3 的结果（核心目标和需求分析）
+        # 步骤 3 重新进入 in_progress
+        row = self._get_step_row(3)
+        if row:
+            row.status = "in_progress"
+            row.started_at = datetime.now(timezone.utc)
+            existing = dict(row.output_artifacts or {})
+            existing.update(haimei_iteration_note)
+            row.output_artifacts = existing
+
+        self.current_step = 3
+
+        # 恢复所有Agent健康状态
+        for agent_name in self.agent_health:
+            if self.agent_health[agent_name] == AGENT_ERROR:
+                self.agent_health[agent_name] = AGENT_HEALTHY
+
+        from app.models.project import Project
+        self.db.query(Project).filter(Project.id == self.project_id).update(
+            {"current_step": 3}
+        )
+
+        self.db.commit()
+
+        return {
+            "feedback": feedback,
+            "reset_to_step": 3,
+            "message": f"用户反馈: {feedback}，海梅已带领团队回到第三步重新迭代",
+            "haimei_supervision": haimei_iteration_note,
+        }
+
+    def save_step2_artifacts(self, artifacts: dict):
+        self._cached_step2_artifacts = artifacts
+        self._ensure_steps()
+        row = self._get_step_row(2)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step2_artifacts(self) -> dict:
+        if hasattr(self, '_cached_step2_artifacts') and self._cached_step2_artifacts:
+            return self._cached_step2_artifacts
+        self._ensure_steps()
+        row = self._get_step_row(2)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step3_artifacts(self, artifacts: dict):
+        if hasattr(self, '_cached_step3_artifacts') and self._cached_step3_artifacts:
+            self._cached_step3_artifacts.update(artifacts)
+        else:
+            self._cached_step3_artifacts = artifacts
+        self._ensure_steps()
+        row = self._get_step_row(3)
+        if not row:
+            raise ValueError(f"项目{self.project_id}不存在第3步，无法保存产物")
+        existing = dict(row.output_artifacts or {})
+        existing.update(artifacts)
+        row.output_artifacts = existing
+        self.db.commit()
+
+    def get_step3_artifacts(self) -> dict:
+        if hasattr(self, '_cached_step3_artifacts') and self._cached_step3_artifacts:
+            return self._cached_step3_artifacts
+        self._ensure_steps()
+        row = self._get_step_row(3)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step4_artifacts(self, artifacts: dict):
+        self._cached_step4_artifacts = artifacts
+        self._ensure_steps()
+        row = self._get_step_row(4)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step4_artifacts(self) -> dict:
+        if hasattr(self, '_cached_step4_artifacts') and self._cached_step4_artifacts:
+            return self._cached_step4_artifacts
+        self._ensure_steps()
+        row = self._get_step_row(4)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    # --- Step 5 artifact methods ---
+    def save_step5_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(5)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step5_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(5)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    # --- Step 6 artifact methods ---
+    def save_step6_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(6)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step6_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(6)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    # --- Step 7 artifact methods ---
+    def save_step7_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(7)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step7_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(7)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    # --- Step 8 artifact methods ---
+    def save_step8_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(8)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step8_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(8)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step9_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(9)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step9_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(9)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step10_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(10)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step10_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(10)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step11_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(11)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step11_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(11)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step12_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(12)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step12_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(12)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step13_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(13)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step13_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(13)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step14_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(14)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step14_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(14)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step15_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(15)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step15_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(15)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    def save_step16_artifacts(self, artifacts: dict):
+        self._ensure_steps()
+        row = self._get_step_row(16)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step16_artifacts(self) -> dict:
+        self._ensure_steps()
+        row = self._get_step_row(16)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    # ============================================================
+    # Generic step artifact access
+    # ============================================================
+
+    def save_step_artifacts(self, step_number: int, artifacts: dict):
+        """通用步骤产物保存（支持任意步骤）"""
+        self._ensure_steps()
+        row = self._get_step_row(step_number)
+        if row:
+            existing = dict(row.output_artifacts or {})
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
+
+    def get_step_artifacts(self, step_number: int) -> dict:
+        """通用步骤产物读取（支持任意步骤）"""
+        self._ensure_steps()
+        row = self._get_step_row(step_number)
+        if row and row.output_artifacts:
+            return row.output_artifacts
+        return {}
+
+    # ============================================================
+    # 海梅(HaiMei) 项目经理全程监控方法
+    # ============================================================
+
+    def haimei_get_all_agent_statuses(self) -> Dict[str, Dict]:
+        """海梅获取所有Agent实时状态"""
+        from app.models.workflow_step import WorkflowStep
+        rows = self.db.query(WorkflowStep).filter(
+            WorkflowStep.project_id == self.project_id
+        ).order_by(WorkflowStep.step_number).all() if self.db else []
+
+        busy_agents: Set[str] = set()
+        for r in rows:
+            if r.executor_agent_id and r.status == "in_progress":
+                busy_agents.add(r.executor_agent_id)
+
+        now = datetime.now(timezone.utc)
+        result = {}
+        for agent_name, health in self.agent_health.items():
+            if agent_name in busy_agents:
+                current_status = AGENT_BUSY
+            else:
+                current_status = health
+
+            result[agent_name] = {
+                "agent": agent_name,
+                "health": current_status,
+                "in_progress_step": next(
+                    (r.step_number for r in rows
+                     if r.executor_agent_id == agent_name and r.status == "in_progress"),
+                    None
+                ),
+                "checked_at": now.isoformat(),
+            }
+        return result
+
+    def haimei_check_agent_health(self, agent_role: str) -> str:
+        """海梅检查单个Agent是否健康可用"""
+        return self.agent_health.get(agent_role, AGENT_OFFLINE)
+
+    def haimei_report_agent_error(self, agent_role: str, error_info: str = ""):
+        """海梅记录Agent异常状态"""
+        self.agent_health[agent_role] = AGENT_ERROR
+        if self.db:
+            from app.models.workflow_step import WorkflowStep
+            rows = self.db.query(WorkflowStep).filter(
+                WorkflowStep.project_id == self.project_id,
+                WorkflowStep.executor_agent_id == agent_role,
+                WorkflowStep.status == "in_progress",
+            ).all()
+            for r in rows:
+                existing = dict(r.output_artifacts or {})
+                existing["haimei_error"] = error_info
+                existing["haimei_error_at"] = datetime.now(timezone.utc).isoformat()
+                existing["haimei_action"] = "海梅已标记该Agent异常，准备恢复"
+                r.output_artifacts = existing
+            self.db.commit()
+
+    def haimei_restore_agent(self, agent_role: str) -> dict:
+        """海梅恢复异常Agent到正常工作状态"""
+        was_error = self.agent_health.get(agent_role) == AGENT_ERROR
+        self.agent_health[agent_role] = AGENT_HEALTHY
+
+        if self.db and was_error:
+            from app.models.workflow_step import WorkflowStep
+            rows = self.db.query(WorkflowStep).filter(
+                WorkflowStep.project_id == self.project_id,
+                WorkflowStep.executor_agent_id == agent_role,
+                WorkflowStep.status == "in_progress",
+            ).all()
+            for r in rows:
+                existing = dict(r.output_artifacts or {})
+                existing["haimei_restored_at"] = datetime.now(timezone.utc).isoformat()
+                existing["haimei_message"] = f"海梅已恢复{agent_role}到正常工作状态"
+                r.output_artifacts = existing
+            self.db.commit()
+
+        return {
+            "agent": agent_role,
+            "previous_health": AGENT_ERROR if was_error else AGENT_HEALTHY,
+            "current_health": AGENT_HEALTHY,
+            "message": f"海梅已将{agent_role}恢复到正常状态" if was_error else f"{agent_role}状态正常，无需恢复",
+            "restored_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    def haimei_mobilize_agent(self, step_number: int) -> dict:
+        """海梅在步骤执行前调动指定Agent，检查其是否就绪"""
+        step_defs = {s.step_number: s for s in self.steps}
+        step_def = step_defs.get(step_number)
+        if not step_def:
+            return {"ready": False, "message": f"步骤{step_number}不存在"}
+
+        agent_role = step_def.executor_role
+        if not agent_role:
+            return {"ready": True, "message": "该步骤无需Agent执行"}
+
+        health = self.haimei_check_agent_health(agent_role)
+        if health == AGENT_OFFLINE:
+            return {"ready": False, "message": f"Agent {agent_role} 处于离线状态，无法调动", "health": health}
+        if health == AGENT_ERROR:
+            self.haimei_restore_agent(agent_role)
+            return {"ready": True, "messag
+
+[…truncated 411 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+       if row.status == "completed":
+            return True
+        if row.status == "qa_review":
+            artifacts = row.output_artifacts or {}
+            if artifacts.get("qa_passed"):
+                return True
+        return False
+
+    def haimei_supervise_step(self, step_number: int) -> dict:
+        """海梅对即将执行的步骤进行全面监督审查"""
+        step_defs = {s.step_number: s for s in self.steps}
+        step_def = step_defs.get(step_number)
+        if not step_def:
+            return {"approved": False, "message": f"步骤{step_number}不存在"}
+
+        if self.db:
+            row = self._get_step_row(step_number)
+            if not row:
+                return {"approved": False, "message": f"步骤{step_number}未初始化"}
+
+            # 1. 检查前一步是否完成（支持 qa_review + qa_passed 视为已完成）
+            if step_number > 1:
+                prev_row = self._get_step_row(step_number - 1)
+                if prev_row and not self._is_step_effectively_completed(prev_row):
+                    return {
+                        "approved": False,

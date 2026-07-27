@@ -8,16 +8,12 @@ class GroupService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_group(self, name: str, description: str = "", members: List[str] = None, project_id: str = None) -> Group:
-        members = members or []
-        if "haimei" not in members:
-            members.insert(0, "haimei")
+    def create_group(self, name: str, description: str = "", members: List[str] = None) -> Group:
         group = Group(
             name=name,
             description=description,
-            members=members,
-            mode="discussion",
-            project_id=project_id
+            members=members or [],
+            mode="discussion"
         )
         self.db.add(group)
         self.db.commit()

@@ -156,45 +156,69 @@ const emit = defineEmits<{
 
   &__header {
     display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;
-    &-left { display: flex; align-items: flex-start; gap: 16px; h1 { margin: 0; font-size: 24px; font-weight: 600; } }
+    &-left { display: flex; align-items: flex-start; gap: 16px; h1 { margin: 0; font-size: 24px; font-weight: 600; color: $text-primary; } }
   }
-  &__subtitle { margin: 4px 0 0; color: #909399; font-size: 14px; }
+  &__subtitle { margin: 4px 0 0; color: $text-muted; font-size: 14px; }
   &__alert { margin-bottom: 16px; }
-  &__card { text-align: center; padding: 40px 24px; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; }
+  &__card {
+    text-align: center; padding: 40px 24px;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 12px;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.05);
+    h2 { color: $text-primary; }
+    p { color: $text-secondary; }
+  }
   &__card-icon { font-size: 48px; line-height: 1; }
   &__action-row { display: flex; gap: 12px; justify-content: center; margin-top: 24px; }
-  &__executing-status { font-size: 14px; color: #e6a23c; font-weight: 500; }
-  &--executing { border-color: #e6a23c; background: #fdf6ec; }
+  &__executing-status { font-size: 14px; color: $primary; font-weight: 500; }
+  &--executing { border-color: $border-cyan; background: rgba(0, 212, 255, 0.05); }
 
-  &__log { margin-top: 24px; padding: 16px; background: #fafafa; border: 1px solid #e4e7ed; border-radius: 8px;
-    h3 { margin: 0 0 12px; font-size: 16px; }
+  &__log {
+    margin-top: 24px; padding: 16px;
+    background: $glass-bg;
+    border: 1px solid $border-subtle;
+    border-radius: 10px;
+    h3 { margin: 0 0 12px; font-size: 16px; color: $text-primary; }
   }
   &__log-scroll { max-height: 400px; overflow-y: auto; }
-  &__log-msg { padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; display: flex; gap: 8px; align-items: flex-start;
-    &.error { color: #f56c6c; }
-    &.done { color: #67c23a; font-weight: 500; }
-    &.timing { color: #92400e; font-weight: 500; background: #fefce8; padding: 6px 8px; border-radius: 4px; }
+  &__log-msg {
+    padding: 6px 0; font-size: 13px; border-bottom: 1px solid $border-subtle;
+    display: flex; gap: 8px; align-items: flex-start;
+    color: $text-secondary;
+    &.error { color: $danger; }
+    &.done { color: $secondary; font-weight: 500; }
+    &.timing { color: $warning; font-weight: 500; background: $warning-dim; padding: 6px 8px; border-radius: 4px; }
+    &.progress { color: $primary; }
   }
 
-  &__content { margin-top: 24px; padding: 16px; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px;
-    h3 { margin: 0 0 12px; font-size: 16px; }
-    pre { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; }
+  &__content {
+    margin-top: 24px; padding: 16px;
+    background: $glass-bg;
+    border: 1px solid $border-subtle;
+    border-radius: 10px;
+    h3 { margin: 0 0 12px; font-size: 16px; color: $text-primary; }
+    pre { font-family: $font-mono; font-size: 12px; white-space: pre-wrap; word-break: break-all; line-height: 1.6; color: $text-secondary; }
   }
 
   &__prompt-card { text-align: left; padding: 0; overflow: hidden; }
   &__prompt-header {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 12px 16px; background: #f0f9ff; border-bottom: 1px solid #e4e7ed;
-    cursor: pointer; font-weight: 500; font-size: 14px; color: #303133;
-    transition: background 0.2s;
-    &:hover { background: #e1f3d8; }
+    padding: 12px 16px;
+    background: $primary-dim;
+    border-bottom: 1px solid $border-subtle;
+    cursor: pointer; font-weight: 500; font-size: 14px; color: $text-primary;
+    transition: background $transition-fast;
+    &:hover { background: rgba(0, 212, 255, 0.2); }
     .el-icon { transition: transform 0.3s; &.is-rotate { transform: rotate(-90deg); } }
   }
   &__prompt-content {
-    max-height: 400px; overflow-y: auto; padding: 16px; background: #fafafa;
+    max-height: 400px; overflow-y: auto; padding: 16px;
+    background: $bg-surface;
     pre {
-      font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all;
-      line-height: 1.6; color: #303133; margin: 0;
+      font-family: $font-mono; font-size: 12px; white-space: pre-wrap; word-break: break-all;
+      line-height: 1.6; color: $text-secondary; margin: 0;
     }
   }
 }

@@ -1,0 +1,1360 @@
+[
+  {
+    "name": "__init__.py",
+    "type": "file"
+  },
+  {
+    "name": "__pycache__",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.cpython-311.pyc",
+        "type": "file"
+      },
+      {
+        "name": "__init__.cpython-312.pyc",
+        "type": "file"
+      },
+      {
+        "name": "config.cpython-311.pyc",
+        "type": "file"
+      },
+      {
+        "name": "config.cpython-312.pyc",
+        "type": "file"
+      },
+      {
+        "name": "database.cpython-311.pyc",
+        "type": "file"
+      },
+      {
+        "name": "database.cpython-312.pyc",
+        "type": "file"
+      },
+      {
+        "name": "dependencies.cpython-311.pyc",
+        "type": "file"
+      },
+      {
+        "name": "dependencies.cpython-312.pyc",
+        "type": "file"
+      },
+      {
+        "name": "main.cpython-311.pyc",
+        "type": "file"
+      },
+      {
+        "name": "main.cpython-312.pyc",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "api",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.py",
+        "type": "file"
+      },
+      {
+        "name": "__pycache__",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "__init__.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "acceptance.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "acceptance.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agents.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agents.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "attachments.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "attachments.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "auth.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "auth.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "boards.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "boards.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "chat.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "chat.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "comments.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "comments.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "dependencies.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "dependencies.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "deps.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "deps.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "files.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "files.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "groups.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "groups.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "hermes_integration.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "hermes_integration.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "hermes_router.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "hermes_router.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "inbox.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "meetings.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "meetings.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "notifications.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "notifications.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "profiles.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "profiles.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "projects.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "projects.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "projects_srs.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "projects_srs.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "qa.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "qa.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "repos.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "repos.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "requirements.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "requirements.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "scheduling.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "scheduling.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "security.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "security.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "skills.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "skills.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "swarms.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "swarms.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "task_states.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "task_states.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "tasks.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "tasks.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "tasks_srs.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "tasks_srs.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "webhooks.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "webhooks.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "websocket.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "websocket.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "workload.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "workload.cpython-312.pyc",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "acceptance.py",
+        "type": "file"
+      },
+      {
+        "name": "agents.py",
+        "type": "file"
+      },
+      {
+        "name": "attachments.py",
+        "type": "file"
+      },
+      {
+        "name": "auth.py",
+        "type": "file"
+      },
+      {
+        "name": "boards.py",
+        "type": "file"
+      },
+      {
+        "name": "chat.py",
+        "type": "file"
+      },
+      {
+        "name": "comments.py",
+        "type": "file"
+      },
+      {
+        "name": "dependencies.py",
+        "type": "file"
+      },
+      {
+        "name": "deps.py",
+        "type": "file"
+      },
+      {
+        "name": "files.py",
+        "type": "file"
+      },
+      {
+        "name": "groups.py",
+        "type": "file"
+      },
+      {
+        "name": "hermes.py",
+        "type": "file"
+      },
+      {
+        "name": "hermes_integration.py",
+        "type": "file"
+      },
+      {
+        "name": "hermes_router.py",
+        "type": "file"
+      },
+      {
+        "name": "meetings.py",
+        "type": "file"
+      },
+      {
+        "name": "notifications.py",
+        "type": "file"
+      },
+      {
+        "name": "profiles.py",
+        "type": "file"
+      },
+      {
+        "name": "projects.py",
+        "type": "file"
+      },
+      {
+        "name": "projects_srs.py",
+        "type": "file"
+      },
+      {
+        "name": "qa.py",
+        "type": "file"
+      },
+      {
+        "name": "repos.py",
+        "type": "file"
+      },
+      {
+        "name": "requirements.py",
+        "type": "file"
+      },
+      {
+        "name": "scheduling.py",
+        "type": "file"
+      },
+      {
+        "name": "security.py",
+        "type": "file"
+      },
+      {
+        "name": "skills.py",
+        "type": "file"
+      },
+      {
+        "name": "swarms.py",
+        "type": "file"
+      },
+      {
+        "name": "task_states.py",
+        "type": "file"
+      },
+      {
+        "name": "tasks.py",
+        "type": "file"
+      },
+      {
+        "name": "tasks_srs.py",
+        "type": "file"
+      },
+      {
+        "name": "webhooks.py",
+        "type": "file"
+      },
+      {
+        "name": "websocket.py",
+        "type": "file"
+      },
+      {
+        "name": "workflow",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.py",
+            "type": "file"
+          },
+          {
+            "name": "__pycache__",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "__init__.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "core.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "core.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step10.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step10.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step11.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step11.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step12.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step12.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step13.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step13.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step14.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step14.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step15.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step15.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step16.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step16.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step2.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step2.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_1.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_1.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_2.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_2.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_3.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_3.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_4.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_4.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5_1.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5_2.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step6.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step6.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step7.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step7.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step8.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step8.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step9.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step9.cpython-312.pyc",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "core.py",
+            "type": "file"
+          },
+          {
+            "name": "step10.py",
+            "type": "file"
+          },
+          {
+            "name": "step11.py",
+            "type": "file"
+          },
+          {
+            "name": "step12.py",
+            "type": "file"
+          },
+          {
+            "name": "step13.py",
+            "type": "file"
+          },
+          {
+            "name": "step14.py",
+            "type": "file"
+          },
+          {
+            "name": "step15.py",
+            "type": "file"
+          },
+          {
+            "name": "step16.py",
+            "type": "file"
+          },
+          {
+            "name": "step2.py",
+            "type": "file"
+          },
+          {
+            "name": "step3.py",
+            "type": "file"
+          },
+          {
+            "name": "step4.py",
+            "type": "file"
+          },
+          {
+            "name": "step4_1.py",
+            "type": "file"
+          },
+          {
+            "name": "step4_2.py",
+            "type": "file"
+          },
+          {
+            "name": "step4_3.py",
+            "type": "file"
+          },
+          {
+            "name": "step4_4.py",
+            "type": "file"
+          },
+          {
+            "name": "step5.py",
+            "type": "file"
+          },
+          {
+            "name": "step5_1.py",
+            "type": "file"
+          },
+          {
+            "name": "step5_2.py",
+            "type": "file"
+          },
+          {
+            "name": "step6.py",
+            "type": "file"
+          },
+          {
+            "name": "step7.py",
+            "type": "file"
+          },
+          {
+            "name": "step8.py",
+            "type": "file"
+          },
+          {
+            "name": "step9.py",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "workflow.py.bak",
+        "type": "file"
+      },
+      {
+        "name": "workload.py",
+        "type": "file"
+      },
+      {
+        "name": "ws",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.py",
+            "type": "file"
+          },
+          {
+            "name": "__pycache__",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "__init__.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "auth.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "auth.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "chat.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "group_chat.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "group_chat.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "handlers.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "handlers.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "manager.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "manager.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "meeting.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "meeting.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "router.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "router.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step10_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step11_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step12_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step13_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step14_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_chat.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_chat.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_1.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_1.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_2.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_2.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_3.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_3.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_4.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step3_qa_4.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_progress.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step4_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5_1_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5_2_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5_progress.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step5_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step6_progress.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step6_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step7_progress.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step7_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step8_progress.cpython-311.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step8_progress.cpython-312.pyc",
+                "type": "file"
+              },
+              {
+                "name": "step9_progress.cpython-312.pyc",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "auth.py",
+            "type": "file"
+          },
+          {
+            "name": "group_chat.py",
+            "type": "file"
+          },
+          {
+            "name": "handlers.py",
+            "type": "file"
+          },
+          {
+            "name": "manager.py",
+            "type": "file"
+          },
+          {
+            "name": "meeting.py",
+            "type": "file"
+          },
+          {
+            "name": "router.py",
+            "type": "file"
+          },
+          {
+            "name": "step10_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step11_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step12_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step13_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step14_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step3_chat.py",
+            "type": "file"
+          },
+          {
+            "name": "step3_qa.py",
+            "type": "file"
+          },
+          {
+            "name": "step3_qa.py.bak",
+            "type": "file"
+          },
+          {
+            "name": "step3_qa_1.py",
+            "type": "file"
+          },
+          {
+            "name": "step3_qa_2.py",
+            "type": "file"
+          },
+          {
+            "name": "step3_qa_3.py",
+            "type": "file"
+          },
+          {
+            "name": "step3_qa_4.py",
+            "type": "file"
+          },
+          {
+            "name": "step4_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step5_1_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step5_2_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step5_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step6_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step7_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step8_progress.py",
+            "type": "file"
+          },
+          {
+            "name": "step9_progress.py",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "caches",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.py",
+        "type": "file"
+      },
+      {
+        "name": "__pycache__",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "manager.cpython-312.pyc",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "decorator.py",
+        "type": "file"
+      },
+      {
+        "name": "invalidation.py",
+        "type": "file"
+      },
+      {
+        "name": "manager.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "config.py",
+    "type": "file"
+  },
+  {
+    "name": "core",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.py",
+        "type": "file"
+      },
+      {
+        "name": "__pycache__",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "__init__.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "exceptions.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "exceptions.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "responses.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "responses.cpython-312.pyc",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "exceptions.py",
+        "type": "file"
+      },
+      {
+        "name": "responses.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "data",
+    "type": "directory",
+    "children": [
+      {
+        "name": "chat.db",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "database.py",
+    "type": "file"
+  },
+  {
+    "name": "dependencies.py",
+    "type": "file"
+  },
+  {
+    "name": "main.py",
+    "type": "file"
+  },
+  {
+    "name": "middleware",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.py",
+        "type": "file"
+      },
+      {
+        "name": "__pycache__",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "__init__.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "cors.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "cors.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "error_handler.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "error_handler.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "jwt_blacklist.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "jwt_blacklist.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "logging.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "logging.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "rate_limit.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "rate_limit.cpython-312.pyc",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "cors.py",
+        "type": "file"
+      },
+      {
+        "name": "error_handler.py",
+        "type": "file"
+      },
+      {
+        "name": "jwt_blacklist.py",
+        "type": "file"
+      },
+      {
+        "name": "logging.py",
+        "type": "file"
+      },
+      {
+        "name": "rate_limit.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "models",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.py",
+        "type": "file"
+      },
+      {
+        "name": "__pycache__",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "__init__.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "acceptance_record.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "acceptance_record.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agent.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agent.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agent_execution_log.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agent_execution_log.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agent_heartbeat.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "agent_heartbeat.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "attachment.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "attachment.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "board.cpython-311.pyc",
+            "type": "file"
+          },
+          {
+            "name": "board.cpython-312.pyc",
+            "type": "file"
+        
+
+[…truncated 29139 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+  "name": "ws",
+    "type": "directory",
+    "children": [
+      {
+        "name": "__init__.py",
+        "type": "file"
+      },
+      {
+        "name": "__pycache__",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "broadcast.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "events.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "manager.cpython-312.pyc",
+            "type": "file"
+          },
+          {
+            "name": "pubsub.cpython-312.pyc",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "broadcast.py",
+        "type": "file"
+      },
+      {
+        "name": "events.py",
+        "type": "file"
+      },
+      {
+        "name": "manager.py",
+        "type": "file"
+      },
+      {
+        "name": "pubsub.py",
+        "type": "file"
+      }
+    ]
+  }
+]

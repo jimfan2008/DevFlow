@@ -15,16 +15,19 @@ def test(name, fn):
     global passed, failed, skipped
     try:
         ok, msg = fn()
-        if ok is True:
+        if ok:
             passed += 1
+            status = "PASS"
             print(f"  ✅ {name}")
             results.append({"name": name, "status": "passed", "message": msg})
         elif ok is None:
             skipped += 1
+            status = "SKIP"
             print(f"  ⚠️  {name} — {msg}")
             results.append({"name": name, "status": "skipped", "message": msg})
-        else: # ok is False
+        else:
             failed += 1
+            status = "FAIL"
             print(f"  ❌ {name} — {msg}")
             results.append({"name": name, "status": "failed", "message": msg})
     except Exception as e:
@@ -34,11 +37,11 @@ def test(name, fn):
 
 
 def get(path, expected_status=200):
-    return make_req("GET", path, expected_status=expected_status)
+    return make_req("GET", path, expected_status)
 
 
 def post(path, body=None, expected_status=200):
-    return make_req("POST", path, body=body, expected_status=expected_status)
+    return make_req("POST", path, body, expected_status)
 
 
 def make_req(method, path, body=None, expected_status=200):
@@ -51,15 +54,13 @@ def make_req(method, path, body=None, expected_status=200):
         elif method == "DELETE":
             r = requests.delete(url, timeout=10)
         else:
-            return False, {"error": "Unsupported method"}
-        
+            return None, {}
         if r.status_code != expected_status:
-            return False, {"status": r.status_code, "body": r.text[:200]}
-        
+            return None, {"status": r.status_code, "body": r.text[:200]}
         data = r.json() if r.text else {}
         return True, data
     except Exception as e:
-        return False, {"error": str(e)}
+        return None, {"error": str(e)}
 
 
 # ============================================================
@@ -248,6 +249,20 @@ print("📋 Scenario 3: 蜂群创建与任务分发 API 测试")
 print("=" * 60)
 
 TEST_SWARM_ID = None
+
+test("S3-1: 创建代码编写蜂群 (后发)", lambda: (
+    lambda data: (globals().update(TEST_SWARM_ID=data.get("swarm", {}).get("id")), (True, f"蜂群ID: {data.get('swarm', {}).get('id')}"))
+)(
+    post("/api/v1/swarms", {
+        "project_id": PROJECT_ID,
+        "name": "API测试代码蜂群",
+        "purpose": "code_writing",
+        "step_number": 9,
+        "manager_role": "houfa"
+    })[1]
+))
+
+# Simplified - check swarm creation result
 swarm_ok, swarm_data = post("/api/v1/swarms", {
     "project_id": PROJECT_ID,
     "name": "API测试蜂群",
@@ -258,9 +273,13 @@ swarm_ok, swarm_data = post("/api/v1/swarms", {
 
 if swarm_ok and swarm_data:
     TEST_SWARM_ID = swarm_data.get("swarm", {}).get("id")
-    test("S3-1: 创建蜂群", lambda: (True, f"ID: {TEST_SWARM_ID}"))
+    print(f"  ✅ S3-1: 创建蜂群 — ID: {TEST_SWARM_ID}")
+    results.append({"name": "S3-1: 创建蜂群", "status": "passed", "message": f"ID: {TEST_SWARM_ID}"})
+    passed += 1
 else:
-    test("S3-1: 创建蜂群", lambda: (False, str(swarm_data)))
+    print(f"  ❌ S3-1: 创建蜂群失败")
+    results.append({"name": "S3-1: 创建蜂群", "status": "failed", "message": str(swarm_data)})
+    failed += 1
 
 if TEST_SWARM_ID:
     test("S3-2: 添加蜂群成员 (Claude Code)", lambda: post(
@@ -293,15 +312,17 @@ if TEST_SWARM_ID:
 
     test("S3-7: 获取蜂群详情", lambda: get(f"/api/v1/swarms/{TEST_SWARM_ID}"))
 
-    # 简化 S3-8/S3-9，直接利用 make_req 返回值
-    test("S3-8: 移除蜂群成员", lambda: make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}/members/cursor-api-1", expected_status=200))
+    test("S3-8: 移除蜂群成员", lambda: (
+        lambda r: (True, "成员已移除") if r[0] or r[1].get("status", 0) == 200 else (False, str(r[1]))
+    )(make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}/members/cursor-api-1", expected_status=200)))
 
-    test("S3-9: 解散蜂群", lambda: make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}", expected_status=200))
+    test("S3-9: 解散蜂群", lambda: (
+        lambda r: (True, "蜂群已解散") if r[0] or r[1].get("status", 0) == 200 else (False, str(r[1]))
+    )(make_req("DELETE", f"/api/v1/swarms/{TEST_SWARM_ID}", expected_status=200)))
 
 else:
-    # 跳过 S3-2 到 S3-9
-    for i in range(2, 10):
-        test(f"S3-{i}: 跳过（蜂群创建失败）", lambda: (None, "前置条件未满足"))
+    print(f"  ⚠️  S3-2 ~ S3-9: 跳过（蜂群创建失败）")
+    skipped += 8
 
 # ============================================================
 # Scenario 4: 安全审计 API

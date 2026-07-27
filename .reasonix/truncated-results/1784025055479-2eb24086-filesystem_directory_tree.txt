@@ -1,0 +1,1011 @@
+[
+  {
+    "name": ".coverage",
+    "type": "file"
+  },
+  {
+    "name": ".env",
+    "type": "file"
+  },
+  {
+    "name": ".venv",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".lock",
+        "type": "file"
+      },
+      {
+        "name": "bin",
+        "type": "directory",
+        "children": [
+          {
+            "name": "Activate.ps1",
+            "type": "file"
+          },
+          {
+            "name": "activate",
+            "type": "file"
+          },
+          {
+            "name": "activate.csh",
+            "type": "file"
+          },
+          {
+            "name": "activate.fish",
+            "type": "file"
+          },
+          {
+            "name": "alembic",
+            "type": "file"
+          },
+          {
+            "name": "dotenv",
+            "type": "file"
+          },
+          {
+            "name": "fastapi",
+            "type": "file"
+          },
+          {
+            "name": "httpx",
+            "type": "file"
+          },
+          {
+            "name": "idna",
+            "type": "file"
+          },
+          {
+            "name": "mako-render",
+            "type": "file"
+          },
+          {
+            "name": "pip",
+            "type": "file"
+          },
+          {
+            "name": "pip3",
+            "type": "file"
+          },
+          {
+            "name": "pip3.12",
+            "type": "file"
+          },
+          {
+            "name": "py.test",
+            "type": "file"
+          },
+          {
+            "name": "pygmentize",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-decrypt",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-encrypt",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-keygen",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-priv2pub",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-sign",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-verify",
+            "type": "file"
+          },
+          {
+            "name": "pytest",
+            "type": "file"
+          },
+          {
+            "name": "python",
+            "type": "file"
+          },
+          {
+            "name": "python3",
+            "type": "file"
+          },
+          {
+            "name": "python3.12",
+            "type": "file"
+          },
+          {
+            "name": "uvicorn",
+            "type": "file"
+          },
+          {
+            "name": "watchfiles",
+            "type": "file"
+          },
+          {
+            "name": "websockets",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "include",
+        "type": "directory",
+        "children": [
+          {
+            "name": "python3.12",
+            "type": "directory",
+            "children": []
+          },
+          {
+            "name": "site",
+            "type": "directory",
+            "children": [
+              {
+                "name": "python3.12",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "greenlet",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "greenlet.h",
+                        "type": "file"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "lib",
+        "type": "directory",
+        "children": [
+          {
+            "name": "python3.12",
+            "type": "directory",
+            "children": [
+              {
+                "name": "site-packages",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "_cffi_backend.cpython-312-x86_64-linux-gnu.so",
+                    "type": "file"
+                  },
+                  {
+                    "name": "_pytest",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "_argcomplete.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "_code",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "code.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "source.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "_io",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "pprint.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "saferepr.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "terminalwriter.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "wcwidth.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "_py",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "error.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "path.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "_version.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "assertion",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "rewrite.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "truncate.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "util.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "cacheprovider.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "capture.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "compat.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "config",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "argparsing.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "compat.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "exceptions.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "findpaths.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "debugging.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "deprecated.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "doctest.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "faulthandler.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "fixtures.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "freeze_support.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "helpconfig.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "hookspec.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "junitxml.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "legacypath.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "logging.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "main.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "mark",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "expression.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "structures.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "monkeypatch.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "nodes.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "outcomes.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pastebin.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pathlib.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "py.typed",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pytester.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pytester_assertions.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "python.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "python_api.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "raises.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "recwarn.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "reports.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "runner.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "scope.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "setuponly.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "setupplan.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "skipping.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "stash.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "stepwise.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "subtests.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "terminal.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "terminalprogress.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "threadexception.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "timing.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "tmpdir.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "tracemalloc.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "unittest.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "unraisableexception.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "warning_types.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "warnings.py",
+                        "type": "file"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "_yaml",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "acp",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "agent",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "connection.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "router.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "client",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "connection.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "router.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "connection.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "contrib",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "permissions.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "session_state.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "tool_calls.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "core.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "exceptions.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "helpers.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "interfaces.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "meta.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "py.typed",
+                        "type": "file"
+                      },
+                      {
+                        "name": "router.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "schema.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "stdio.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "task",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "dispatcher.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "queue.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "sender.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "state.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "supervisor.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "telemetry.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "transports.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "utils.py",
+                        "type": "file"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "agent_client_protocol-0.10.1.dist-info",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "INSTALLER",
+                        "type": "file"
+                      },
+                      {
+                        "name": "METADATA",
+                        "type": "file"
+                      },
+                      {
+                        "name": "RECORD",
+                        "type": "file"
+                      },
+                      {
+                        "name": "REQUESTED",
+                        "type": "file"
+                      },
+                      {
+                        "name": "WHEEL",
+                        "type": "file"
+                      },
+                      {
+                        "name": "entry_points.txt",
+                        "type": "file"
+                      },
+                      {
+                        "name": "licenses",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "LICENSE",
+                            "type": "file"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "aiosqlite",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "__version__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "context.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "core.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "cursor.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "py.typed",
+                        "type": "file"
+                      },
+                      {
+                        "name": "tests",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "__main__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "helpers.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "perf.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "smoke.py",
+                            "type": "file"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "aiosqlite-0.22.1.dist-info",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "INSTALLER",
+                        "type": "file"
+                      },
+                      {
+                        "name": "METADATA",
+                        "type": "file"
+                      },
+                      {
+                        "name": "RECORD",
+                        "type": "file"
+                      },
+                      {
+                        "name": "REQUESTED",
+                        "type": "file"
+                      },
+                      {
+                        "name": "WHEEL",
+                        "type": "file"
+                      },
+                      {
+                        "name": "licenses",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "LICENSE",
+                            "type": "file"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "alembic",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "__main__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "autogenerate",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "api.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "compare",
+                            "type": "directory",
+                            "children": [
+                              {
+                                "name": "__init__.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "comments.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "constraints.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "schema.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "server_defaults.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "tables.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "types.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "util.py",
+                                "type": "file"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "render.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "rewriter.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "command.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "config.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "context.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "context.pyi",
+                        "type": "file"
+                      },
+                      {
+                        "name": "ddl",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "_autogen.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "base.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "impl.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "mssql.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "mysql.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "oracle.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "postgresql.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "sqlite.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "environment.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "migration.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "op.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "op.pyi",
+                        "type": "file"
+                      },
+                      {
+                        "name": "operations",
+     
+
+[…truncated 559286 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+: "file"
+      },
+      {
+        "name": "test_tdd_plan_auto_generation.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_predefined_roles.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_project_role.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_role_permissions.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_session_timeout.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_test_cases.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_unauthorized_access.py",
+        "type": "file"
+      },
+      {
+        "name": "test_tdd_viewer_readonly.py",
+        "type": "file"
+      },
+      {
+        "name": "test_websocket.py",
+        "type": "file"
+      },
+      {
+        "name": "test_workflow_engine.py",
+        "type": "file"
+      },
+      {
+        "name": "test_workload.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "verify_imports.py",
+    "type": "file"
+  }
+]

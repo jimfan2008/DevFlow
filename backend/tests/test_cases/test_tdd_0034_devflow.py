@@ -1,0 +1,826 @@
+import asyncio
+import time
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Dict, List, Optional, Callable, Set
+
+import pytest
+
+
+class AgentSwarmStatus(str, Enum):
+    IDLE = "idle"
+    BUSY = "busy"
+    OFFLINE = "offline"
+
+
+@dataclass
+class SwarmSubAgent:
+    agent_id: str
+    name: str
+    agent_type: str = ""
+    status: AgentSwarmStatus = AgentSwarmStatus.IDLE
+    current_task: Optional[str] = None
+    last_updated: float = field(default_factory=time.monotonic)
+    task_count: int = 0
+
+    def mark_busy(self, task_description: str) -> None:
+        self.status = AgentSwarmStatus.BUSY
+        self.current_task = task_description
+        self.last_updated = time.monotonic()
+        self.task_count += 1
+
+    def mark_idle(self) -> None:
+        self.status = AgentSwarmStatus.IDLE
+        self.current_task = None
+        self.last_updated = time.monotonic()
+
+    def mark_offline(self) -> None:
+        self.status = AgentSwarmStatus.OFFLINE
+        self.current_task = None
+        self.last_updated = time.monotonic()
+
+    def bring_online(self) -> None:
+        if self.status == AgentSwarmStatus.OFFLINE:
+            self.status = AgentSwarmStatus.IDLE
+            self.last_updated = time.monotonic()
+
+    @property
+    def staleness(self) -> float:
+        return time.monotonic() - self.last_updated
+
+
+@dataclass
+class SwarmTaskItem:
+    task_id: str
+    description: str
+    assigned_agent_id: Optional[str] = None
+    status: str = "pending"
+    created_at: float = field(default_factory=time.monotonic)
+    started_at: Optional[float] = None
+    completed_at: Optional[float] = None
+
+
+class SwarmExecutionMonitor:
+    def __init__(self, swarm_id: str = "", swarm_name: str = ""):
+        self.swarm_id = swarm_id or str(uuid.uuid4())
+        self.swarm_name = swarm_name or f"swarm-{self.swarm_id[:8]}"
+        self._agents: Dict[str, SwarmSubAgent] = {}
+        self._tasks: Dict[str, SwarmTaskItem] = {}
+        self._task_queue: List[str] = []
+        self._callbacks: List[Callable] = []
+        self._status_history: Dict[str, List[tuple]] = {}
+
+    def register_agent(self, agent: SwarmSubAgent) -> None:
+        self._agents[agent.agent_id] = agent
+        self._status_history[agent.agent_id] = []
+
+    def register_agents(self, agents: List[SwarmSubAgent]) -> None:
+        for agent in agents:
+            self.register_agent(agent)
+
+    def remove_agent(self, agent_id: str) -> None:
+        self._agents.pop(agent_id, None)
+        self._status_history.pop(agent_id, None)
+
+    def add_task(self, task: SwarmTaskItem) -> None:
+        self._tasks[task.task_id] = task
+        self._task_queue.append(task.task_id)
+
+    def add_tasks(self, tasks: List[SwarmTaskItem]) -> None:
+        for task in tasks:
+            self.add_task(task)
+
+    @property
+    def agent_count(self) -> int:
+        return len(self._agents)
+
+    @property
+    def total_tasks(self) -> int:
+        return len(self._tasks)
+
+    @property
+    def pending_task_count(self) -> int:
+        return sum(1 for t in self._tasks.values() if t.status == "pending")
+
+    @property
+    def running_task_count(self) -> int:
+        return sum(1 for t in self._tasks.values() if t.status == "running")
+
+    @property
+    def completed_task_count(self) -> int:
+        return sum(1 for t in self._tasks.values() if t.status == "completed")
+
+    def get_parallelism(self) -> int:
+        return sum(1 for a in self._agents.values() if a.status == AgentSwarmStatus.BUSY)
+
+    def get_status_summary(self) -> Dict[str, int]:
+        summary = {s.value: 0 for s in AgentSwarmStatus}
+        for agent in self._agents.values():
+            summary[agent.status.value] += 1
+        return summary
+
+    def get_agent_status(self, agent_id: str) -> Optional[AgentSwarmStatus]:
+        agent = self._agents.get(agent_id)
+        return agent.status if agent else None
+
+    def get_agent(self, agent_id: str) -> Optional[SwarmSubAgent]:
+        return self._agents.get(agent_id)
+
+    def get_all_agents(self) -> List[SwarmSubAgent]:
+        return list(self._agents.values())
+
+    def get_task_distribution(self) -> Dict[str, List[str]]:
+        dist: Dict[str, List[str]] = {}
+        for agent_id in self._agents:
+            dist[agent_id] = []
+        for task in self._tasks.values():
+            if task.assigned_agent_id:
+                if task.assigned_agent_id not in dist:
+                    dist[task.assigned_agent_id] = []
+                dist[task.assigned_agent_id].append(task.task_id)
+        return dist
+
+    def get_pending_tasks(self) -> List[SwarmTaskItem]:
+        return [t for t in self._tasks.values() if t.status == "pending"]
+
+    def get_running_tasks(self) -> List[SwarmTaskItem]:
+        return [t for t in self._tasks.values() if t.status == "running"]
+
+    def get_completed_tasks(self) -> List[SwarmTaskItem]:
+        return [t for t in self._tasks.values() if t.status == "completed"]
+
+    def get_task_queue(self) -> List[str]:
+        return list(self._task_queue)
+
+    def dispatch_task(self, task_id: str, agent_id: str) -> bool:
+        task = self._tasks.get(task_id)
+        agent = self._agents.get(agent_id)
+        if task is None or agent is None:
+            return False
+        if agent.status != AgentSwarmStatus.IDLE:
+            return False
+        agent.mark_busy(task.description)
+        task.assigned_agent_id = agent_id
+        task.status = "running"
+        task.started_at = time.monotonic()
+        if task_id in self._task_queue:
+            self._task_queue.remove(task_id)
+        self._record_status(agent_id, agent.status)
+        self._notify()
+        return True
+
+    def complete_task(self, task_id: str) -> bool:
+        task = self._tasks.get(task_id)
+        if task is None:
+            return False
+        task.status = "completed"
+        task.completed_at = time.monotonic()
+        if task.assigned_agent_id:
+            agent = self._agents.get(task.assigned_agent_id)
+            if agent and agent.current_task:
+                agent.mark_idle()
+                self._record_status(agent.agent_id, agent.status)
+                self._notify()
+        return True
+
+    def mark_agent_offline(self, agent_id: str) -> None:
+        agent = self._agents.get(agent_id)
+        if agent:
+            agent.mark_offline()
+            self._record_status(agent_id, AgentSwarmStatus.OFFLINE)
+            self._notify()
+
+    def bring_agent_online(self, agent_id: str) -> None:
+        agent = self._agents.get(agent_id)
+        if agent:
+            agent.bring_online()
+            self._record_status(agent_id, AgentSwarmStatus.IDLE)
+            self._notify()
+
+    def get_status_staleness(self, agent_id: str) -> Optional[float]:
+        agent = self._agents.get(agent_id)
+        return agent.staleness if agent else None
+
+    def get_recent_status_changes(self, agent_id: str, window_seconds: float = 60.0) -> List[tuple]:
+        now = time.monotonic()
+        raw = self._status_history.get(agent_id, [])
+        return [(ts, s) for ts, s in raw if now - ts <= window_seconds]
+
+    def on_status_change(self, callback: Callable) -> None:
+        self._callbacks.append(callback)
+
+    def _record_status(self, agent_id: str, status: AgentSwarmStatus) -> None:
+        if agent_id in self._status_history:
+            self._status_history[agent_id].append((time.monotonic(), status))
+
+    def _notify(self) -> None:
+        dead = []
+        for cb in self._callbacks:
+            try:
+                cb(self)
+            except Exception:
+                pass
+
+
+@pytest.fixture
+def sample_sub_agents():
+    return [
+        SwarmSubAgent(agent_id="sub-1", name="WriterAlpha", agent_type="houfa"),
+        SwarmSubAgent(agent_id="sub-2", name="TesterBeta", agent_type="reasonix"),
+        SwarmSubAgent(agent_id="sub-3", name="ReviewerGamma", agent_type="claude_code"),
+    ]
+
+
+@pytest.fixture
+def monitor(sample_sub_agents):
+    m = SwarmExecutionMonitor(swarm_id="swarm-test-001", swarm_name="测试蜂群")
+    m.register_agents(sample_sub_agents)
+    return m
+
+
+@pytest.fixture
+def populated_monitor(monitor):
+    tasks = [
+        SwarmTaskItem(task_id="t-1", description="编写用户模块测试"),
+        SwarmTaskItem(task_id="t-2", description="运行集成测试套件"),
+        SwarmTaskItem(task_id="t-3", description="审查代码覆盖率报告"),
+        SwarmTaskItem(task_id="t-4", description="部署测试环境"),
+        SwarmTaskItem(task_id="t-5", description="生成测试数据"),
+    ]
+    monitor.add_tasks(tasks)
+    return monitor
+
+
+class TestSwarmInitialization:
+    def test_create_empty_monitor(self):
+        m = SwarmExecutionMonitor()
+        assert m.agent_count == 0
+        assert m.total_tasks == 0
+        assert m.get_parallelism() == 0
+
+    def test_create_monitor_with_id_and_name(self):
+        m = SwarmExecutionMonitor(swarm_id="sid-01", swarm_name="AlphaSwarm")
+        assert m.swarm_id == "sid-01"
+        assert m.swarm_name == "AlphaSwarm"
+
+    def test_register_single_agent(self, monitor):
+        assert monitor.agent_count == 3
+
+    def test_register_additional_agent(self, monitor):
+        agent = SwarmSubAgent(agent_id="sub-4", name="DeployerDelta", agent_type="aider-chat")
+        monitor.register_agent(agent)
+        assert monitor.agent_count == 4
+
+    def test_remove_agent(self, monitor):
+        monitor.remove_agent("sub-1")
+        assert monitor.agent_count == 2
+        assert monitor.get_agent("sub-1") is None
+
+    def test_all_agents_start_idle(self, monitor):
+        for agent in monitor.get_all_agents():
+            assert agent.status == AgentSwarmStatus.IDLE
+            assert agent.current_task is None
+            assert agent.task_count == 0
+
+    def test_get_agent_by_id(self, monitor):
+        agent = monitor.get_agent("sub-2")
+        assert agent is not None
+        assert agent.name == "TesterBeta"
+
+    def test_get_nonexistent_agent(self, monitor):
+        assert monitor.get_agent("no-such-agent") is None
+
+    def test_agent_default_fields(self):
+        agent = SwarmSubAgent(agent_id="a1", name="AgentOne")
+        assert agent.agent_type == ""
+        assert agent.status == AgentSwarmStatus.IDLE
+        assert agent.current_task is None
+        assert agent.task_count == 0
+
+    def test_agent_with_type(self):
+        agent = SwarmSubAgent(agent_id="a1", name="W1", agent_type="houfa")
+        assert agent.agent_type == "houfa"
+
+
+class TestSwarmParallelismDisplay:
+    def test_initial_parallelism_zero(self, monitor):
+        assert monitor.get_parallelism() == 0
+
+    def test_parallelism_increases_on_dispatch(self, populated_monitor):
+        assert populated_monitor.dispatch_task("t-1", "sub-1") is True
+        assert populated_monitor.get_parallelism() == 1
+
+    def test_parallelism_multiple_agents(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        assert populated_monitor.get_parallelism() == 2
+
+    def test_parallelism_all_agents_busy(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        populated_monitor.dispatch_task("t-3", "sub-3")
+        assert populated_monitor.get_parallelism() == 3
+
+    def test_parallelism_decreases_on_task_complete(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        populated_monitor.complete_task("t-1")
+        assert populated_monitor.get_parallelism() == 1
+
+    def test_parallelism_returns_to_zero(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        populated_monitor.complete_task("t-1")
+        populated_monitor.complete_task("t-2")
+        assert populated_monitor.get_parallelism() == 0
+
+    def test_parallelism_ignores_offline_agents(self, monitor):
+        monitor.mark_agent_offline("sub-1")
+        assert monitor.get_parallelism() == 0
+
+    def test_parallelism_with_mixed_statuses(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.mark_agent_offline("sub-3")
+        summary = populated_monitor.get_status_summary()
+        assert summary["busy"] == 1
+        assert summary["idle"] == 1
+        assert summary["offline"] == 1
+
+    def test_parallelism_after_offline_agent_comes_online(self, populated_monitor):
+        populated_monitor.mark_agent_offline("sub-1")
+        assert populated_monitor.get_parallelism() == 0
+        populated_monitor.bring_agent_online("sub-1")
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor.get_parallelism() == 1
+
+    def test_parallelism_does_not_exceed_agent_count(self, populated_monitor):
+        for i in range(10):
+            task = SwarmTaskItem(task_id=f"bulk-{i}", description=f"task-{i}")
+            populated_monitor.add_task(task)
+        populated_monitor.dispatch_task("bulk-0", "sub-1")
+        populated_monitor.dispatch_task("bulk-1", "sub-2")
+        populated_monitor.dispatch_task("bulk-2", "sub-3")
+        assert populated_monitor.get_parallelism() == 3
+        assert populated_monitor.get_parallelism() <= populated_monitor.agent_count
+
+    def test_busy_agent_rejects_new_task(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        result = populated_monitor.dispatch_task("t-2", "sub-1")
+        assert result is False
+        assert populated_monitor.get_parallelism() == 1
+
+
+class TestTaskDistributionDisplay:
+    def test_empty_distribution(self, monitor):
+        dist = monitor.get_task_distribution()
+        assert len(dist) == 3
+        for agent_id in ["sub-1", "sub-2", "sub-3"]:
+            assert agent_id in dist
+            assert dist[agent_id] == []
+
+    def test_distribution_after_single_dispatch(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        dist = populated_monitor.get_task_distribution()
+        assert "t-1" in dist["sub-1"]
+        assert dist["sub-2"] == []
+        assert dist["sub-3"] == []
+
+    def test_distribution_multi_agent(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        dist = populated_monitor.get_task_distribution()
+        assert "t-1" in dist["sub-1"]
+        assert "t-2" in dist["sub-2"]
+
+    def test_distribution_after_completion(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        dist = populated_monitor.get_task_distribution()
+        assert "t-1" in dist["sub-1"]
+
+    def test_distribution_all_tasks(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        populated_monitor.dispatch_task("t-3", "sub-3")
+        dist = populated_monitor.get_task_distribution()
+        total_assigned = sum(len(tasks) for tasks in dist.values())
+        assert total_assigned == 3
+
+    def test_total_tasks_count(self, populated_monitor):
+        assert populated_monitor.total_tasks == 5
+
+    def test_pending_tasks_count(self, populated_monitor):
+        assert populated_monitor.pending_task_count == 5
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor.pending_task_count == 4
+
+    def test_running_tasks_count(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor.running_task_count == 1
+
+    def test_completed_tasks_count(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        assert populated_monitor.completed_task_count == 1
+
+    def test_task_queue_order(self, populated_monitor):
+        assert populated_monitor.get_task_queue() == ["t-1", "t-2", "t-3", "t-4", "t-5"]
+
+    def test_task_removed_from_queue_after_dispatch(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert "t-1" not in populated_monitor.get_task_queue()
+
+    def test_new_agent_appears_in_distribution(self, monitor):
+        agent = SwarmSubAgent(agent_id="sub-new", name="NewAgent")
+        monitor.register_agent(agent)
+        dist = monitor.get_task_distribution()
+        assert "sub-new" in dist
+
+    def test_get_pending_tasks_after_partial_dispatch(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        pending = populated_monitor.get_pending_tasks()
+        assert len(pending) == 4
+        for t in pending:
+            assert t.status == "pending"
+
+    def test_get_running_tasks(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        running = populated_monitor.get_running_tasks()
+        assert len(running) == 1
+        assert running[0].task_id == "t-1"
+        assert running[0].status == "running"
+
+    def test_get_completed_tasks(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        completed = populated_monitor.get_completed_tasks()
+        assert len(completed) == 1
+        assert completed[0].task_id == "t-1"
+        assert completed[0].status == "completed"
+
+
+class TestSubAgentStatusRealtime:
+    def test_agent_starts_idle(self, monitor):
+        assert monitor.get_agent_status("sub-1") == AgentSwarmStatus.IDLE
+
+    def test_agent_becomes_busy_on_dispatch(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor.get_agent_status("sub-1") == AgentSwarmStatus.BUSY
+
+    def test_agent_returns_to_idle_on_complete(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        assert populated_monitor.get_agent_status("sub-1") == AgentSwarmStatus.IDLE
+
+    def test_agent_offline_status(self, monitor):
+        monitor.mark_agent_offline("sub-1")
+        assert monitor.get_agent_status("sub-1") == AgentSwarmStatus.OFFLINE
+
+    def test_agent_offline_to_idle(self, monitor):
+        monitor.mark_agent_offline("sub-1")
+        monitor.bring_agent_online("sub-1")
+        assert monitor.get_agent_status("sub-1") == AgentSwarmStatus.IDLE
+
+    def test_unknown_agent_status_is_none(self, monitor):
+        assert monitor.get_agent_status("ghost-agent") is None
+
+    def test_busy_agent_task_description(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        agent = populated_monitor.get_agent("sub-1")
+        assert agent.current_task == "编写用户模块测试"
+
+    def test_idle_agent_has_no_task(self, monitor):
+        agent = monitor.get_agent("sub-1")
+        assert agent.current_task is None
+
+    def test_offline_agent_has_no_task(self, monitor):
+        monitor.mark_agent_offline("sub-1")
+        agent = monitor.get_agent("sub-1")
+        assert agent.current_task is None
+
+    def test_multiple_agents_different_statuses(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.mark_agent_offline("sub-3")
+        assert populated_monitor.get_agent_status("sub-1") == AgentSwarmStatus.BUSY
+        assert populated_monitor.get_agent_status("sub-2") == AgentSwarmStatus.IDLE
+        assert populated_monitor.get_agent_status("sub-3") == AgentSwarmStatus.OFFLINE
+
+    def test_status_summary_all_idle(self, monitor):
+        summary = monitor.get_status_summary()
+        assert summary["idle"] == 3
+        assert summary["busy"] == 0
+        assert summary["offline"] == 0
+
+    def test_status_summary_mixed(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.mark_agent_offline("sub-3")
+        summary = populated_monitor.get_status_summary()
+        assert summary["idle"] == 1
+        assert summary["busy"] == 1
+        assert summary["offline"] == 1
+
+    def test_agent_enum_values(self):
+        assert AgentSwarmStatus.IDLE.value == "idle"
+        assert AgentSwarmStatus.BUSY.value == "busy"
+        assert AgentSwarmStatus.OFFLINE.value == "offline"
+
+    def test_bring_online_only_from_offline(self, monitor):
+        agent = monitor.get_agent("sub-1")
+        before = agent.last_updated
+        monitor.bring_agent_online("sub-1")
+        assert agent.status == AgentSwarmStatus.IDLE
+        assert agent.last_updated == before
+
+    def test_task_count_increments(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        populated_monitor.dispatch_task("t-2", "sub-1")
+        assert populated_monitor.get_agent("sub-1").task_count == 2
+
+
+class TestStatusUpdateLatencyWithin5Seconds:
+    def test_staleness_after_dispatch_within_5s(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        staleness = populated_monitor.get_status_staleness("sub-1")
+        assert staleness is not None
+        assert staleness <= 5.0
+
+    def test_staleness_after_complete_within_5s(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        staleness = populated_monitor.get_status_staleness("sub-1")
+        assert staleness <= 5.0
+
+    def test_staleness_after_offline_within_5s(self, monitor):
+        monitor.mark_agent_offline("sub-1")
+        staleness = monitor.get_status_staleness("sub-1")
+        assert staleness <= 5.0
+
+    def test_staleness_offline_to_online_within_5s(self, monitor):
+        monitor.mark_agent_offline("sub-1")
+        staleness_offline = monitor.get_status_staleness("sub-1")
+        assert staleness_offline <= 5.0
+        monitor.bring_agent_online("sub-1")
+        staleness_online = monitor.get_status_staleness("sub-1")
+        assert staleness_online <= 5.0
+
+    def test_staleness_unknown_agent(self, monitor):
+        assert monitor.get_status_staleness("ghost") is None
+
+    def test_recent_status_changes_recorded(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        changes = populated_monitor.get_recent_status_changes("sub-1", 300)
+        assert len(changes) >= 2
+
+    def test_recent_status_changes_outside_window(self, populated_monitor):
+        changes = populated_monitor.get_recent_status_changes("sub-1", 0)
+        assert len(changes) == 0
+
+    def test_last_updated_on_idle_initial(self, monitor):
+        agent = monitor.get_agent("sub-1")
+        assert time.monotonic() - agent.last_updated <= 5.0
+
+    def test_last_updated_on_busy_change(self, populated_monitor):
+        before = time.monotonic()
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        agent = populated_monitor.get_agent("sub-1")
+        assert agent.last_updated >= before
+        assert time.monotonic() - agent.last_updated <= 5.0
+
+    def test_full_cycle_latency_all_within_5s(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor.get_status_staleness("sub-1") <= 5.0
+        populated_monitor.complete_task("t-1")
+        assert populated_monitor.get_status_staleness("sub-1") <= 5.0
+        populated_monitor.dispatch_task("t-2", "sub-1")
+        assert populated_monitor.get_status_staleness("sub-1") <= 5.0
+        populated_monitor.mark_agent_offline("sub-1")
+        assert populated_monitor.get_status_staleness("sub-1") <= 5.0
+
+
+class TestSwarmTaskLifecycle:
+    def test_add_single_task(self, monitor):
+        task = SwarmTaskItem(task_id="new-task", description="test")
+        monitor.add_task(task)
+        assert monitor.total_tasks == 1
+
+    def test_add_multiple_tasks(self, monitor):
+        tasks = [
+            SwarmTaskItem(task_id="a", description="A"),
+            SwarmTaskItem(task_id="b", description="B"),
+        ]
+        monitor.add_tasks(tasks)
+        assert monitor.total_tasks == 2
+
+    def test_dispatch_sets_task_running(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor._tasks["t-1"].status == "running"
+
+    def test_dispatch_sets_started_at(self, populated_monitor):
+        before = time.monotonic()
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert populated_monitor._tasks["t-1"].started_at is not None
+        assert populated_monitor._tasks["t-1"].started_at >= before - 0.1
+
+    def test_complete_task_updates_status(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        assert populated_monitor._tasks["t-1"].status == "completed"
+
+    def test_complete_task_sets_completed_at(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        before = time.monotonic()
+        populated_monitor.complete_task("t-1")
+        assert populated_monitor._tasks["t-1"].completed_at is not None
+        assert populated_monitor._tasks["t-1"].completed_at >= before - 0.1
+
+    def test_complete_unassigned_task(self, monitor):
+        task = SwarmTaskItem(task_id="orphan", description="lost")
+        monitor.add_task(task)
+        result = monitor.complete_task("orphan")
+        assert result is True
+        assert monitor._tasks["orphan"].status == "completed"
+
+    def test_dispatch_nonexistent_task(self, populated_monitor):
+        result = populated_monitor.dispatch_task("no-such-task", "sub-1")
+        assert result is False
+
+    def test_dispatch_to_nonexistent_agent(self, populated_monitor):
+        result = populated_monitor.dispatch_task("t-1", "ghost")
+        assert result is False
+
+    def test_dispatch_to_offline_agent_fails(self, populated_monitor):
+        populated_monitor.mark_agent_offline("sub-1")
+        result = populated_monitor.dispatch_task("t-1", "sub-1")
+        assert result is False
+
+    def test_task_redispatched_after_completion(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        populated_monitor.dispatch_task("t-2", "sub-1")
+        assert populated_monitor.get_agent("sub-1").status == AgentSwarmStatus.BUSY
+        assert populated_monitor.get_agent("sub-1").current_task == "运行集成测试套件"
+
+    def test_all_tasks_dispatched(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.dispatch_task("t-2", "sub-2")
+        populated_monitor.dispatch_task("t-3", "sub-3")
+        assert populated_monitor._tasks["t-1"].status == "running"
+        assert populated_monitor._tasks["t-2"].status == "running"
+        assert populated_monitor._tasks["t-3"].status == "running"
+
+    def test_agent_freed_after_completion(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        result = populated_monitor.dispatch_task("t-2", "sub-1")
+        assert result is True
+
+
+class TestCallbackNotification:
+    def test_callback_on_dispatch(self, populated_monitor):
+        invoked = []
+        def cb(swarm):
+            invoked.append(True)
+        populated_monitor.on_status_change(cb)
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert len(invoked) == 1
+
+    def test_callback_on_complete(self, populated_monitor):
+        invoked = []
+        def cb(swarm):
+            invoked.append(True)
+        populated_monitor.on_status_change(cb)
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        invoked.clear()
+        populated_monitor.complete_task("t-1")
+        assert len(invoked) >= 1
+
+    def test_callback_on_offline(self, monitor):
+        invoked = []
+        def cb(swarm):
+            invoked.append(True)
+        monitor.on_status_change(cb)
+        monitor.mark_agent_offline("sub-1")
+        assert len(invoked) >= 1
+
+    def test_callback_on_bring_online(self, monitor):
+        invoked = []
+        def cb(swarm):
+            invoked.append(True)
+        monitor.on_status_change(cb)
+        monitor.mark_agent_offline("sub-1")
+        invoked.clear()
+        monitor.bring_agent_online("sub-1")
+        assert len(invoked) >= 1
+
+    def test_multiple_callbacks(self, populated_monitor):
+        invoked = []
+        def cb1(swarm):
+            invoked.append("cb1")
+        def cb2(swarm):
+            invoked.append("cb2")
+        populated_monitor.on_status_change(cb1)
+        populated_monitor.on_status_change(cb2)
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert len(invoked) == 2
+
+    def test_callback_receives_swarm_reference(self, populated_monitor):
+        received = []
+        def cb(swarm):
+            received.append(swarm)
+        populated_monitor.on_status_change(cb)
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        assert len(received) == 1
+        assert received[0] is populated_monitor
+
+
+class TestSwarmEdgeCases:
+    def test_dispatch_no_agents(self):
+        m = SwarmExecutionMonitor()
+        m.add_task(SwarmTaskItem(task_id="t", description="test"))
+        result = m.dispatch_task("t", "no-agent")
+        assert result is False
+
+    def test_complete_already_completed_task(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        result = populated_monitor.complete_task("t-1")
+        assert result is True
+
+    def test_complete_nonexistent_task(self, monitor):
+        result = monitor.complete_task("no-such-task")
+        assert result is False
+
+    def test_remove_agent_with_tasks(self, monitor):
+        monitor.add_task(SwarmTaskItem(task_id="orphan", description="orphan"))
+        monitor.remove_agent("sub-1")
+        assert monitor.agent_count == 2
+
+    def test_register_duplicate_agent_overwrites(self, monitor):
+        dup = SwarmSubAgent(agent_id="sub-1", name="Duplicate", agent_type="copy")
+        monitor.register_agent(dup)
+        assert monitor.agent_count == 3
+        assert monitor.get_agent("sub-1").name == "Duplicate"
+
+    def test_task_queue_dispatch_removes_correctly(self, populated_monitor):
+        populated_monitor.dispatch_task("t-3", "sub-1")
+        assert "t-3" not in populated_monitor.get_task_queue()
+        assert populated_monitor.get_task_queue() == ["t-1", "t-2", "t-4", "t-5"]
+
+    def test_mark_offline_nonexistent_agent(self, monitor):
+        monitor.mark_agent_offline("ghost")
+        assert monitor.agent_count == 3
+
+    def test_bring_online_nonexistent_agent(self, monitor):
+        monitor.bring_agent_online("ghost")
+        assert monitor.agent_count == 3
+
+    def test_get_status_summary_empty(self):
+        m = SwarmExecutionMonitor()
+        summary = m.get_status_summary()
+        assert summary["idle"] == 0
+        assert summary["busy"] == 0
+        assert summary["offline"] == 0
+
+    def test_parallelism_empty_monitor(self):
+        m = SwarmExecutionMonitor()
+        assert m.get_parallelism() == 0
+
+    def test_empty_task_distribution(self):
+        m = SwarmExecutionMonitor()
+        assert m.get_task_distribution() == {}
+
+    def test_timestamp_ordering(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        ts1 = populated_monitor._tasks["t-1"].started_at
+        populated_monitor.complete_task("t-1")
+        ts2 = populated_monitor._tasks["t-1"].completed_at
+        assert ts2 >= ts1
+
+    def test_empty_monitor_dispatch_fails(self):
+        m = SwarmExecutionMonitor()
+        m.add_task(SwarmTaskItem(task_id="t", description="test"))
+        result = m.dispatch_task("t", "no-agent")
+        assert result is False
+
+    def test_large_number_of_tasks(self):
+        m = SwarmExecutionMonitor()
+        agents = [SwarmSubAgent(agent_id=f"a{i}", name=f"Agent{i}") for i in range(5)]
+        m.register_agents(agents)
+        tasks = [SwarmTaskItem(task_id=f"t{i}", description=f"Task{i}") for i in range(50)]
+        m.add_tasks(tasks)
+        assert m.total_tasks == 50
+        for i in range(5):
+            m.dispatch_task(f"t{i}", f"a{i}")
+        assert m.get_parallelism() == 5
+
+    def test_status_history_accumulates(self, populated_monitor):
+        populated_monitor.dispatch_task("t-1", "sub-1")
+        populated_monitor.complete_task("t-1")
+        populated_monitor.dispatch_task("t-2", "sub-1")
+        populated_monitor.complete_task("t-2")
+        populated_monitor.dispatch_task("t-3", "sub-1")
+        changes = populated_monitor.get_recent_status_changes("sub-1", 300)
+        assert len(changes) >= 5

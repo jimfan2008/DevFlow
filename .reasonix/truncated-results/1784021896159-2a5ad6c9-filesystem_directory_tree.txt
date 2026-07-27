@@ -1,0 +1,1309 @@
+[
+  {
+    "name": ".codegraph",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-shm",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-wal",
+        "type": "file"
+      },
+      {
+        "name": "daemon.log",
+        "type": "file"
+      },
+      {
+        "name": "daemon.pid",
+        "type": "file"
+      },
+      {
+        "name": "daemon.sock",
+        "type": "file"
+      },
+      {
+        "name": "errors.log",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": ".coverage",
+    "type": "file"
+  },
+  {
+    "name": ".env",
+    "type": "file"
+  },
+  {
+    "name": ".env.example",
+    "type": "file"
+  },
+  {
+    "name": ".env.production",
+    "type": "file"
+  },
+  {
+    "name": ".github",
+    "type": "directory",
+    "children": [
+      {
+        "name": "workflows",
+        "type": "directory",
+        "children": [
+          {
+            "name": "ci.yml",
+            "type": "file"
+          },
+          {
+            "name": "deploy.yml",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".gitignore",
+    "type": "file"
+  },
+  {
+    "name": ".mimo-code.json",
+    "type": "file"
+  },
+  {
+    "name": ".pytest_cache",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "CACHEDIR.TAG",
+        "type": "file"
+      },
+      {
+        "name": "README.md",
+        "type": "file"
+      },
+      {
+        "name": "v",
+        "type": "directory",
+        "children": [
+          {
+            "name": "cache",
+            "type": "directory",
+            "children": [
+              {
+                "name": "lastfailed",
+                "type": "file"
+              },
+              {
+                "name": "nodeids",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".reasonix",
+    "type": "directory",
+    "children": [
+      {
+        "name": "truncated-results",
+        "type": "directory",
+        "children": [
+          {
+            "name": "1783392592966-cf948641-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392614159-b86269f1-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392711212-3683678e-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392713826-b2197b17-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392783845-30fab603-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398027868-b3b6019d-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398038596-550ce97b-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398038662-a61022b2-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398044165-945a2cc9-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403754432-6cb2b785-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403766452-91f47a70-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403766501-03e7b5b5-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403773991-c8a4a4fa-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403786086-e3c8f285-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016588997-dcd0fc75-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016771564-5cbd8603-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016911964-f41e3640-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784017132486-41979287-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784021838662-5af0f256-filesystem_directory_tree.txt",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".superpowers",
+    "type": "directory",
+    "children": [
+      {
+        "name": "sdd",
+        "type": "directory",
+        "children": [
+          {
+            "name": ".gitignore",
+            "type": "file"
+          },
+          {
+            "name": "progress.md",
+            "type": "file"
+          },
+          {
+            "name": "review-102ce14..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-102ce14..8039683.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2995d02..012be04.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2995d02..fe92408.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2fce59a..6240d77.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2fce59a..abe8617.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-49a1b25..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-49a1b25..56e6a41.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..b75dfe6.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..b75dfe68.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-6240d77..102ce14.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-b75dfe6..2995d02.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-fe92408..2fce59a.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-fe92408..718cc51.diff",
+            "type": "file"
+          },
+          {
+            "name": "task-1-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-1-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-2-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-2-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-3-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-3-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-4-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-4-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-5-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-5-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-6-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-6-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-7-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-7-report.md",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "AGENTS.md",
+    "type": "file"
+  },
+  {
+    "name": "BACKUP_GUIDE.md",
+    "type": "file"
+  },
+  {
+    "name": "DESIGN.md",
+    "type": "file"
+  },
+  {
+    "name": "DESIGN.md:Zone.Identifier",
+    "type": "file"
+  },
+  {
+    "name": "DevFlow_SRS_v1.0.md",
+    "type": "file"
+  },
+  {
+    "name": "Dockerfile",
+    "type": "file"
+  },
+  {
+    "name": "Makefile",
+    "type": "file"
+  },
+  {
+    "name": "README.md",
+    "type": "file"
+  },
+  {
+    "name": "REASONIX.md",
+    "type": "file"
+  },
+  {
+    "name": "SRS_DevFlow.md",
+    "type": "file"
+  },
+  {
+    "name": "SRS_软件需求规格说明书.md",
+    "type": "file"
+  },
+  {
+    "name": "_check_bash.mjs",
+    "type": "file"
+  },
+  {
+    "name": "auto_advance.py",
+    "type": "file"
+  },
+  {
+    "name": "backend",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".coverage",
+        "type": "file"
+      },
+      {
+        "name": ".env",
+        "type": "file"
+      },
+      {
+        "name": "alembic",
+        "type": "directory",
+        "children": [
+          {
+            "name": "env.py",
+            "type": "file"
+          },
+          {
+            "name": "script.py.mako",
+            "type": "file"
+          },
+          {
+            "name": "versions",
+            "type": "directory",
+            "children": [
+              {
+                "name": "001_initial.py",
+                "type": "file"
+              },
+              {
+                "name": "002_add_srs_tables.py",
+                "type": "file"
+              },
+              {
+                "name": "003_add_v2_data_models.py",
+                "type": "file"
+              },
+              {
+                "name": "004_v4_agent_roles.py",
+                "type": "file"
+              },
+              {
+                "name": "005_v4_workflow_qa.py",
+                "type": "file"
+              },
+              {
+                "name": "006_v4_swarm_security_docs.py",
+                "type": "file"
+              },
+              {
+                "name": "007_v4_tdd_test_cases.py",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "alembic.ini",
+        "type": "file"
+      },
+      {
+        "name": "app",
+        "type": "directory",
+        "children": [
+          {
+            "name": "__init__.py",
+            "type": "file"
+          },
+          {
+            "name": "api",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "acceptance.py",
+                "type": "file"
+              },
+              {
+                "name": "agents.py",
+                "type": "file"
+              },
+              {
+                "name": "attachments.py",
+                "type": "file"
+              },
+              {
+                "name": "auth.py",
+                "type": "file"
+              },
+              {
+                "name": "boards.py",
+                "type": "file"
+              },
+              {
+                "name": "chat.py",
+                "type": "file"
+              },
+              {
+                "name": "comments.py",
+                "type": "file"
+              },
+              {
+                "name": "dependencies.py",
+                "type": "file"
+              },
+              {
+                "name": "deps.py",
+                "type": "file"
+              },
+              {
+                "name": "files.py",
+                "type": "file"
+              },
+              {
+                "name": "groups.py",
+                "type": "file"
+              },
+              {
+                "name": "hermes.py",
+                "type": "file"
+              },
+              {
+                "name": "hermes_integration.py",
+                "type": "file"
+              },
+              {
+                "name": "hermes_router.py",
+                "type": "file"
+              },
+              {
+                "name": "meetings.py",
+                "type": "file"
+              },
+              {
+                "name": "notifications.py",
+                "type": "file"
+              },
+              {
+                "name": "profiles.py",
+                "type": "file"
+              },
+              {
+                "name": "projects.py",
+                "type": "file"
+              },
+              {
+                "name": "projects_srs.py",
+                "type": "file"
+              },
+              {
+                "name": "qa.py",
+                "type": "file"
+              },
+              {
+                "name": "repos.py",
+                "type": "file"
+              },
+              {
+                "name": "requirements.py",
+                "type": "file"
+              },
+              {
+                "name": "scheduling.py",
+                "type": "file"
+              },
+              {
+                "name": "security.py",
+                "type": "file"
+              },
+              {
+                "name": "skills.py",
+                "type": "file"
+              },
+              {
+                "name": "swarms.py",
+                "type": "file"
+              },
+              {
+                "name": "task_states.py",
+                "type": "file"
+              },
+              {
+                "name": "tasks.py",
+                "type": "file"
+              },
+              {
+                "name": "tasks_srs.py",
+                "type": "file"
+              },
+              {
+                "name": "webhooks.py",
+                "type": "file"
+              },
+              {
+                "name": "websocket.py",
+                "type": "file"
+              },
+              {
+                "name": "workflow",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "core.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step10.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step11.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step12.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step13.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step14.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step15.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step16.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step2.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step4.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step4_1.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step4_2.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step4_3.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step4_4.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step5.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step5_1.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step5_2.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step6.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step7.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step8.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step9.py",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "workflow.py.bak",
+                "type": "file"
+              },
+              {
+                "name": "workload.py",
+                "type": "file"
+              },
+              {
+                "name": "ws",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "auth.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "group_chat.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "handlers.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "manager.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "meeting.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "router.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step10_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step11_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step12_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step13_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step14_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_chat.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_qa.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_qa.py.bak",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_qa_1.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_qa_2.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_qa_3.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step3_qa_4.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step4_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step5_1_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step5_2_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step5_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step6_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step7_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step8_progress.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "step9_progress.py",
+                    "type": "file"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "caches",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "decorator.py",
+                "type": "file"
+              },
+              {
+                "name": "invalidation.py",
+                "type": "file"
+              },
+              {
+                "name": "manager.py",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "config.py",
+            "type": "file"
+          },
+          {
+            "name": "core",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "exceptions.py",
+                "type": "file"
+              },
+              {
+                "name": "responses.py",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "data",
+            "type": "directory",
+            "children": [
+              {
+                "name": "chat.db",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "database.py",
+            "type": "file"
+          },
+          {
+            "name": "dependencies.py",
+            "type": "file"
+          },
+          {
+            "name": "main.py",
+            "type": "file"
+          },
+          {
+            "name": "middleware",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "cors.py",
+                "type": "file"
+              },
+              {
+                "name": "error_handler.py",
+                "type": "file"
+              },
+              {
+                "name": "jwt_blacklist.py",
+                "type": "file"
+              },
+              {
+                "name": "logging.py",
+                "type": "file"
+              },
+              {
+                "name": "rate_limit.py",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "models",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "acceptance_record.py",
+                "type": "file"
+              },
+              {
+                "name": "agent.py",
+                "type": "file"
+              },
+              {
+                "name": "agent_execution_log.py",
+                "type": "file"
+              },
+              {
+                "name": "agent_heartbeat.py",
+                "type": "file"
+              },
+              {
+                "name": "attachment.py",
+                "type": "file"
+              },
+              {
+                "name": "board.py",
+                "type": "file"
+              },
+              {
+                "name": "comment.py",
+                "type": "file"
+              },
+              {
+                "name": "dependency.py",
+                "type": "file"
+              },
+              {
+                "name": "doc_version.py",
+                "type": "file"
+              },
+              {
+                "name": "enums.py",
+                "type": "file"
+              },
+              {
+                "name": "group.py",
+                "type": "file"
+              },
+              {
+                "name": "hermes_session.py",
+                "type": "file"
+              },
+              {
+                "name": "hermes_skill.py",
+                "type": "file"
+              },
+              {
+                "name": "notification.py",
+                "type": "file"
+              },
+              {
+                "name": "project.py",
+                "type": "file"
+              },
+              {
+                "name": "qa_record.py",
+                "type": "file"
+              },
+              {
+                "name": "repo.py",
+                "type": "file"
+              },
+              {
+                "name": "requirement.py",
+                "type": "file"
+              },
+              {
+                "name": "security_audit.py",
+                "type": "file"
+              },
+              {
+                "name": "swarm.py",
+                "type": "file"
+              },
+              {
+                "name": "task.py",
+                "type": "file"
+              },
+              {
+                "name": "task_execution.py",
+                "type": "file"
+              },
+              {
+                "name": "tdd_test_case.py",
+                "type": "file"
+              },
+              {
+                "name": "types.py",
+                "type": "file"
+              },
+              {
+                "name": "user.py",
+                "type": "file"
+              },
+              {
+                "name": "workflow_step.py",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "schemas",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "acceptance.py",
+                "type": "file"
+              },
+              {
+                "name": "agent.py",
+                "type": "file"
+              },
+              {
+                "name": "agent_execution_log.py",
+                "type": "file"
+              },
+              {
+                "name": "attachment.py",
+                "type": "file"
+              },
+              {
+                "name": "auth.py",
+                "type": "file"
+              },
+              {
+                "name": "board.py",
+                "type": "file"
+              },
+              {
+                "name": "comment.py",
+                "type": "file"
+              },
+              {
+                "name": "dependency.py",
+                "type": "file"
+              },
+              {
+                "name": "group.py",
+                "type": "file"
+              },
+              {
+                "name": "heartbeat.py",
+                "type": "file"
+              },
+              {
+                "name": "hermes_skill.py",
+                "type": "file"
+              },
+              {
+                "name": "notification.py",
+                "type": "file"
+              },
+              {
+                "name": "project.py",
+                "type": "file"
+              },
+              {
+                "name": "project_srs.py",
+                "type": "file"
+              },
+              {
+                "name": "repo.py",
+                "type": "file"
+              },
+              {
+                "name": "requirement.py",
+                "type": "file"
+              },
+              {
+                "name": "scheduling.py",
+                "type": "file"
+              },
+              {
+                "name": "task.py",
+                "type": "file"
+              },
+              {
+                "name": "user.py",
+                "type": "file"
+              },
+              {
+                "name": "workload.py",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "scripts",
+            "type": "directory",
+            "children": [
+              {
+                "name": "generate_srs.py",
+                "type": "file"
+              },
+              {
+                "name": "generate_srs.py:Zone.Identifier",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "services",
+            "type": "directory",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file"
+              },
+              {
+                "name": "acceptance_service.py",
+                "type": "file"
+              },
+              {
+                "name": "acceptance_service_v2.py",
+                "type": "file"
+              },
+              {
+                "name": "agent_role_service.py",
+                "type": "file"
+              },
+              {
+                "name": "agent_scheduler_service.py",
+                "type": "file"
+              },
+              {
+                "name": "agent_scheduling_service.py",
+                "type": "file"
+              },
+              {
+                "name": "attachment_service.py",
+                "type": "file"
+              },
+              {
+                "name": "auth_service.py",
+                "type": "file"
+              },
+              {
+                "name": "board_service.py",
+                "type": "file"
+              },
+              {
+                "name": "celery_tasks.py",
+                "type": "file"
+              },
+              {
+                "name": "chat_store.py",
+                "type": "file"
+              },
+              {
+                "name": "comment_service.py",
+                "type": "file"
+              },
+              {
+                "name": "conversation_coordinator.py",
+                "type": "file"
+              },
+              {
+                "name": "coordinator.py",
+                "type": "file"
+              },
+              {
+                "name": "decomposition_service.py",
+                "type": "file"
+              },
+              {
+                "name": "delivery_service.py",
+                "type": "file"
+              },
+              {
+                "name": "dependency_service.py",
+                "type": "file"
+              },
+              {
+                "name": "doc_sharder.py",
+                "type": "file"
+              },
+              {
+                "name": "gateway_client.py",
+                "type": "file"
+              },
+              {
+                "name": "gateway_health.py",
+                "type": "file"
+              },
+              {
+                "name": "gitea_client.py",
+                "type": "file"
+              },
+              {
+                "name": "group_service.py",
+                "type": "file"
+              },
+              {
+                "name": "haimei_board_sync.py",
+                "type": "file"
+              },
+              {
+                "name": "haimei_dispatch.py",
+                "type": "file"
+              },
+              {
+                "name": "haimei_executor.py",
+                "type"
+
+[…truncated 110716 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+h",
+    "type": "file"
+  },
+  {
+    "name": "start_docker.py",
+    "type": "file"
+  },
+  {
+    "name": "start_project.py",
+    "type": "file"
+  },
+  {
+    "name": "test_agent_chat.py",
+    "type": "file"
+  },
+  {
+    "name": "test_devflow.db",
+    "type": "file"
+  },
+  {
+    "name": "test_devflow.db-journal",
+    "type": "file"
+  },
+  {
+    "name": "test_perf_devflow.db",
+    "type": "file"
+  },
+  {
+    "name": "test_results.txt",
+    "type": "file"
+  },
+  {
+    "name": "tests",
+    "type": "directory",
+    "children": [
+      {
+        "name": "conftest.py",
+        "type": "file"
+      },
+      {
+        "name": "srs_acceptance_report.json",
+        "type": "file"
+      },
+      {
+        "name": "test_config.py",
+        "type": "file"
+      },
+      {
+        "name": "test_health.py",
+        "type": "file"
+      },
+      {
+        "name": "test_jwt.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "trigger_step4.py",
+    "type": "file"
+  },
+  {
+    "name": "uv.lock",
+    "type": "file"
+  }
+]

@@ -94,17 +94,21 @@ function formatTime(timestamp: string): string {
     flex-shrink: 0;
     font-weight: 600;
     font-size: $caption-strong-size;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
 
-    &.avatar-user { background: $primary; }
+    &.avatar-user {
+      background: $gradient-primary !important;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    }
 
-    &.avatar-purple { background: #7c3aed; }
-    &.avatar-green { background: #059669; }
-    &.avatar-yellow { background: #d97706; }
-    &.avatar-red { background: #dc2626; }
-    &.avatar-indigo { background: #4f46e5; }
-    &.avatar-pink { background: #db2777; }
-    &.avatar-teal { background: #0d9488; }
-    &.avatar-orange { background: #ea580c; }
+    &.avatar-purple { background: #7c3aed !important; box-shadow: 0 0 8px rgba(124, 58, 237, 0.3); }
+    &.avatar-green { background: #059669 !important; box-shadow: 0 0 8px rgba(5, 150, 105, 0.3); }
+    &.avatar-yellow { background: #d97706 !important; box-shadow: 0 0 8px rgba(217, 119, 6, 0.3); }
+    &.avatar-red { background: #dc2626 !important; box-shadow: 0 0 8px rgba(220, 38, 38, 0.3); }
+    &.avatar-indigo { background: #4f46e5 !important; box-shadow: 0 0 8px rgba(79, 70, 229, 0.3); }
+    &.avatar-pink { background: #db2777 !important; box-shadow: 0 0 8px rgba(219, 39, 119, 0.3); }
+    &.avatar-teal { background: #0d9488 !important; box-shadow: 0 0 8px rgba(13, 148, 136, 0.3); }
+    &.avatar-orange { background: #ea580c !important; box-shadow: 0 0 8px rgba(234, 88, 12, 0.3); }
   }
 
   &__body {
@@ -126,7 +130,7 @@ function formatTime(timestamp: string): string {
     font-size: $caption-strong-size;
     font-weight: $caption-strong-weight;
     letter-spacing: $caption-strong-tracking;
-    color: $ink;
+    color: $text-primary;
   }
 
   &__speaker {
@@ -134,40 +138,42 @@ function formatTime(timestamp: string): string {
     align-items: center;
     gap: $spacing-xxs;
     font-size: $fine-print-size;
-    color: #22c55e;
+    color: $secondary;
     font-weight: 500;
   }
 
   &__time {
     font-size: $fine-print-size;
-    color: $ink-muted-48;
+    color: $text-muted;
   }
 
   &__content {
     padding: $spacing-sm $spacing-4;
-    border-radius: $radius-md;
+    border-radius: 12px;
     text-align: left;
     line-height: $body-leading;
 
     &.content-user {
-      background: $primary;
-      color: $on-primary;
-      border-bottom-right-radius: $radius-sm;
+      background: $gradient-primary;
+      color: $text-inverse;
+      border-bottom-right-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0, 212, 255, 0.2);
     }
 
     &.content-agent {
-      background: $canvas;
-      border: 1px solid $hairline;
-      color: $ink;
-      border-bottom-left-radius: $radius-sm;
-      width: 100%;
+      background: $glass-bg;
+      backdrop-filter: $frosted-blur;
+      border: 1px solid $glass-border;
+      color: $text-primary;
+      border-bottom-left-radius: 6px;
     }
 
     &.content-speaker {
-      background: $canvas-parchment;
-      border: 1px solid $primary;
-      color: $ink;
-      border-bottom-left-radius: $radius-sm;
+      background: $primary-dim;
+      border: 1px solid $border-cyan;
+      color: $text-primary;
+      border-bottom-left-radius: 6px;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.08);
     }
   }
 }
@@ -176,8 +182,9 @@ function formatTime(timestamp: string): string {
   display: inline-block;
   width: 8px;
   height: 8px;
-  background: #22c55e;
+  background: $secondary;
   border-radius: $radius-full;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
   animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
@@ -185,7 +192,7 @@ function formatTime(timestamp: string): string {
   display: inline-block;
   width: 2px;
   height: 16px;
-  background: currentColor;
+  background: $primary;
   margin-left: 2px;
   animation: blink-cursor 0.8s step-end infinite;
   vertical-align: text-bottom;
@@ -214,18 +221,58 @@ function formatTime(timestamp: string): string {
   }
 
   :deep(code) {
-    background: rgba(0, 0, 0, 0.06);
+    background: rgba(255, 255, 255, 0.1);
+    color: $primary;
     padding: 1px 4px;
-    border-radius: $radius-sm;
+    border-radius: 4px;
+    font-family: $font-mono;
     font-size: $fine-print-size;
   }
 
   :deep(pre) {
-    background: rgba(0, 0, 0, 0.06);
+    background: rgba(0, 0, 0, 0.3);
     padding: $spacing-sm;
-    border-radius: $radius-sm;
+    border-radius: 8px;
     overflow-x: auto;
     margin: $spacing-xs 0;
+    border: 1px solid $border-subtle;
+
+    code {
+      background: transparent;
+      color: $text-secondary;
+    }
   }
+
+  :deep(table) {
+    border-collapse: collapse;
+    width: 100%;
+    margin: $spacing-xs 0;
+    th, td {
+      border: 1px solid $border-subtle;
+      padding: 6px 10px;
+      text-align: left;
+    }
+    th { background: rgba(255, 255, 255, 0.05); color: $text-primary; }
+    td { color: $text-secondary; }
+  }
+
+  :deep(blockquote) {
+    border-left: 3px solid $primary;
+    margin: $spacing-xs 0;
+    padding: 4px 12px;
+    color: $text-muted;
+    background: rgba(0, 212, 255, 0.04);
+    border-radius: 0 4px 4px 0;
+  }
+
+  :deep(hr) {
+    border: none;
+    border-top: 1px solid $border-subtle;
+    margin: $spacing-sm 0;
+  }
+
+  :deep(strong) { color: $text-primary; }
+
+  :deep(a) { color: $primary; }
 }
 </style>

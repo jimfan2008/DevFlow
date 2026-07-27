@@ -51,7 +51,7 @@ class Settings(BaseSettings):
         "DATABASE_URL",
         "postgresql+asyncpg://devflow_user:devflow_password@localhost:5432/devflow_db",
     )
-    SQLITE_DATABASE_URL: str = "sqlite+aiosqlite:////home/jim/DevFlow/devflow.db"
+    SQLITE_DATABASE_URL: str = "sqlite+aiosqlite:///./devflow.db"
 
     # ── 连接池 (兼容旧版) ─────────────────────────────────
     DB_POOL_SIZE: int = 10
@@ -100,28 +100,16 @@ class Settings(BaseSettings):
     GITEA_DB_USER: str = os.getenv("GITEA_DB_USER", "gitea")
     GITEA_DB_PASSWORD: str = os.getenv("GITEA_DB_PASSWORD", "gitea_password")
 
-    # ── GitHub OAuth ────────────────────────────────────────
-    GITHUB_CLIENT_ID: str = os.getenv("GITHUB_CLIENT_ID", "")
-    GITHUB_CLIENT_SECRET: str = os.getenv("GITHUB_CLIENT_SECRET", "")
-    GITHUB_OAUTH_REDIRECT_URI: str = os.getenv(
-        "GITHUB_OAUTH_REDIRECT_URI",
-        os.path.join(os.getenv("FRONTEND_URL", "http://localhost:5173"), "auth/github/callback"),
+    # ── 项目存储 ───────────────────────────────────────────
+    PROJECTS_BASE_DIR: str = os.getenv(
+        "PROJECTS_BASE_DIR",
+        os.path.join(os.path.expanduser("~"), "DevFlow", "projects"),
     )
 
     # ── 项目存储 ───────────────────────────────────────────
     PROJECTS_BASE_DIR: str = os.getenv(
         "PROJECTS_BASE_DIR",
-        "/home/jim/projects",
-    )
-
-    # ── 项目子目录（相对于 PROJECTS_BASE_DIR/{slug}/）─────
-    # 文档输出目录（需求、设计、代码、报告等正式产出物）
-    PROJECT_DOCS_SUBDIR: str = os.getenv(
-        "PROJECT_DOCS_SUBDIR", "docs"
-    )
-    # 临时文件目录（中间产物、缓存、检验报告等）
-    PROJECT_TMP_SUBDIR: str = os.getenv(
-        "PROJECT_TMP_SUBDIR", "tmp"
+        os.path.join(os.path.expanduser("~"), "DevFlow", "projects"),
     )
 
     # ── 文件上传 ──────────────────────────────────────────

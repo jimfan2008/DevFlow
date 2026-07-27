@@ -1,0 +1,1199 @@
+[
+  {
+    "name": ".coverage",
+    "type": "file"
+  },
+  {
+    "name": ".env",
+    "type": "file"
+  },
+  {
+    "name": ".env.example",
+    "type": "file"
+  },
+  {
+    "name": "Dockerfile",
+    "type": "file"
+  },
+  {
+    "name": "Dockerfile.frontend",
+    "type": "file"
+  },
+  {
+    "name": "README.md",
+    "type": "file"
+  },
+  {
+    "name": "components.d.ts",
+    "type": "file"
+  },
+  {
+    "name": "dist",
+    "type": "directory",
+    "children": [
+      {
+        "name": "assets",
+        "type": "directory",
+        "children": [
+          {
+            "name": "AcceptanceView-BvkO7aou.js",
+            "type": "file"
+          },
+          {
+            "name": "AcceptanceView-CkV_oD2g.css",
+            "type": "file"
+          },
+          {
+            "name": "AgentDetailView-BCD3Lh8j.js",
+            "type": "file"
+          },
+          {
+            "name": "AgentDetailView-CET5Ni62.css",
+            "type": "file"
+          },
+          {
+            "name": "AgentListView-D7QRzegq.css",
+            "type": "file"
+          },
+          {
+            "name": "AgentListView-EMzLeexF.js",
+            "type": "file"
+          },
+          {
+            "name": "BoardListView-Boz2IDjC.js",
+            "type": "file"
+          },
+          {
+            "name": "BoardListView-D1frM0c2.css",
+            "type": "file"
+          },
+          {
+            "name": "BoardView-DBm7Nis0.css",
+            "type": "file"
+          },
+          {
+            "name": "BoardView-DPT25KXl.js",
+            "type": "file"
+          },
+          {
+            "name": "ChatView-CJhficUs.js",
+            "type": "file"
+          },
+          {
+            "name": "ChatView-DPgI4yHC.css",
+            "type": "file"
+          },
+          {
+            "name": "CreateBoardDialog-DFrotFII.css",
+            "type": "file"
+          },
+          {
+            "name": "CreateBoardDialog-DTDcV5dt.js",
+            "type": "file"
+          },
+          {
+            "name": "DeliveryView-CKMmRIbr.js",
+            "type": "file"
+          },
+          {
+            "name": "DeliveryView-CWqDmIqU.css",
+            "type": "file"
+          },
+          {
+            "name": "EmptyState-Bh4DxLiS.css",
+            "type": "file"
+          },
+          {
+            "name": "EmptyState-podDycRg.js",
+            "type": "file"
+          },
+          {
+            "name": "LoginView-BLIFx0o-.css",
+            "type": "file"
+          },
+          {
+            "name": "LoginView-BNGf_1k2.js",
+            "type": "file"
+          },
+          {
+            "name": "NotFoundView-C0SAE0Km.js",
+            "type": "file"
+          },
+          {
+            "name": "NotFoundView-epAKlpcg.css",
+            "type": "file"
+          },
+          {
+            "name": "NotificationCenterView--4p0_dg0.css",
+            "type": "file"
+          },
+          {
+            "name": "NotificationCenterView-yOqQYw9D.js",
+            "type": "file"
+          },
+          {
+            "name": "ProfileView-B-Fs9uYa.css",
+            "type": "file"
+          },
+          {
+            "name": "ProfileView-QP2wRjis.js",
+            "type": "file"
+          },
+          {
+            "name": "ProjectDetailView-D-rPsKmn.js",
+            "type": "file"
+          },
+          {
+            "name": "ProjectDetailView-Do_fRHZ2.css",
+            "type": "file"
+          },
+          {
+            "name": "ProjectListView-D9-Ti4re.js",
+            "type": "file"
+          },
+          {
+            "name": "ProjectListView-Q2zOTA4A.css",
+            "type": "file"
+          },
+          {
+            "name": "RegisterView-CKtS_Des.css",
+            "type": "file"
+          },
+          {
+            "name": "RegisterView-CmjG6koH.js",
+            "type": "file"
+          },
+          {
+            "name": "RepoView-BXQEQn-K.js",
+            "type": "file"
+          },
+          {
+            "name": "RepoView-C77m1b4m.css",
+            "type": "file"
+          },
+          {
+            "name": "RequirementsView-DXdeZ8dd.css",
+            "type": "file"
+          },
+          {
+            "name": "RequirementsView-Ok5-eXMT.js",
+            "type": "file"
+          },
+          {
+            "name": "SkillView-CRL_My5t.js",
+            "type": "file"
+          },
+          {
+            "name": "SkillView-ZZ2qQXx9.css",
+            "type": "file"
+          },
+          {
+            "name": "Step10View-D9yCgUjk.js",
+            "type": "file"
+          },
+          {
+            "name": "Step11View-Doiv8vcr.js",
+            "type": "file"
+          },
+          {
+            "name": "Step12View-D2JKb0pF.js",
+            "type": "file"
+          },
+          {
+            "name": "Step13View-EMh85KZa.js",
+            "type": "file"
+          },
+          {
+            "name": "Step14View-BAWI0tF5.js",
+            "type": "file"
+          },
+          {
+            "name": "Step15View-DvR8Hbfg.js",
+            "type": "file"
+          },
+          {
+            "name": "Step16View-B4A_-o6k.js",
+            "type": "file"
+          },
+          {
+            "name": "Step1View-DVdUkAss.css",
+            "type": "file"
+          },
+          {
+            "name": "Step1View-DdDcohQD.js",
+            "type": "file"
+          },
+          {
+            "name": "Step2View-DrQy5AYZ.js",
+            "type": "file"
+          },
+          {
+            "name": "Step2View-nyhsggiC.css",
+            "type": "file"
+          },
+          {
+            "name": "Step3QaView-Ck5p2z7B.css",
+            "type": "file"
+          },
+          {
+            "name": "Step3QaView-DynapgI9.js",
+            "type": "file"
+          },
+          {
+            "name": "Step3View-8sbkhwE9.js",
+            "type": "file"
+          },
+          {
+            "name": "Step3View-BK1l5Xn2.css",
+            "type": "file"
+          },
+          {
+            "name": "Step4View-B13NwE-1.css",
+            "type": "file"
+          },
+          {
+            "name": "Step4View-B8hp90ex.js",
+            "type": "file"
+          },
+          {
+            "name": "Step5View-BKPbljWJ.css",
+            "type": "file"
+          },
+          {
+            "name": "Step5View-BRUuwbKr.js",
+            "type": "file"
+          },
+          {
+            "name": "Step6View-D-sIABMT.css",
+            "type": "file"
+          },
+          {
+            "name": "Step6View-D_53bxlL.js",
+            "type": "file"
+          },
+          {
+            "name": "Step7View-CWECx7v1.js",
+            "type": "file"
+          },
+          {
+            "name": "Step7View-iJ3qNKIJ.css",
+            "type": "file"
+          },
+          {
+            "name": "Step8View-Cevz29ZF.js",
+            "type": "file"
+          },
+          {
+            "name": "Step9View-BD_Mf-x2.js",
+            "type": "file"
+          },
+          {
+            "name": "TaskBoardView-B1mXZOcO.css",
+            "type": "file"
+          },
+          {
+            "name": "TaskBoardView-DwFOCHZ9.js",
+            "type": "file"
+          },
+          {
+            "name": "TaskDetailView-BpxZOMrz.js",
+            "type": "file"
+          },
+          {
+            "name": "TaskDetailView-C30ksteo.css",
+            "type": "file"
+          },
+          {
+            "name": "TaskForm-BsrAVvYx.css",
+            "type": "file"
+          },
+          {
+            "name": "TaskForm.vue_vue_type_script_setup_true_lang-dPcatAhO.js",
+            "type": "file"
+          },
+          {
+            "name": "WorkflowStepBase-BGLox803.css",
+            "type": "file"
+          },
+          {
+            "name": "WorkflowStepBase-Cs4MWcnu.js",
+            "type": "file"
+          },
+          {
+            "name": "el-alert-B6UgayC7.css",
+            "type": "file"
+          },
+          {
+            "name": "el-card-BAyktVMS.css",
+            "type": "file"
+          },
+          {
+            "name": "el-checkbox-CzNtyWdF.css",
+            "type": "file"
+          },
+          {
+            "name": "el-collapse-item-BvmEG8Qn.css",
+            "type": "file"
+          },
+          {
+            "name": "el-descriptions-BpDzfuC8.css",
+            "type": "file"
+          },
+          {
+            "name": "el-dialog-BIfDN5q_.css",
+            "type": "file"
+          },
+          {
+            "name": "el-divider-B0pQhKGi.css",
+            "type": "file"
+          },
+          {
+            "name": "el-empty-S7fQQ3B8.css",
+            "type": "file"
+          },
+          {
+            "name": "el-form-item-D_relxjU.css",
+            "type": "file"
+          },
+          {
+            "name": "el-input-number-DExoAqKP.css",
+            "type": "file"
+          },
+          {
+            "name": "el-link-CPQZ-olG.css",
+            "type": "file"
+          },
+          {
+            "name": "el-loading-C-X_DDFa.css",
+            "type": "file"
+          },
+          {
+            "name": "el-pagination-CDeFZDGO.css",
+            "type": "file"
+          },
+          {
+            "name": "el-progress-apgqz2By.css",
+            "type": "file"
+          },
+          {
+            "name": "el-result-CF-sYK2h.css",
+            "type": "file"
+          },
+          {
+            "name": "el-select-CK58rX4v.css",
+            "type": "file"
+          },
+          {
+            "name": "el-step-DtA3_m5y.css",
+            "type": "file"
+          },
+          {
+            "name": "el-tab-pane-LzsQQ_QK.css",
+            "type": "file"
+          },
+          {
+            "name": "el-table-column-Dp73S2HR.css",
+            "type": "file"
+          },
+          {
+            "name": "el-tag-1VV9QMa7.css",
+            "type": "file"
+          },
+          {
+            "name": "index-B_9EkupI.css",
+            "type": "file"
+          },
+          {
+            "name": "index-d_YTF3a2.js",
+            "type": "file"
+          },
+          {
+            "name": "project-mWP7sF2P.js",
+            "type": "file"
+          },
+          {
+            "name": "useAcceptanceStore-gAK22RwX.js",
+            "type": "file"
+          },
+          {
+            "name": "useAgentStore-BR9EjUfO.js",
+            "type": "file"
+          },
+          {
+            "name": "useBoardStore-6tMPM3-G.js",
+            "type": "file"
+          },
+          {
+            "name": "useProjectStore-Bo8slUlt.js",
+            "type": "file"
+          },
+          {
+            "name": "useRequirementStore-D8YPfAWb.js",
+            "type": "file"
+          },
+          {
+            "name": "useTaskStore-pZaCoBoE.js",
+            "type": "file"
+          },
+          {
+            "name": "useWorkflowStep-Ciw8j3oI.js",
+            "type": "file"
+          },
+          {
+            "name": "workflow-CMyDNqQW.js",
+            "type": "file"
+          },
+          {
+            "name": "workload-BUA3LOYB.js",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "index.html",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "e2e",
+    "type": "directory",
+    "children": [
+      {
+        "name": "cli",
+        "type": "directory",
+        "children": [
+          {
+            "name": "screenshots",
+            "type": "directory",
+            "children": []
+          },
+          {
+            "name": "walkthrough.mjs",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "index.html",
+    "type": "file"
+  },
+  {
+    "name": "node_modules",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".bin",
+        "type": "directory",
+        "children": [
+          {
+            "name": "acorn",
+            "type": "file"
+          },
+          {
+            "name": "css-beautify",
+            "type": "file"
+          },
+          {
+            "name": "editorconfig",
+            "type": "file"
+          },
+          {
+            "name": "esbuild",
+            "type": "file"
+          },
+          {
+            "name": "eslint",
+            "type": "file"
+          },
+          {
+            "name": "eslint-config-prettier",
+            "type": "file"
+          },
+          {
+            "name": "glob",
+            "type": "file"
+          },
+          {
+            "name": "he",
+            "type": "file"
+          },
+          {
+            "name": "html-beautify",
+            "type": "file"
+          },
+          {
+            "name": "js-beautify",
+            "type": "file"
+          },
+          {
+            "name": "js-yaml",
+            "type": "file"
+          },
+          {
+            "name": "markdown-it",
+            "type": "file"
+          },
+          {
+            "name": "nanoid",
+            "type": "file"
+          },
+          {
+            "name": "node-which",
+            "type": "file"
+          },
+          {
+            "name": "nopt",
+            "type": "file"
+          },
+          {
+            "name": "parser",
+            "type": "file"
+          },
+          {
+            "name": "playwright",
+            "type": "file"
+          },
+          {
+            "name": "playwright-core",
+            "type": "file"
+          },
+          {
+            "name": "prettier",
+            "type": "file"
+          },
+          {
+            "name": "resolve",
+            "type": "file"
+          },
+          {
+            "name": "rimraf",
+            "type": "file"
+          },
+          {
+            "name": "rollup",
+            "type": "file"
+          },
+          {
+            "name": "sass",
+            "type": "file"
+          },
+          {
+            "name": "semver",
+            "type": "file"
+          },
+          {
+            "name": "tsc",
+            "type": "file"
+          },
+          {
+            "name": "tsserver",
+            "type": "file"
+          },
+          {
+            "name": "vite",
+            "type": "file"
+          },
+          {
+            "name": "vite-node",
+            "type": "file"
+          },
+          {
+            "name": "vitest",
+            "type": "file"
+          },
+          {
+            "name": "vue-demi-fix",
+            "type": "file"
+          },
+          {
+            "name": "vue-demi-switch",
+            "type": "file"
+          },
+          {
+            "name": "vue-tsc",
+            "type": "file"
+          },
+          {
+            "name": "why-is-node-running",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": ".package-lock.json",
+        "type": "file"
+      },
+      {
+        "name": ".vite",
+        "type": "directory",
+        "children": [
+          {
+            "name": "deps",
+            "type": "directory",
+            "children": [
+              {
+                "name": "@element-plus_icons-vue.js",
+                "type": "file"
+              },
+              {
+                "name": "@element-plus_icons-vue.js.map",
+                "type": "file"
+              },
+              {
+                "name": "_metadata.json",
+                "type": "file"
+              },
+              {
+                "name": "axios.js",
+                "type": "file"
+              },
+              {
+                "name": "axios.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-43NLKNRQ.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-43NLKNRQ.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-4DFNTNI5.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-4DFNTNI5.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-BJZ2CCBT.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-BJZ2CCBT.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-CL5A3FYK.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-CL5A3FYK.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-DC5AMYBS.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-DC5AMYBS.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-EJOUFNOB.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-EJOUFNOB.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-IIGUYIAY.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-IIGUYIAY.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-IQNM2FT7.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-IQNM2FT7.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-LYLOV7KA.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-LYLOV7KA.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-MXJYVRFA.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-MXJYVRFA.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-PRE3DMTB.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-PRE3DMTB.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-QJLCBV3R.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-QJLCBV3R.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-R4IPVHRQ.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-R4IPVHRQ.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-SDDQINHI.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-SDDQINHI.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-TBYUAI4A.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-TBYUAI4A.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-TIOWWRIT.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-TIOWWRIT.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-TJLIACOJ.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-TJLIACOJ.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-UXGGWFNE.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-UXGGWFNE.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-YFT6OQ5R.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-YFT6OQ5R.js.map",
+                "type": "file"
+              },
+              {
+                "name": "chunk-ZOXDRNCX.js",
+                "type": "file"
+              },
+              {
+                "name": "chunk-ZOXDRNCX.js.map",
+                "type": "file"
+              },
+              {
+                "name": "date-fns.js",
+                "type": "file"
+              },
+              {
+                "name": "date-fns.js.map",
+                "type": "file"
+              },
+              {
+                "name": "date-fns_locale.js",
+                "type": "file"
+              },
+              {
+                "name": "date-fns_locale.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_alert_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_alert_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_avatar_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_avatar_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_badge_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_badge_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_base_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_base_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_button_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_button_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_card_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_card_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_checkbox_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_checkbox_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_collapse-item_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_collapse-item_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_collapse_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_collapse_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_color-picker_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_color-picker_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_date-picker_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_date-picker_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_descriptions-item_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_descriptions-item_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_descriptions_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_descriptions_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dialog_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dialog_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_divider_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_divider_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_drawer_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_drawer_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dropdown-item_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dropdown-item_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dropdown-menu_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dropdown-menu_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dropdown_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_dropdown_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_empty_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_empty_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_form-item_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_form-item_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_form_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_form_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_icon_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_icon_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_input-number_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_input-number_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_input_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_input_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_link_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_link_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_loading_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_loading_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_menu-item_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_menu-item_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_menu_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_menu_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_message_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_message_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_option_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_option_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_pagination_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_pagination_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_progress_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_progress_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_result_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_result_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_select_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_select_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_sub-menu_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_sub-menu_style_css.js.map",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_switch_style_css.js",
+                "type": "file"
+              },
+              {
+                "name": "element-plus_es_components_switch_style_css.js.map",
+                "type": "file"
+              }
+
+[…truncated 3466811 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+ame": "Step3View.vue.bak",
+            "type": "file"
+          },
+          {
+            "name": "Step4View.vue",
+            "type": "file"
+          },
+          {
+            "name": "Step4View.vue.bak",
+            "type": "file"
+          },
+          {
+            "name": "Step5View.vue",
+            "type": "file"
+          },
+          {
+            "name": "Step6View.vue",
+            "type": "file"
+          },
+          {
+            "name": "Step7View.vue",
+            "type": "file"
+          },
+          {
+            "name": "Step8View.vue",
+            "type": "file"
+          },
+          {
+            "name": "Step9View.vue",
+            "type": "file"
+          },
+          {
+            "name": "TaskBoardView.vue",
+            "type": "file"
+          },
+          {
+            "name": "TaskDetailView.vue",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "tsconfig.json",
+    "type": "file"
+  },
+  {
+    "name": "vite.config.js",
+    "type": "file"
+  }
+]

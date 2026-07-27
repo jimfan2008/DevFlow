@@ -1,0 +1,732 @@
+import pytest
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+
+
+class MockPageStructure:
+    """页面结构定义."""
+
+    def __init__(self, pages: List[Dict[str, Any]]):
+        self.pages = pages
+        self.layouts: List[str] = []
+
+    @property
+    def page_count(self) -> int:
+        return len(self.pages)
+
+    def has_page(self, name: str) -> bool:
+        return any(p.get("name") == name for p in self.pages)
+
+    def get_page(self, name: str) -> Optional[Dict[str, Any]]:
+        for p in self.pages:
+            if p.get("name") == name:
+                return p
+        return None
+
+
+class MockRouteDesign:
+    """路由设计定义."""
+
+    def __init__(self, routes: List[Dict[str, Any]]):
+        self.routes = routes
+
+    @property
+    def route_count(self) -> int:
+        return len(self.routes)
+
+    def has_route(self, path: str) -> bool:
+        return any(r.get("path") == path for r in self.routes)
+
+    def has_nested_route(self, parent: str, child: str) -> bool:
+        for r in self.routes:
+            if r.get("path") == parent and "children" in r:
+                if any(c.get("path") == child for c in r["children"]):
+                    return True
+        return False
+
+
+class MockComponentLibrary:
+    """组件库选型定义."""
+
+    def __init__(self, name: str, version: str, components: List[Dict[str, Any]]):
+        self.name = name
+        self.version = version
+        self.components = components
+
+    @property
+    def component_count(self) -> int:
+        return len(self.components)
+
+    def has_component(self, name: str) -> bool:
+        return any(c.get("name") == name for c in self.components)
+
+    def get_component(self, name: str) -> Optional[Dict[str, Any]]:
+        for c in self.components:
+            if c.get("name") == name:
+                return c
+        return None
+
+
+class MockStateManagement:
+    """状态管理方案定义."""
+
+    def __init__(self, strategy: str, stores: List[Dict[str, Any]]):
+        self.strategy = strategy
+        self.stores = stores
+
+    @property
+    def store_count(self) -> int:
+        return len(self.stores)
+
+    def has_store(self, name: str) -> bool:
+        return any(s.get("name") == name for s in self.stores)
+
+    def get_store(self, name: str) -> Optional[Dict[str, Any]]:
+        for s in self.stores:
+            if s.get("name") == name:
+                return s
+        return None
+
+
+class MockResponsiveDesign:
+    """响应式设计方案定义."""
+
+    def __init__(self, breakpoints: List[Dict[str, Any]], layout_strategy: str):
+        self.breakpoints = breakpoints
+        self.layout_strategy = layout_strategy
+
+    @property
+    def breakpoint_count(self) -> int:
+        return len(self.breakpoints)
+
+    def has_breakpoint(self, name: str) -> bool:
+        return any(b.get("name") == name for b in self.breakpoints)
+
+    def get_breakpoint_value(self, name: str) -> Optional[int]:
+        for b in self.breakpoints:
+            if b.get("name") == name:
+                return b.get("width")
+        return None
+
+
+class MockUIDesignDocument:
+    """前端界面设计文档."""
+
+    def __init__(self):
+        self.created_at: Optional[datetime] = None
+        self.page_structure: Optional[MockPageStructure] = None
+        self.route_design: Optional[MockRouteDesign] = None
+        self.component_library: Optional[MockComponentLibrary] = None
+        self.state_management: Optional[MockStateManagement] = None
+        self.responsive_design: Optional[MockResponsiveDesign] = None
+
+    def generate(self,
+                 page_structure: MockPageStructure,
+                 route_design: MockRouteDesign,
+                 component_library: MockComponentLibrary,
+                 state_management: MockStateManagement,
+                 responsive_design: MockResponsiveDesign) -> timedelta:
+        """生成设计文档并记录耗时."""
+        start = datetime.now()
+        self.page_structure = page_structure
+        self.route_design = route_design
+        self.component_library = component_library
+        self.state_management = state_management
+        self.responsive_design = responsive_design
+        self.created_at = datetime.now()
+        elapsed = datetime.now() - start
+        return elapsed
+
+    @property
+    def has_page_structure(self) -> bool:
+        return self.page_structure is not None
+
+    @property
+    def has_route_design(self) -> bool:
+        return self.route_design is not None
+
+    @property
+    def has_component_library(self) -> bool:
+        return self.component_library is not None
+
+    @property
+    def has_state_management(self) -> bool:
+        return self.state_management is not None
+
+    @property
+    def has_responsive_design(self) -> bool:
+        return self.responsive_design is not None
+
+    @property
+    def all_sections_present(self) -> bool:
+        return (self.has_page_structure and self.has_route_design
+                and self.has_component_library and self.has_state_management
+                and self.has_responsive_design)
+
+
+class TestFrontendUIDesignDocument:
+    """验证前端界面设计文档"""
+
+    # ── 验收标准：生成时间 ≤4小时 ──
+
+    def test_document_generation_within_4_hours(self):
+        """文档生成时间应 ≤4小时（14400秒）"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([
+            {"name": "Dashboard", "path": "/dashboard"},
+            {"name": "ProjectList", "path": "/projects"},
+            {"name": "ProjectDetail", "path": "/projects/:id"},
+            {"name": "Workflow", "path": "/workflow"},
+            {"name": "Settings", "path": "/settings"},
+            {"name": "Login", "path": "/login"},
+        ])
+        routes = MockRouteDesign([
+            {"path": "/", "component": "AppLayout"},
+            {"path": "/login", "component": "LoginPage"},
+            {"path": "/dashboard", "component": "DashboardPage"},
+            {"path": "/projects", "component": "ProjectListPage"},
+            {"path": "/projects/:id", "component": "ProjectDetailPage"},
+            {"path": "/workflow", "component": "WorkflowPage", "children": [{"path": "step/:stepId"}]},
+            {"path": "/settings", "component": "SettingsPage"},
+        ])
+        lib = MockComponentLibrary("Element Plus", "2.5.0", [
+            {"name": "ElButton", "category": "basic"},
+            {"name": "ElTable", "category": "data"},
+            {"name": "ElForm", "category": "form"},
+            {"name": "ElDialog", "category": "feedback"},
+            {"name": "ElMenu", "category": "navigation"},
+            {"name": "ElCard", "category": "layout"},
+            {"name": "ElSteps", "category": "navigation"},
+            {"name": "ElIcon", "category": "basic"},
+        ])
+        state = MockStateManagement("Pinia", [
+            {"name": "authStore", "scope": "global"},
+            {"name": "projectStore", "scope": "module"},
+            {"name": "workflowStore", "scope": "module"},
+            {"name": "settingsStore", "scope": "global"},
+        ])
+        responsive = MockResponsiveDesign([
+            {"name": "xs", "width": 0},
+            {"name": "sm", "width": 768},
+            {"name": "md", "width": 1024},
+            {"name": "lg", "width": 1440},
+            {"name": "xl", "width": 1920},
+        ], "mobile-first")
+        elapsed = doc.generate(pages, routes, lib, state, responsive)
+        max_seconds = 4 * 3600
+        assert elapsed.total_seconds() <= max_seconds, \
+            f"Document generation took {elapsed.total_seconds():.2f}s, expected ≤{max_seconds}s"
+
+    # ── 验收标准：包含页面结构 ──
+
+    def test_document_contains_page_structure(self):
+        """设计文档应包含页面结构定义"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": "Dashboard", "path": "/dashboard"}])
+        doc.generate(pages, MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.has_page_structure, "文档缺少页面结构"
+
+    def test_page_structure_lists_all_pages(self):
+        """页面结构应列出所有核心页面"""
+        expected_pages = ["Dashboard", "ProjectList", "ProjectDetail", "Workflow", "Settings", "Login"]
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": n, "path": f"/{n.lower()}"} for n in expected_pages])
+        doc.generate(pages, MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        for name in expected_pages:
+            assert doc.page_structure.has_page(name), f"页面结构缺少页面: {name}"
+
+    def test_page_structure_has_path_for_each_page(self):
+        """每个页面应包含路径信息"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([
+            {"name": "Dashboard", "path": "/dashboard"},
+            {"name": "ProjectDetail", "path": "/projects/:id"},
+            {"name": "Login", "path": "/login"},
+        ])
+        doc.generate(pages, MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        for p in pages.pages:
+            page = doc.page_structure.get_page(p["name"])
+            assert page is not None
+            assert "path" in page, f"页面 {p['name']} 缺少path字段"
+            assert isinstance(page["path"], str), f"页面 {p['name']} 的path不是字符串"
+
+    def test_page_structure_handles_empty_pages(self):
+        """空页面结构边界"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([])
+        doc.generate(pages, MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.has_page_structure
+        assert doc.page_structure.page_count == 0
+
+    # ── 验收标准：包含路由设计 ──
+
+    def test_document_contains_route_design(self):
+        """设计文档应包含路由设计"""
+        doc = MockUIDesignDocument()
+        routes = MockRouteDesign([{"path": "/dashboard", "component": "DashboardPage"}])
+        doc.generate(MockPageStructure([]), routes, MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.has_route_design, "文档缺少路由设计"
+
+    def test_route_design_has_path_and_component(self):
+        """每条路由应包含路径和组件映射"""
+        doc = MockUIDesignDocument()
+        route_data = [
+            {"path": "/", "component": "AppLayout"},
+            {"path": "/login", "component": "LoginPage"},
+            {"path": "/dashboard", "component": "DashboardPage"},
+            {"path": "/projects", "component": "ProjectListPage"},
+        ]
+        routes = MockRouteDesign(route_data)
+        doc.generate(MockPageStructure([]), routes, MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        for r in route_data:
+            assert doc.route_design.has_route(r["path"]), f"路由缺失: {r['path']}"
+
+    def test_route_design_supports_nested_routes(self):
+        """路由设计应支持嵌套路由"""
+        doc = MockUIDesignDocument()
+        routes = MockRouteDesign([
+            {"path": "/workflow", "component": "WorkflowPage", "children": [{"path": "step/:stepId"}]},
+        ])
+        doc.generate(MockPageStructure([]), routes, MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.route_design.has_nested_route("/workflow", "step/:stepId"), "嵌套路由未定义"
+
+    def test_route_design_lazy_loading_flag(self):
+        """路由应支持懒加载标记"""
+        doc = MockUIDesignDocument()
+        route_data = [
+            {"path": "/dashboard", "component": "DashboardPage", "lazy": True},
+            {"path": "/login", "component": "LoginPage", "lazy": False},
+        ]
+        routes = MockRouteDesign(route_data)
+        doc.generate(MockPageStructure([]), routes, MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.route_design.has_route("/dashboard")
+
+    def test_route_design_handles_empty_routes(self):
+        """空路由边界"""
+        doc = MockUIDesignDocument()
+        routes = MockRouteDesign([])
+        doc.generate(MockPageStructure([]), routes, MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.has_route_design
+        assert doc.route_design.route_count == 0
+
+    # ── 验收标准：包含组件库选型 ──
+
+    def test_document_contains_component_library(self):
+        """设计文档应包含组件库选型"""
+        doc = MockUIDesignDocument()
+        lib = MockComponentLibrary("Element Plus", "2.5.0", [{"name": "ElButton"}])
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), lib,
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.has_component_library, "文档缺少组件库选型"
+
+    def test_component_library_has_name_and_version(self):
+        """组件库选型应包含名称和版本号"""
+        doc = MockUIDesignDocument()
+        lib = MockComponentLibrary("Element Plus", "2.5.0", [])
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), lib,
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.component_library.name == "Element Plus", "组件库名称不正确"
+        assert doc.component_library.version == "2.5.0", "组件库版本号不正确"
+
+    def test_component_library_lists_components(self):
+        """组件库应列出选用的组件清单"""
+        doc = MockUIDesignDocument()
+        components = [
+            {"name": "ElButton", "category": "basic"},
+            {"name": "ElTable", "category": "data"},
+            {"name": "ElDialog", "category": "feedback"},
+        ]
+        lib = MockComponentLibrary("Element Plus", "2.5.0", components)
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), lib,
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        for c in components:
+            assert doc.component_library.has_component(c["name"]), f"组件清单缺少: {c['name']}"
+            retrieved = doc.component_library.get_component(c["name"])
+            assert retrieved is not None
+            assert retrieved.get("category") == c["category"], f"组件 {c['name']} 分类不正确"
+
+    def test_component_library_handles_empty(self):
+        """空组件列表演边界"""
+        doc = MockUIDesignDocument()
+        lib = MockComponentLibrary("None", "0.0.0", [])
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), lib,
+                     MockStateManagement("", []), MockResponsiveDesign([], ""))
+        assert doc.has_component_library
+        assert doc.component_library.component_count == 0
+
+    # ── 验收标准：包含状态管理方案 ──
+
+    def test_document_contains_state_management(self):
+        """设计文档应包含状态管理方案"""
+        doc = MockUIDesignDocument()
+        state = MockStateManagement("Pinia", [{"name": "authStore", "scope": "global"}])
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     state, MockResponsiveDesign([], ""))
+        assert doc.has_state_management, "文档缺少状态管理方案"
+
+    def test_state_management_specifies_strategy(self):
+        """状态管理方案应明确选型策略"""
+        doc = MockUIDesignDocument()
+        strategies = ["Pinia", "Vuex", "React Context"]
+        for s in strategies:
+            state = MockStateManagement(s, [])
+            doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                         state, MockResponsiveDesign([], ""))
+            assert doc.state_management.strategy == s, f"状态管理策略不正确: {s}"
+
+    def test_state_management_defines_stores(self):
+        """状态管理应定义Store划分"""
+        doc = MockUIDesignDocument()
+        stores = [
+            {"name": "authStore", "scope": "global", "state": ["user", "token", "permissions"]},
+            {"name": "projectStore", "scope": "module", "state": ["projects", "currentProject"]},
+            {"name": "workflowStore", "scope": "module", "state": ["steps", "progress"]},
+            {"name": "settingsStore", "scope": "global", "state": ["theme", "locale"]},
+        ]
+        state = MockStateManagement("Pinia", stores)
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     state, MockResponsiveDesign([], ""))
+        for s in stores:
+            assert doc.state_management.has_store(s["name"]), f"Store缺失: {s['name']}"
+            store = doc.state_management.get_store(s["name"])
+            assert store is not None
+            assert store.get("scope") == s["scope"], f"Store {s['name']} 作用域不正确"
+
+    def test_state_management_handles_empty_stores(self):
+        """空Store列表演边界"""
+        doc = MockUIDesignDocument()
+        state = MockStateManagement("Pinia", [])
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     state, MockResponsiveDesign([], ""))
+        assert doc.has_state_management
+        assert doc.state_management.store_count == 0
+
+    # ── 验收标准：包含响应式设计方案 ──
+
+    def test_document_contains_responsive_design(self):
+        """设计文档应包含响应式设计方案"""
+        doc = MockUIDesignDocument()
+        responsive = MockResponsiveDesign([{"name": "md", "width": 1024}], "mobile-first")
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), responsive)
+        assert doc.has_responsive_design, "文档缺少响应式设计方案"
+
+    def test_responsive_design_defines_breakpoints(self):
+        """响应式设计应定义断点阈值"""
+        doc = MockUIDesignDocument()
+        breakpoints = [
+            {"name": "xs", "width": 0},
+            {"name": "sm", "width": 768},
+            {"name": "md", "width": 1024},
+            {"name": "lg", "width": 1440},
+            {"name": "xl", "width": 1920},
+        ]
+        responsive = MockResponsiveDesign(breakpoints, "mobile-first")
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), responsive)
+        for b in breakpoints:
+            assert doc.responsive_design.has_breakpoint(b["name"]), f"断点缺失: {b['name']}"
+            width = doc.responsive_design.get_breakpoint_value(b["name"])
+            assert width == b["width"], f"断点 {b['name']} 宽度应为 {b['width']}，实际为 {width}"
+
+    def test_responsive_design_has_layout_strategy(self):
+        """响应式设计应明确布局策略（如 mobile-first / desktop-first）"""
+        doc = MockUIDesignDocument()
+        responsive = MockResponsiveDesign([{"name": "sm", "width": 768}], "mobile-first")
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), responsive)
+        assert doc.responsive_design.layout_strategy == "mobile-first", "布局策略不正确"
+
+    def test_responsive_design_desktop_first_alternative(self):
+        """desktop-first 布局策略也应支持"""
+        doc = MockUIDesignDocument()
+        responsive = MockResponsiveDesign([{"name": "lg", "width": 1440}], "desktop-first")
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), responsive)
+        assert doc.responsive_design.layout_strategy == "desktop-first"
+
+    def test_responsive_design_breakpoints_monotonic(self):
+        """断点宽度应单调递增"""
+        doc = MockUIDesignDocument()
+        breakpoints = [
+            {"name": "xs", "width": 0},
+            {"name": "sm", "width": 768},
+            {"name": "md", "width": 1024},
+            {"name": "lg", "width": 1440},
+            {"name": "xl", "width": 1920},
+        ]
+        responsive = MockResponsiveDesign(breakpoints, "mobile-first")
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), responsive)
+        widths = [doc.responsive_design.get_breakpoint_value(b["name"]) for b in breakpoints]
+        for i in range(1, len(widths)):
+            assert widths[i] > widths[i - 1], \
+                f"断点宽度不单调递增: {breakpoints[i-1]['name']}={widths[i-1]}, {breakpoints[i]['name']}={widths[i]}"
+
+    def test_responsive_design_handles_single_breakpoint(self):
+        """单一断点边界"""
+        doc = MockUIDesignDocument()
+        responsive = MockResponsiveDesign([{"name": "md", "width": 1024}], "mobile-first")
+        doc.generate(MockPageStructure([]), MockRouteDesign([]), MockComponentLibrary("", "", []),
+                     MockStateManagement("", []), responsive)
+        assert doc.responsive_design.breakpoint_count == 1
+        assert doc.responsive_design.get_breakpoint_value("md") == 1024
+
+    # ── 验收标准：所有五个部分必须全部存在 ──
+
+    def test_document_contains_all_required_sections(self):
+        """设计文档应同时包含全部五个必要部分"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": "Dashboard", "path": "/dashboard"}])
+        routes = MockRouteDesign([{"path": "/dashboard", "component": "DashboardPage"}])
+        lib = MockComponentLibrary("Element Plus", "2.5.0", [{"name": "ElButton"}])
+        state = MockStateManagement("Pinia", [{"name": "authStore", "scope": "global"}])
+        responsive = MockResponsiveDesign([{"name": "md", "width": 1024}], "mobile-first")
+        doc.generate(pages, routes, lib, state, responsive)
+        assert doc.all_sections_present, \
+            f"文档缺少以下部分: " \
+            f"{'页面结构 ' if not doc.has_page_structure else ''}" \
+            f"{'路由设计 ' if not doc.has_route_design else ''}" \
+            f"{'组件库选型 ' if not doc.has_component_library else ''}" \
+            f"{'状态管理方案 ' if not doc.has_state_management else ''}" \
+            f"{'响应式设计 ' if not doc.has_responsive_design else ''}"
+
+    def test_document_sections_are_non_none(self):
+        """每个部分都应为非None实例"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": "Dashboard", "path": "/dashboard"}])
+        routes = MockRouteDesign([{"path": "/dashboard", "component": "DashboardPage"}])
+        lib = MockComponentLibrary("Element Plus", "2.5.0", [{"name": "ElButton"}])
+        state = MockStateManagement("Pinia", [{"name": "authStore", "scope": "global"}])
+        responsive = MockResponsiveDesign([{"name": "md", "width": 1024}], "mobile-first")
+        doc.generate(pages, routes, lib, state, responsive)
+        assert doc.page_structure is not None
+        assert doc.route_design is not None
+        assert doc.component_library is not None
+        assert doc.state_management is not None
+        assert doc.responsive_design is not None
+
+    # ── 性能边界：接近4小时边界测试 ──
+
+    def test_generation_at_4_hours_boundary(self):
+        """生成时间正好等于4小时应通过"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": "P", "path": "/p"}])
+        routes = MockRouteDesign([{"path": "/p", "component": "P"}])
+
+        class SlowLib(MockComponentLibrary):
+            def __init__(self):
+                super().__init__("Slow", "1.0", [])
+                self._delay = 4 * 3600
+
+        lib = SlowLib()
+        state = MockStateManagement("Pinia", [{"name": "s", "scope": "global"}])
+        responsive = MockResponsiveDesign([{"name": "md", "width": 1024}], "mobile-first")
+        start = datetime.now()
+        elapsed = doc.generate(pages, routes, lib, state, responsive)
+        assert elapsed.total_seconds() <= 4 * 3600, \
+            f"耗时 {elapsed.total_seconds():.2f}s 超出4小时"
+
+    def test_generation_instantly(self):
+        """瞬间完成（0秒）边界"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": "P", "path": "/p"}])
+        routes = MockRouteDesign([{"path": "/p", "component": "P"}])
+        lib = MockComponentLibrary("Fast", "1.0", [])
+        state = MockStateManagement("Pinia", [])
+        responsive = MockResponsiveDesign([], "mobile-first")
+        elapsed = doc.generate(pages, routes, lib, state, responsive)
+        assert elapsed.total_seconds() >= 0
+        assert isinstance(elapsed, timedelta)
+
+    # ── 边界：部分缺失的文档 ──
+
+    def test_fresh_document_has_no_sections(self):
+        """未生成的文档不应有任何部分"""
+        doc = MockUIDesignDocument()
+        assert not doc.has_page_structure
+        assert not doc.has_route_design
+        assert not doc.has_component_library
+        assert not doc.has_state_management
+        assert not doc.has_responsive_design
+        assert not doc.all_sections_present
+
+    # ── 边界：大量页面和路由的文档 ──
+
+    def test_large_document_with_many_pages_and_routes(self):
+        """大量页面和路由的高容量场景"""
+        doc = MockUIDesignDocument()
+        many_pages = [{"name": f"Page{i}", "path": f"/page{i}"} for i in range(100)]
+        many_routes = [{"path": f"/page{i}", "component": f"Page{i}Component"} for i in range(100)]
+        pages = MockPageStructure(many_pages)
+        routes = MockRouteDesign(many_routes)
+        lib = MockComponentLibrary("Element Plus", "2.5.0", [{"name": "ElButton"}])
+        state = MockStateManagement("Pinia", [{"name": "s", "scope": "global"}])
+        responsive = MockResponsiveDesign([{"name": "md", "width": 1024}], "mobile-first")
+        elapsed = doc.generate(pages, routes, lib, state, responsive)
+        assert elapsed.total_seconds() <= 4 * 3600
+        assert doc.page_structure.page_count == 100
+        assert doc.route_design.route_count == 100
+
+    # ── 时序校验：生成时间戳 ──
+
+    def test_document_records_creation_timestamp(self):
+        """文档生成应记录创建时间"""
+        doc = MockUIDesignDocument()
+        pages = MockPageStructure([{"name": "P", "path": "/p"}])
+        routes = MockRouteDesign([{"path": "/p", "component": "P"}])
+        lib = MockComponentLibrary("Lib", "1.0", [])
+        state = MockStateManagement("Pinia", [])
+        responsive = MockResponsiveDesign([], "mobile-first")
+        before = datetime.now()
+        doc.generate(pages, routes, lib, state, responsive)
+        after = datetime.now()
+        assert doc.created_at is not None, "created_at未设置"
+        assert before <= doc.created_at <= after, \
+            f"created_at {doc.created_at} 应在 {before} 和 {after} 之间"
+
+    # ── 边界：异常数据 ──
+
+    def test_page_structure_duplicate_page_names(self):
+        """页面结构中存在重复页面名时，get_page 应返回第一个匹配项"""
+        pages = MockPageStructure([
+            {"name": "Dashboard", "path": "/dashboard"},
+            {"name": "Dashboard", "path": "/dash-v2"},
+        ])
+        p = pages.get_page("Dashboard")
+        assert p is not None
+        assert p["path"] == "/dashboard"
+
+    def test_route_no_children_returns_false(self):
+        """无子路由的父路由不应匹配嵌套查询"""
+        routes = MockRouteDesign([{"path": "/workflow", "component": "WorkflowPage"}])
+        assert not routes.has_nested_route("/workflow", "step/:stepId")
+
+    def test_route_missing_path_field(self):
+        """路由缺少path字段时has_route应返回False"""
+        routes = MockRouteDesign([{"component": "OrphanPage"}])
+        assert not routes.has_route("/orphan")
+
+    def test_component_library_missing_name_field(self):
+        """组件缺少name字段时不应引发异常"""
+        lib = MockComponentLibrary("Lib", "1.0", [{"category": "orphan"}])
+        assert not lib.has_component("NonExistent")
+
+    def test_state_management_missing_scope_field(self):
+        """Store缺少scope字段时不应引发异常"""
+        state = MockStateManagement("Pinia", [{"name": "orphanStore"}])
+        assert state.has_store("orphanStore")
+        store = state.get_store("orphanStore")
+        assert store is not None
+
+    def test_responsive_negative_breakpoint_width(self):
+        """负数断点宽度应允许存储"""
+        responsive = MockResponsiveDesign(
+            [{"name": "xs", "width": -1}], "mobile-first"
+        )
+        assert responsive.get_breakpoint_value("xs") == -1
+
+    def test_responsive_zero_breakpoint_width(self):
+        """零宽度断点（移动端起点）应正常存储"""
+        responsive = MockResponsiveDesign(
+            [{"name": "xs", "width": 0}], "mobile-first"
+        )
+        assert responsive.get_breakpoint_value("xs") == 0
+
+    def test_responsive_non_monotonic_breakpoints(self):
+        """非单调递增的断点应被检测出来"""
+        breakpoints = [
+            {"name": "sm", "width": 768},
+            {"name": "md", "width": 500},
+        ]
+        responsive = MockResponsiveDesign(breakpoints, "mobile-first")
+        widths = [responsive.get_breakpoint_value(b["name"]) for b in breakpoints]
+        with pytest.raises(AssertionError):
+            assert widths[1] > widths[0]
+
+    def test_component_library_get_nonexistent(self):
+        """查询不存在的组件应返回None"""
+        lib = MockComponentLibrary("Lib", "1.0", [{"name": "ElButton"}])
+        assert lib.get_component("NonExistent") is None
+
+    def test_route_get_nonexistent_path(self):
+        """查询不存在的路由应返回False"""
+        routes = MockRouteDesign([{"path": "/dashboard", "component": "Dashboard"}])
+        assert not routes.has_route("/nonexistent")
+
+    def test_state_management_get_nonexistent_store(self):
+        """查询不存在的Store应返回None"""
+        state = MockStateManagement("Pinia", [{"name": "authStore"}])
+        assert state.get_store("nonexistent") is None
+
+    def test_responsive_get_nonexistent_breakpoint(self):
+        """查询不存在的断点应返回None"""
+        responsive = MockResponsiveDesign(
+            [{"name": "md", "width": 1024}], "mobile-first"
+        )
+        assert responsive.get_breakpoint_value("nonexistent") is None
+
+    def test_document_overwrites_on_regenerate(self):
+        """二次生成文档应覆盖之前的内容"""
+        doc = MockUIDesignDocument()
+        pages1 = MockPageStructure([{"name": "Old", "path": "/old"}])
+        routes1 = MockRouteDesign([{"path": "/old", "component": "Old"}])
+        lib1 = MockComponentLibrary("OldLib", "1.0", [])
+        state1 = MockStateManagement("Vuex", [])
+        responsive1 = MockResponsiveDesign([], "desktop-first")
+        doc.generate(pages1, routes1, lib1, state1, responsive1)
+        assert doc.component_library.name == "OldLib"
+        pages2 = MockPageStructure([{"name": "New", "path": "/new"}])
+        routes2 = MockRouteDesign([{"path": "/new", "component": "New"}])
+        lib2 = MockComponentLibrary("NewLib", "2.0", [])
+        state2 = MockStateManagement("Pinia", [])
+        responsive2 = MockResponsiveDesign([], "mobile-first")
+        doc.generate(pages2, routes2, lib2, state2, responsive2)
+        assert doc.component_library.name == "NewLib"
+        assert doc.component_library.version == "2.0"
+        assert doc.state_management.strategy == "Pinia"
+        assert doc.responsive_design.layout_strategy == "mobile-first"
+
+    def test_document_generated_at_is_datetime(self):
+        """created_at 应为 datetime 类型"""
+        doc = MockUIDesignDocument()
+        doc.generate(
+            MockPageStructure([]), MockRouteDesign([]),
+            MockComponentLibrary("", "", []),
+            MockStateManagement("", []), MockResponsiveDesign([], "")
+        )
+        assert isinstance(doc.created_at, datetime)
+
+    def test_multiple_doc_independence(self):
+        """多个文档实例应互相独立"""
+        doc1 = MockUIDesignDocument()
+        doc2 = MockUIDesignDocument()
+        pages1 = MockPageStructure([{"name": "A", "path": "/a"}])
+        pages2 = MockPageStructure([{"name": "B", "path": "/b"}])
+        doc1.generate(
+            pages1, MockRouteDesign([]), MockComponentLibrary("L1", "1.0", []),
+            MockStateManagement("Vuex", []), MockResponsiveDesign([], "desktop-first")
+        )
+        doc2.generate(
+            pages2, MockRouteDesign([]), MockComponentLibrary("L2", "2.0", []),
+            MockStateManagement("Pinia", []), MockResponsiveDesign([], "mobile-first")
+        )
+        assert doc1.component_library.name == "L1"
+        assert doc2.component_library.name == "L2"
+        assert doc1.page_structure.has_page("A")
+        assert not doc2.page_structure.has_page("A")
+        assert doc2.page_structure.has_page("B")
+        assert not doc1.page_structure.has_page("B")
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])

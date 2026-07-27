@@ -5,7 +5,7 @@
         <el-button :icon="ArrowLeft" text @click="goBack">返回</el-button>
         <div>
           <h1>第四步：架构设计</h1>
-          <p class="step4-view__subtitle">{{ projectName }} · 4个子步骤串行</p>
+          <p class="step4-view__subtitle">{{ projectName }} · 4个子流程并行</p>
         </div>
       </div>
       <div class="step4-view__header-right">
@@ -17,53 +17,25 @@
 
     <!-- idle -->
     <div v-if="stepStatus === 'idle'" class="step4-view__card">
-      <template v-if="step4_1_passed">
-        <div class="step4-view__card-icon">🔄</div>
-        <h2>架构设计(step4_1)已完成，禁止从头开始</h2>
-        <el-alert title="step4_1 已通过 hourong 检验，不能从头开始生成和检验，请续跑未完成的子步骤" type="warning" show-icon class="step4-view__alert" />
-        <div class="step4-view__doc-list-preview">
-          <div class="step4-view__doc-type-item" :class="subFlowStates['arch_reasonableness']?.status === 'passed' ? 'status-passed' : ''">
-            <span class="step4-view__doc-type-icon">🏛️</span>
-            <div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">{{ subFlowStates['arch_reasonableness']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
-          </div>
-          <div class="step4-view__doc-type-item">
-            <span class="step4-view__doc-type-icon">🎨</span>
-            <div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">{{ subFlowStates['frontend_feasibility']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
-          </div>
-          <div class="step4-view__doc-type-item">
-            <span class="step4-view__doc-type-icon">⚙️</span>
-            <div><div class="step4-view__doc-type-name">后端设计文档</div><div class="step4-view__doc-type-desc">{{ subFlowStates['backend_feasibility']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
-          </div>
-          <div class="step4-view__doc-type-item">
-            <span class="step4-view__doc-type-icon">🗄️</span>
-            <div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">{{ subFlowStates['database_design']?.status === 'passed' ? '✅ 已通过' : '待执行' }}</div></div>
-          </div>
-        </div>
-        <el-button type="primary" size="large" :loading="executing" @click="handleResumeFailed">
-          {{ executing ? '续跑中...' : '🔄 续跑未完成子步骤（跳过已通过项）' }}
-        </el-button>
-      </template>
-      <template v-else>
-        <div class="step4-view__card-icon">🏗️</div>
-        <h2>准备执行架构设计（4个子步骤串行）</h2>
-        <p>后旺1~4号将根据需求文档串行生成以下设计文档，后荣1~4号逐项检验：<br>step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库</p>
-        <div class="step4-view__doc-list-preview">
-          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🏛️</span><div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">系统整体架构、分层、模块划分、技术栈</div></div></div>
-          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🎨</span><div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">前端技术栈、组件树、路由、状态管理</div></div></div>
-          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">⚙️</span><div><div class="step4-view__doc-type-name">后端设计文档</div><div class="step4-view__doc-type-desc">后端技术栈、API接口、数据流、安全策略</div></div></div>
-          <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🗄️</span><div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">完整 SQL DDL、表结构、索引、外键</div></div></div>
-        </div>
-        <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
-          {{ executing ? '串行执行中...' : '开始执行（4子步骤串行）' }}
-        </el-button>
-      </template>
+      <div class="step4-view__card-icon">🏗️</div>
+      <h2>准备执行架构设计（4子流程并行）</h2>
+      <p>后旺1~4号将根据需求文档并行生成以下设计文档，后荣1~4号同步检验：</p>
+      <div class="step4-view__doc-list-preview">
+        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🏛️</span><div><div class="step4-view__doc-type-name">架构设计文档</div><div class="step4-view__doc-type-desc">系统整体架构、分层、模块划分、技术栈</div></div></div>
+        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🎨</span><div><div class="step4-view__doc-type-name">前端设计文档</div><div class="step4-view__doc-type-desc">前端技术栈、组件树、路由、状态管理</div></div></div>
+        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">⚙️</span><div><div class="step4-view__doc-type-name">后端设计文档</div><div class="step4-view__doc-type-desc">后端技术栈、API接口、数据流、安全策略</div></div></div>
+        <div class="step4-view__doc-type-item"><span class="step4-view__doc-type-icon">🗄️</span><div><div class="step4-view__doc-type-name">数据库设计脚本</div><div class="step4-view__doc-type-desc">完整 SQL DDL、表结构、索引、外键</div></div></div>
+      </div>
+      <el-button type="primary" size="large" :loading="executing" @click="handleExecute">
+        {{ executing ? '后旺执行中...' : '开始执行' }}
+      </el-button>
     </div>
 
-    <!-- executing: 4 sequential sub-steps -->
+    <!-- executing: 4 parallel sub-flow panels -->
     <div v-if="stepStatus === 'executing'" class="step4-view__card step4-view__card--executing">
       <div class="step4-view__executing-header">
         <div class="step4-view__card-icon">🏗️</div>
-        <h2>4个子步骤串行执行</h2>
+        <h2>4个子流程并行运行</h2>
       </div>
       <p class="step4-view__executing-status">{{ streamStatus }}</p>
 
@@ -97,7 +69,6 @@
             <span class="step4-view__subflow-label">{{ sf.label }}</span>
             <el-tag :type="({pending:'info',generating:'warning',reviewing:'primary',passed:'success',failed:'danger'} as Record<string,string>)[sf.status] || 'info'" size="small" effect="dark">{{ ({pending:'待执行',generating:'生成中',reviewing:'检验中',passed:'✅通过',failed:'❌未通过'} as Record<string,string>)[sf.status] || sf.status }}</el-tag>
             <span v-if="sf.rounds > 0" class="step4-view__subflow-rounds">第{{ sf.rounds }}轮</span>
-            <span v-if="sf.status === 'pending' && isAnySubStepActive" class="step4-view__subflow-queued">⏳ 排队中</span>
           </div>
           <div v-if="sf.message" class="step4-view__subflow-message">{{ sf.message }}</div>
           <div v-if="sf.detail" class="step4-view__subflow-detail">{{ sf.detail }}</div>
@@ -106,12 +77,6 @@
           </div>
           <div v-if="sf.status === 'generating' || sf.status === 'reviewing'" class="step4-view__subflow-bar">
             <el-progress :percentage="100" :stroke-width="4" status="warning" indeterminate />
-          </div>
-          <div v-if="sf.status === 'passed'" class="step4-view__subflow-bar">
-            <el-progress :percentage="100" :stroke-width="4" status="success" />
-          </div>
-          <div v-if="sf.status === 'failed'" class="step4-view__subflow-bar">
-            <el-progress :percentage="100" :stroke-width="4" status="exception" />
           </div>
         </div>
       </div>
@@ -180,7 +145,7 @@
             :loading="executing"
             @click="handleResumeFailed"
           >
-            {{ executing ? '执行中...' : `🔄 续跑未完成子步骤（跳过已通过的${subFlowSummary.filter(s => s.status === 'passed').length}项，运行${subFlowSummary.filter(s => s.status !== 'passed').length}项）` }}
+            {{ executing ? '执行中...' : `🔄 续跑未完成项（跳过已通过的${subFlowSummary.filter(s => s.status === 'passed').length}项，运行${subFlowSummary.filter(s => s.status !== 'passed').length}项）` }}
           </el-button>
         </div>
       </div>
@@ -270,10 +235,10 @@ interface SubFlowState {
 }
 
 const defaultSubFlows: Record<string, SubFlowState> = {
-  arch_reasonableness: { key: 'arch_reasonableness', label: 'step4_1 架构设计', icon: '🏛️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
-  frontend_feasibility: { key: 'frontend_feasibility', label: 'step4_2 前端设计', icon: '🎨', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
-  backend_feasibility: { key: 'backend_feasibility', label: 'step4_3 后端设计', icon: '⚙️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
-  database_design: { key: 'database_design', label: 'step4_4 数据库设计', icon: '🗄️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  arch_reasonableness: { key: 'arch_reasonableness', label: '架构设计', icon: '🏛️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  frontend_feasibility: { key: 'frontend_feasibility', label: '前端设计', icon: '🎨', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  backend_feasibility: { key: 'backend_feasibility', label: '后端设计', icon: '⚙️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
+  database_design: { key: 'database_design', label: '数据库设计', icon: '🗄️', status: 'pending', message: '等待执行', content: '', rounds: 0, detail: '' },
 }
 
 const subFlowStates = ref<Record<string, SubFlowState>>(JSON.parse(JSON.stringify(defaultSubFlows)))
@@ -284,20 +249,12 @@ function resetSubFlowStates() {
 
 const subFlowStatesArray = computed(() => Object.values(subFlowStates.value))
 
-const isAnySubStepActive = computed(() => {
-  return subFlowStatesArray.value.some(sf => sf.status === 'generating' || sf.status === 'reviewing')
-})
-
 const subFlowMap: Record<string, string> = {
   'ARCHITECTURE': 'arch_reasonableness',
   'FRONTEND': 'frontend_feasibility',
   'BACKEND': 'backend_feasibility',
   'DATABASE': 'database_design',
 }
-
-const step4_1_passed = computed(() => {
-  return subFlowStates.value['arch_reasonableness']?.status === 'passed'
-})
 
 const subFlowLabelMap: Record<string, string> = {
   '架构': 'arch_reasonableness',
@@ -319,25 +276,6 @@ function updateSubFlowState(key: string, patch: Partial<SubFlowState>) {
   }
 }
 
-async function saveSubFlowPassState(sfKey: string) {
-  try {
-    const passedSubFlows: Record<string, any> = {}
-    for (const [key, sf] of Object.entries(subFlowStates.value)) {
-      if (sf.status === 'passed') {
-        passedSubFlows[key] = { key: sf.key, label: sf.label, passed: true, rounds: sf.rounds }
-      }
-    }
-    if (Object.keys(passedSubFlows).length > 0) {
-      await workflowApi.saveStep4Artifacts(props.projectId, {
-        passed_sub_flows: passedSubFlows,
-        saved_at: new Date().toISOString(),
-      })
-    }
-  } catch {
-    // 保存状态失败不影响前端显示
-  }
-}
-
 function parseSubFlowMessage(msg: { type: string; message?: string; content?: string; subflow?: string }) {
   const sfKey = msg.subflow || (msg.message ? inferSubflow(msg.message) : null)
   if (!sfKey || !subFlowStates.value[sfKey]) {
@@ -354,7 +292,6 @@ function parseSubFlowMessage(msg: { type: string; message?: string; content?: st
       updateSubFlowState(sfKey, { status: 'passed', message: txt })
       const roundMatch = txt.match(/(\d+)轮/)
       if (roundMatch) updateSubFlowState(sfKey, { rounds: parseInt(roundMatch[1]) })
-      saveSubFlowPassState(sfKey)  // hourong 通过后立即保存状态，防止下次重头开始
 
     // ── failed: 再匹配未通过类关键词 ──
     } else if (txt.includes('检验未通过') || txt.includes('未通过')) {
@@ -485,26 +422,18 @@ function connectProgressWs() {
             liveContent.value += msg.content
           } else if (msg.type === 'done') {
             if (msg.message) stageLog.value.push({ type: 'done', message: msg.message })
-            streamStatus.value = msg.message
+            streamStatus.value = msg.message || '✅ 4子流程执行完成'
             clearAllTimers()
             executing.value = false
-            // 后端 orchestrator 已自动 complete_step(4) + pass_qa(4)，检查状态后导航至 step5
-            setTimeout(async () => {
-              try {
-                const res = await workflowApi.getStatus(props.projectId) as any
-                const step4Row = (res?.data || res)?.steps?.['4']
-                if (step4Row?.status === 'completed') {
-                  router.push({
-                    name: 'Step5',
-                    params: { projectId: props.projectId },
-                    query: { name: projectName },
-                  })
-                }
-              } catch {}
+            setTimeout(() => {
+              router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName.value } })
             }, 2000)
           } else if (msg.type === 'error') {
             if (msg.message) stageLog.value.push({ type: 'error', message: msg.message })
           }
+        }
+        if (msg.type === 'done' || msg.type === 'error') {
+          streamStatus.value = msg.message || streamStatus.value
         }
       } catch { /* ignore parse errors */ }
     }
@@ -521,14 +450,14 @@ onMounted(async () => {
     const s4 = data?.step4 || {}
     if (s4.design_doc) designDoc.value = s4.design_doc
     // 无论步骤状态如何，先恢复已保存的子流程结果
-    // 从后端保存的独立子步骤结果恢复状态（step4_N_result）
-    const stepResultKeys = ['step4_1_result', 'step4_2_result', 'step4_3_result', 'step4_4_result']
-    for (const key of stepResultKeys) {
-      const sr = s4[key]
-      if (sr && sr.key && subFlowStates.value[sr.key]) {
+    if (s4.sub_flow_results) {
+      for (const sr of s4.sub_flow_results) {
         const sf = subFlowStates.value[sr.key]
-        sf.status = sr.passed ? 'passed' : 'failed'
-        sf.rounds = sr.rounds || 0
+        if (sf) {
+          sf.status = sr.passed ? 'passed' : 'failed'
+          sf.rounds = sr.rounds || 0
+          sf.detail = sr.convergence?.length ? '' : ''
+        }
       }
     }
 
@@ -539,30 +468,18 @@ onMounted(async () => {
       else if (step.status === 'in_progress') {
         stepStatus.value = 'executing'
         if (!s4.design_doc && !s4.status) {
-          // 自动续跑：后端支持断点续做，跳过已完成子步骤
-          streamStatus.value = '♻️ 检测到中断，自动续跑中...'
-          try {
-            const resumeRes = await workflowApi.startStep4(props.projectId, true) as any
-            if (resumeRes?.code === 0) {
-              stageLog.value.push({ type: 'stage', message: '♻️ 自动续跑成功，跳过已完成子步骤继续执行...' })
-            } else {
-              backendError.value = '自动续跑失败: ' + (resumeRes?.message || '后端返回错误') + '，请手动点击"强制重新执行"'
-            }
-          } catch (e: any) {
-            backendError.value = '自动续跑失败: ' + (e?.message || '无法连接后端') + '，请手动点击"强制重新执行"'
-          }
+          stuckWarning.value = '⚠️ 检测到第四步处于中断状态（无后台任务），请重新执行'
         }
         connectProgressWs()
         startPolling()
         resetStuckTimer()
       }
       else {
-        // 步骤状态不明确：优先根据已保存的子步骤结果决定显示状态
-        const stepKeys = ['step4_1_result', 'step4_2_result', 'step4_3_result', 'step4_4_result']
-        const resultsWithData = stepKeys.filter(k => s4[k])
-        const passedCount = stepKeys.filter(k => s4[k]?.passed).length
-        const hasAnyResult = resultsWithData.length > 0
-        const allPassed = passedCount === 4
+        // 步骤状态不明确：优先根据已保存的子流程结果决定显示状态
+        const results = s4.sub_flow_results || []
+        const hasAnyResult = results.length > 0
+        const hasPassed = results.some((r: any) => r.passed)
+        const allPassed = results.length === 4 && results.every((r: any) => r.passed)
         const hasQaPassed = s4.qa_passed === true
         if (hasQaPassed) {
           stepStatus.value = 'qa_passed'
@@ -595,15 +512,11 @@ function startPolling() {
       const res = await workflowApi.getStatus(props.projectId) as any
       const data = res?.data || res
       const s4 = data?.step4 || {}
-      // 轮询时从后端独立子步骤结果恢复状态
-      const pollStepKeys = ['step4_1_result', 'step4_2_result', 'step4_3_result', 'step4_4_result']
-      const hasStepResults = pollStepKeys.some(k => s4[k])
-      if (hasStepResults) {
+      if (s4.sub_flow_results) {
         emptyCount = 0
-        for (const key of pollStepKeys) {
-          const sr = s4[key]
-          if (sr && sr.key && subFlowStates.value[sr.key]) {
-            const sf = subFlowStates.value[sr.key]
+        for (const sr of s4.sub_flow_results) {
+          const sf = subFlowStates.value[sr.key]
+          if (sf) {
             sf.status = sr.passed ? 'passed' : 'failed'
             sf.rounds = sr.rounds || 0
           }
@@ -613,17 +526,12 @@ function startPolling() {
         designDoc.value = s4.design_doc
         stepStatus.value = 'qa_review'
         executing.value = false
-        streamStatus.value = '✅ 所有子步骤完成'
+        streamStatus.value = '✅ 所有子流程完成'
         clearAllTimers()
-        // 若后端已 auto-complete (orchestrator 调用了 pass_qa)，直接导航至 step5
-        const step4Row = data?.steps?.['4']
-        if (step4Row?.status === 'completed') {
-          setTimeout(() => {
-            router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName } })
-          }, 1500)
-        } else {
-          ElMessage.success('架构设计完成，请进行 QA 检验')
-        }
+        ElMessage.success('架构设计完成，自动跳转至下一步...')
+        setTimeout(() => {
+          router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName.value } })
+        }, 2000)
       } else if (s4.status === 'error') {
         backendError.value = s4.message || '后端任务执行失败'
         stuckWarning.value = '❌ 后台任务已终止，请点"强制重新执行"恢复'
@@ -631,7 +539,7 @@ function startPolling() {
         clearAllTimers()
       } else if (s4.status === 'generating' || data?.steps?.['4']?.status === 'in_progress') {
         emptyCount = 0
-        streamStatus.value = s4.message || '🏗️ 4个子步骤串行执行中...'
+        streamStatus.value = s4.message || '🏗️ 4个子流程运行中...'
       } else if (s4.sub_flow_results?.length === 4) {
         // 即使没有 design_doc，但 4 个子流程结果都已返回——可能部分失败
         // 切换到 qa_review 页面展示结果
@@ -663,18 +571,32 @@ async function handleExecute() {
   backendError.value = ''
   stuckWarning.value = ''
   designDoc.value = ''
-  stageLog.value = [{ type: 'stage', message: '🚀 4个子步骤串行启动中...' }]
+  stageLog.value = [{ type: 'stage', message: '🚀 4个子流程启动中...' }]
   liveContent.value = ''
-  streamStatus.value = '🚀 4个子步骤串行启动中...'
+  streamStatus.value = '🚀 4个子流程启动中...'
   resetSubFlowStates()
   stepStatus.value = 'executing'
   clearAllTimers()
+
+  // 先连WS（确保不遗漏后台广播消息）
+  await new Promise<void>((resolve) => {
+    connectProgressWs()
+    // 等待WS连接成功，或超时3秒后继续
+    const check = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        clearInterval(check)
+        clearTimeout(fallback)
+        resolve()
+      }
+    }, 100)
+    const fallback = setTimeout(() => { clearInterval(check); resolve() }, 3000)
+  })
+
   try {
     const res = await workflowApi.startStep4(props.projectId) as any
     if (res?.code === 0) {
-      streamStatus.value = '🏗️ 4个子步骤串行执行中（step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库）'
+      streamStatus.value = '🏗️ 4个子流程并行运行中（houwang1→架构/hourong1←→houwang2→前端/hourong2←→houwang3→后端/hourong3←→houwang4→数据库/hourong4）'
       stageLog.value.push({ type: 'stage', message: '📡 已连接后旺1~4号，等待开始生成...' })
-      connectProgressWs()
       startPolling()
       resetStuckTimer()
     } else {
@@ -704,8 +626,8 @@ async function handleResumeFailed() {
     }
   }
   stepStatus.value = 'executing'
-  streamStatus.value = '🔄 续跑未完成子步骤（已通过的不重新运行）...'
-  stageLog.value = [{ type: 'stage', message: '🔄 续跑模式启动，跳过已通过检验的子步骤...' }]
+  streamStatus.value = '🔄 续跑未完成项（已通过的不重新运行）...'
+  stageLog.value = [{ type: 'stage', message: '🔄 续跑模式启动，跳过已通过检验的文档...' }]
   clearAllTimers()
   if (ws) { ws.onclose = null; ws.close(); ws = null }
   try {
@@ -745,8 +667,8 @@ async function handleRestart() {
   resetSubFlowStates()
   stepStatus.value = 'executing'
   executing.value = true
-  streamStatus.value = '♻️ 续跑模式：跳过已通过项，只重跑未通过子步骤...'
-  stageLog.value = [{ type: 'stage', message: '♻️ 续跑模式启动，保留已通过检验的子步骤...' }]
+  streamStatus.value = '♻️ 续跑模式：跳过已通过项，只重跑未通过子流程...'
+  stageLog.value = [{ type: 'stage', message: '♻️ 续跑模式启动，保留已通过检验的文档...' }]
   try {
     const res = await workflowApi.startStep4(props.projectId, true) as any
     if (res?.code === 0) {
@@ -800,28 +722,14 @@ async function handleComplete() {
   try {
     const res = await workflowApi.qaStep(props.projectId, 4, 'passed') as any
     const data = res?.data || res
-    if (res?.code === 0 || data?.qa) {
-      // 保存 QA 通过状态，防止下次刷新重头开始
-      try {
-        await workflowApi.saveStep4Artifacts(props.projectId, {
-          qa_passed: true,
-          qa_checked: true,
-          saved_at: new Date().toISOString(),
-        })
-      } catch { /* 保存状态失败不影响主要流程 */ }
-      ElMessage.success('第四步完成！')
-      stepStatus.value = 'qa_passed'
-      // auto-redirect to step5
-      setTimeout(() => {
-        router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName } })
-      }, 1500)
-    } else ElMessage.warning(data?.message || 'QA 提交失败')
+    if (res?.code === 0 || data?.qa) { ElMessage.success('第四步完成！'); stepStatus.value = 'qa_passed' }
+    else ElMessage.warning(data?.message || 'QA 提交失败')
   } catch (e: any) { ElMessage.error(e?.message || 'QA 提交失败') }
   finally { loading.value = false }
 }
 
 function goBack() { router.push({ name: 'ProjectDetail', params: { projectId: props.projectId } }) }
-function goToNext() { router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName } }) }
+function goToNext() { router.push({ name: 'Step5', params: { projectId: props.projectId }, query: { name: projectName.value } }) }
 </script>
 
 <style scoped lang="scss">
@@ -832,19 +740,21 @@ function goToNext() { router.push({ name: 'Step5', params: { projectId: props.pr
     display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;
     &-left { display: flex; align-items: flex-start; gap: 16px; h1 { margin: 0; font-size: 24px; font-weight: 600; } }
   }
-  &__subtitle { margin: 4px 0 0; color: #909399; font-size: 14px; }
+  &__subtitle { margin: 4px 0 0; color: $text-muted; font-size: 14px; }
   &__alert { margin-bottom: 16px; }
 
   &__card {
-    text-align: center; padding: 32px 24px; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px;
-    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; }
-    p { color: #909399; margin: 0 0 24px; }
+    text-align: center; padding: 32px 24px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 12px;
+    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; color: $text-primary; }
+    p { color: $text-muted; margin: 0 0 24px; }
     &-icon { font-size: 48px; line-height: 1; }
-    &--executing { border-color: #e6a23c; background: #fdf6ec; }
+    &--executing { border-color: $border-cyan; background: $primary-dim; }
   }
 
   &__executing-header { display: flex; align-items: center; justify-content: center; gap: 12px; }
-  &__executing-status { font-size: 14px; color: #e6a23c; font-weight: 500; margin-bottom: 16px !important; }
+  &__executing-status { font-size: 14px; color: $primary; font-weight: 500; margin-bottom: 16px !important; }
 
   /* ── 4 sub-flow panels (2x2 grid) ── */
   &__subflows {
@@ -856,27 +766,27 @@ function goToNext() { router.push({ name: 'Step5', params: { projectId: props.pr
   }
 
   &__subflow-panel {
-    background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 12px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 10px; padding: 12px;
     transition: all 0.3s ease;
-    &.status-generating { border-color: #e6a23c; background: #fffbe6; }
-    &.status-reviewing { border-color: #409eff; background: #ecf5ff; }
-    &.status-passed { border-color: #67c23a; background: #f0f9eb; }
-    &.status-failed { border-color: #f56c6c; background: #fef0f0; }
-    &.status-pending { border-color: #dcdfe6; background: #fafafa; }
+    &.status-generating { border-color: $warning; background: $warning-dim; }
+    &.status-reviewing { border-color: $primary; background: $primary-dim; }
+    &.status-passed { border-color: $secondary; background: $secondary-dim; }
+    &.status-failed { border-color: $danger; background: $danger-dim; }
+    &.status-pending { border-color: $border-default; background: rgba(255, 255, 255, 0.03); }
   }
 
   &__subflow-header {
     display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
   }
   &__subflow-icon { font-size: 20px; line-height: 1; }
-  &__subflow-label { font-weight: 600; font-size: 14px; flex: 1; }
-  &__subflow-rounds { font-size: 11px; color: #909399; background: #f5f7fa; padding: 1px 6px; border-radius: 4px; }
-  &__subflow-queued { font-size: 11px; color: #909399; background: #f5f7fa; padding: 1px 6px; border-radius: 4px; }
-  &__subflow-message { font-size: 12px; color: #606266; margin-bottom: 4px; line-height: 1.4; }
-  &__subflow-detail { font-size: 11px; color: #909399; margin-bottom: 4px; padding: 4px 8px; background: #f5f7fa; border-radius: 4px; line-height: 1.3; max-height: 40px; overflow: hidden; }
+  &__subflow-label { font-weight: 600; font-size: 14px; flex: 1; color: $text-primary; }
+  &__subflow-rounds { font-size: 11px; color: $text-muted; background: rgba(255, 255, 255, 0.06); padding: 1px 6px; border-radius: 4px; }
+  &__subflow-message { font-size: 12px; color: $text-secondary; margin-bottom: 4px; line-height: 1.4; }
+  &__subflow-detail { font-size: 11px; color: $text-muted; margin-bottom: 4px; padding: 4px 8px; background: rgba(255, 255, 255, 0.04); border-radius: 4px; line-height: 1.3; max-height: 40px; overflow: hidden; }
   &__subflow-content {
-    max-height: 120px; overflow-y: auto; background: #1a1a2e; color: #e0e0e0; border-radius: 4px; padding: 8px; margin-top: 4px;
-    pre { margin: 0; font-size: 11px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; font-family: 'Courier New', monospace; }
+    max-height: 120px; overflow-y: auto; background: rgba(0, 0, 0, 0.3); color: $text-secondary; border-radius: 4px; padding: 8px; margin-top: 4px;
+    pre { margin: 0; font-size: 11px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; font-family: $font-mono; }
   }
   &__subflow-bar { margin-top: 6px; }
 
@@ -884,18 +794,18 @@ function goToNext() { router.push({ name: 'Step5', params: { projectId: props.pr
   &__stage-collapse { margin-top: 8px; text-align: left; :deep(.el-collapse-item__header) { font-size: 13px; } }
 
   &__stage-log { max-height: 200px; overflow-y: auto; }
-  &__progress-msg { padding: 4px 10px; margin-bottom: 3px; border-radius: 4px; font-size: 12px; line-height: 1.4; background: #fff; border: 1px solid #ebeef5; }
-  &__progress-msg.stage { border-left: 3px solid #e6a23c; }
-  &__progress-msg.progress { border-left: 3px solid #409eff; color: #606266; }
-  &__progress-msg.done { border-left: 3px solid #67c23a; background: #f0f9eb; }
-  &__progress-msg.error { border-left: 3px solid #f56c6c; background: #fef0f0; }
+  &__progress-msg { padding: 4px 10px; margin-bottom: 3px; border-radius: 4px; font-size: 12px; line-height: 1.4; background: rgba(255, 255, 255, 0.03); border: 1px solid $border-subtle; color: $text-secondary; }
+  &__progress-msg.stage { border-left: 3px solid $warning; }
+  &__progress-msg.progress { border-left: 3px solid $primary; }
+  &__progress-msg.done { border-left: 3px solid $secondary; background: $secondary-dim; }
+  &__progress-msg.error { border-left: 3px solid $danger; background: $danger-dim; }
 
   /* ── idle doc preview ── */
   &__doc-list-preview { max-width: 500px; margin: 0 auto 32px; text-align: left; }
   &__doc-type-item {
-    display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 8px; background: #f5f7fa; border-radius: 8px;
-    &.status-passed { border-color: #67c23a; background: #f0f9eb; }
-    &-icon { font-size: 24px; } &-name { font-weight: 500; font-size: 14px; } &-desc { font-size: 12px; color: #909399; margin-top: 2px; }
+    display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+    &-icon { font-size: 24px; } &-name { font-weight: 500; font-size: 14px; color: $text-primary; } &-desc { font-size: 12px; color: $text-muted; margin-top: 2px; }
   }
 
   /* ── summary cards on qa_review ── */
@@ -903,26 +813,28 @@ function goToNext() { router.push({ name: 'Step5', params: { projectId: props.pr
     display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap;
   }
   &__summary-card {
-    display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; border: 1px solid #e4e7ed; background: #fff; flex: 1; min-width: 160px;
-    &.status-passed { border-color: #67c23a; background: #f0f9eb; }
-    &.status-failed { border-color: #f56c6c; background: #fef0f0; }
+    display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px;
+    border: 1px solid $glass-border; background: $glass-bg; backdrop-filter: $frosted-blur;
+    flex: 1; min-width: 160px;
+    &.status-passed { border-color: $secondary; background: $secondary-dim; }
+    &.status-failed { border-color: $danger; background: $danger-dim; }
   }
   &__summary-icon { font-size: 24px; }
   &__summary-body { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  &__summary-label { font-weight: 500; font-size: 13px; }
-  &__summary-rounds { font-size: 11px; color: #909399; }
+  &__summary-label { font-weight: 500; font-size: 13px; color: $text-primary; }
+  &__summary-rounds { font-size: 11px; color: $text-muted; }
 
   &__result { margin-top: 16px; }
-  &__tabs { background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 16px; }
-  &__doc-content { max-height: 600px; overflow-y: auto; pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6; margin: 0; } }
+  &__tabs { background: $glass-bg; backdrop-filter: $frosted-blur; border: 1px solid $glass-border; border-radius: 10px; padding: 16px; }
+  &__doc-content { max-height: 600px; overflow-y: auto; pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6; margin: 0; color: $text-secondary; } }
 
-  &__qa-section { margin-top: 24px; h3 { margin: 0 0 4px; font-size: 18px; } }
-  &__qa-subtitle { color: #909399; font-size: 13px; margin: 0 0 16px; }
+  &__qa-section { margin-top: 24px; h3 { margin: 0 0 4px; font-size: 18px; color: $text-primary; } }
+  &__qa-subtitle { color: $text-muted; font-size: 13px; margin: 0 0 16px; }
   &__qa-loading { text-align: center; padding: 24px; }
-  &__qa-dimension { padding: 12px 16px; background: #f5f7fa; border-radius: 6px; margin-bottom: 8px;
+  &__qa-dimension { padding: 12px 16px; background: rgba(255, 255, 255, 0.04); border-radius: 6px; margin-bottom: 8px;
     &-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-    &-label { font-weight: 500; font-size: 14px; }
-    &-detail { margin: 0; font-size: 13px; color: #606266; }
+    &-label { font-weight: 500; font-size: 14px; color: $text-primary; }
+    &-detail { margin: 0; font-size: 13px; color: $text-secondary; }
   }
   &__qa-actions, &__qa-start { text-align: center; margin-top: 16px; }
   &__actions { display: flex; justify-content: center; gap: 12px; }

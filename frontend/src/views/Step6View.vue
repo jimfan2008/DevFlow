@@ -433,54 +433,60 @@ onUnmounted(() => {
 .step6-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 8px;
 }
-.step6-status { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #303133; }
+.step6-status { display: flex; align-items: center; gap: 8px; font-weight: 500; color: $text-primary; }
 .step6-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #909399;
-  &.is-streaming { background: #67c23a; animation: see-pulse 1.5s ease-in-out infinite; }
+  width: 8px; height: 8px; border-radius: 50%; background: $text-muted;
+  &.is-streaming { background: $secondary; animation: see-pulse 1.5s ease-in-out infinite; box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
 }
 .step6-meta { display: flex; gap: 8px; align-items: center; }
 
 .step6-prompt {
-  margin-top: 16px; text-align: left; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden;
+  margin-top: 16px; text-align: left;
+  border: 1px solid $glass-border; border-radius: 10px; overflow: hidden;
+  background: $glass-bg; backdrop-filter: $frosted-blur;
   &-header {
     display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 16px; background: #f0f9ff; border-bottom: 1px solid #e4e7ed;
-    cursor: pointer; font-size: 13px; font-weight: 500;
+    padding: 10px 16px; background: $primary-dim; border-bottom: 1px solid $border-subtle;
+    cursor: pointer; font-size: 13px; font-weight: 500; color: $text-primary;
     .el-icon { transition: transform 0.3s; &.is-rotate { transform: rotate(-90deg); } }
   }
   &-body {
-    max-height: 300px; overflow-y: auto; padding: 12px; background: #fafafa;
-    pre { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+    max-height: 300px; overflow-y: auto; padding: 12px;
+    pre { font-family: $font-mono; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; color: $text-secondary; }
   }
 }
 
 .step6-stream {
-  margin-top: 16px; text-align: left; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden;
-  h4 { margin: 0; padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid #e4e7ed; font-size: 13px; }
+  margin-top: 16px; text-align: left;
+  border: 1px solid $glass-border; border-radius: 10px; overflow: hidden;
+  background: $glass-bg; backdrop-filter: $frosted-blur;
+  h4 { margin: 0; padding: 10px 16px; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid $border-subtle; font-size: 13px; color: $text-primary; }
   &-body {
-    max-height: 400px; overflow-y: auto; padding: 12px;
-    pre { font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; }
+    max-height: 400px; overflow-y: auto; padding: 12px; color: $text-secondary;
+    pre { font-family: $font-mono; font-size: 12px; white-space: pre-wrap; word-break: break-all; margin: 0; color: $text-secondary; }
   }
-  &-waiting { text-align: center; color: #909399; padding: 40px 0; font-size: 14px; }
+  &-waiting { text-align: center; color: $text-muted; padding: 40px 0; font-size: 14px; }
 }
 
 .step6-results {
-  margin-top: 16px; text-align: left; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden;
-  h4 { margin: 0; padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid #e4e7ed; font-size: 13px; }
+  margin-top: 16px; text-align: left;
+  border: 1px solid $glass-border; border-radius: 10px; overflow: hidden;
+  background: $glass-bg; backdrop-filter: $frosted-blur;
+  h4 { margin: 0; padding: 10px 16px; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid $border-subtle; font-size: 13px; color: $text-primary; }
   &-table { font-size: 12px; }
   &-row {
-    display: flex; align-items: center; padding: 6px 16px; border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: center; padding: 6px 16px; border-bottom: 1px solid $border-subtle;
     &:last-child { border-bottom: none; }
   }
-  &-header { font-weight: 600; background: #fafafa; color: #606266; }
+  &-header { font-weight: 600; background: rgba(255, 255, 255, 0.03); color: $text-primary; }
   .col-status { width: 36px; flex-shrink: 0; text-align: center; }
-  .col-id { width: 80px; flex-shrink: 0; font-family: monospace; color: #606266; }
+  .col-id { width: 80px; flex-shrink: 0; font-family: $font-mono; color: $text-secondary; }
   .col-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .col-score { width: 50px; flex-shrink: 0; text-align: right; font-family: monospace; }
-  .row-passed { background: #f0f9eb; }
-  .row-failed { background: #fef0f0; }
+  .col-score { width: 50px; flex-shrink: 0; text-align: right; font-family: $font-mono; }
+  .row-passed { background: $secondary-dim; }
+  .row-failed { background: $danger-dim; }
 }
 
 .step6-rexec { text-align: center; margin-top: 20px; }
-.step6-rexec-hint { font-size: 12px; color: #909399; margin-top: 6px; }
+.step6-rexec-hint { font-size: 12px; color: $text-muted; margin-top: 6px; }
 </style>

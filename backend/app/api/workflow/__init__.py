@@ -3,11 +3,9 @@ from app.api.workflow.core import router
 from app.api.workflow import step2  # noqa: F401
 from app.api.workflow import step3  # noqa: F401
 from app.api.workflow import step4  # noqa: F401
-from app.api.workflow import step4_1  # noqa: F401
-from app.api.workflow import step4_2  # noqa: F401
-from app.api.workflow import step4_3  # noqa: F401
-from app.api.workflow import step4_4  # noqa: F401
 from app.api.workflow import step5  # noqa: F401
+from app.api.workflow import step5_1  # noqa: F401
+from app.api.workflow import step5_2  # noqa: F401
 from app.api.workflow import step6  # noqa: F401
 from app.api.workflow import step7  # noqa: F401
 from app.api.workflow import step8  # noqa: F401

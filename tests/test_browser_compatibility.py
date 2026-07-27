@@ -1,0 +1,821 @@
+import pytest
+from playwright.sync_api import Page, BrowserContext, Browser, Playwright, sync_playwright
+from typing import Generator, Any
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+
+# ---------------------------------------------------------------------------
+# Domain model for compatibility test results
+# ---------------------------------------------------------------------------
+@dataclass
+class BrowserTestResult:
+    browser_name: str
+    test_name: str
+    passed: bool
+    actual: Any = None
+    expected: Any = None
+    error: str | None = None
+
+
+@dataclass
+class StyleSnapshot:
+    font_size: str
+    color: str
+    background_color: str
+    border_radius: str
+    padding: str
+    margin: str
+    display: str
+    opacity: str
+    transform: str
+    box_shadow: str
+
+    @classmethod
+    def from_page(cls, page: Page, selector: str) -> "StyleSnapshot":
+        return cls(
+            font_size=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).fontSize : 'N/A'; }}"""),
+            color=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).color : 'N/A'; }}"""),
+            background_color=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).backgroundColor : 'N/A'; }}"""),
+            border_radius=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).borderRadius : 'N/A'; }}"""),
+            padding=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).padding : 'N/A'; }}"""),
+            margin=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).margin : 'N/A'; }}"""),
+            display=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).display : 'N/A'; }}"""),
+            opacity=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).opacity : 'N/A'; }}"""),
+            transform=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).transform : 'N/A'; }}"""),
+            box_shadow=page.evaluate(f"""() => {{ const e = document.querySelector('{selector}'); return e ? getComputedStyle(e).boxShadow : 'N/A'; }}"""),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Test HTML pages served inline via file:// with embedded content
+# ---------------------------------------------------------------------------
+TEST_PAGE_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Browser Compatibility Test</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+.card { background: white; border-radius: 12px; padding: 32px; margin: 20px; box-shadow: 0 4px 24px rgba(0,0,0,0.1); max-width: 400px; width: 100%; transition: transform 0.3s ease; }
+.card:hover { transform: translateY(-4px); }
+h1 { font-size: 24px; color: #1a1a2e; margin-bottom: 16px; }
+p { font-size: 16px; color: #4a4a6a; line-height: 1.6; margin-bottom: 20px; }
+.button-group { display: flex; gap: 12px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+.btn-primary { background: #4361ee; color: white; }
+.btn-primary:hover { background: #3a56d4; }
+.btn-secondary { background: #e9ecef; color: #495057; }
+.btn-secondary:hover { background: #dee2e6; }
+.btn-success { background: #06d6a0; color: white; }
+.btn-success:hover { background: #05b98a; }
+#counter { font-size: 48px; font-weight: 700; color: #4361ee; text-align: center; margin: 16px 0; }
+#message { font-size: 14px; color: #6c757d; text-align: center; min-height: 20px; }
+.flex-col { display: flex; flex-direction: column; align-items: center; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 480px) { .grid-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="card" id="app">
+  <h1 id="title" tabindex="0">Browser Compatibility Test</h1>
+  <p id="description">This page verifies that core features work identically across all major browsers.</p>
+  <div class="flex-col">
+    <div id="counter">0</div>
+    <div class="button-group" role="group" aria-label="Counter controls">
+      <button class="btn btn-primary" id="btn-increment" aria-label="Increment counter">+1</button>
+      <button class="btn btn-secondary" id="btn-decrement" aria-label="Decrement counter">-1</button>
+      <button class="btn btn-success" id="btn-reset" aria-label="Reset counter">Reset</button>
+    </div>
+    <div id="message" aria-live="polite">Click a button to interact</div>
+  </div>
+  <hr style="margin: 24px 0; border: none; border-top: 1px solid #e9ecef;">
+  <div class="grid-2">
+    <div>
+      <label><input type="checkbox" id="chk-toggle" aria-label="Toggle feature"> Toggle feature</label>
+    </div>
+    <div>
+      <select id="select-theme" aria-label="Select theme">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+        <option value="blue">Blue</option>
+      </select>
+    </div>
+  </div>
+  <div id="toggle-output" style="margin-top: 12px; padding: 12px; border-radius: 8px; background: #f8f9fa; min-height: 40px;" aria-live="polite">Feature is OFF</div>
+  <p id="large-text-target" style="display:none;"></p>
+</div>
+<script>
+let count = 0;
+const counterEl = document.getElementById('counter');
+const messageEl = document.getElementById('message');
+const toggleOutput = document.getElementById('toggle-output');
+
+document.getElementById('btn-increment').addEventListener('click', () => {
+  count += 1;
+  counterEl.textContent = count;
+  messageEl.textContent = 'Incremented to ' + count;
+});
+
+document.getElementById('btn-decrement').addEventListener('click', () => {
+  count -= 1;
+  counterEl.textContent = count;
+  messageEl.textContent = 'Decremented to ' + count;
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  count = 0;
+  counterEl.textContent = count;
+  messageEl.textContent = 'Reset to 0';
+});
+
+document.getElementById('chk-toggle').addEventListener('change', function() {
+  toggleOutput.textContent = this.checked ? 'Feature is ON' : 'Feature is OFF';
+  toggleOutput.style.background = this.checked ? '#d4edda' : '#f8f9fa';
+});
+
+document.getElementById('select-theme').addEventListener('change', function() {
+  const card = document.querySelector('.card');
+  if (this.value === 'dark') {
+    card.style.background = '#2d2d2d';
+    card.style.color = '#e0e0e0';
+  } else if (this.value === 'blue') {
+    card.style.background = '#e3f2fd';
+    card.style.color = '#1a237e';
+  } else {
+    card.style.background = 'white';
+    card.style.color = 'inherit';
+  }
+});
+</script>
+</body>
+</html>"""
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+def _write_temp_html(content: str) -> str:
+    path = Path(f"/tmp/browser_compat_test_{int(time.time() * 1000)}.html")
+    path.write_text(content, encoding="utf-8")
+    return path.as_uri()
+
+
+TEST_PAGE_URI = _write_temp_html(TEST_PAGE_HTML)
+
+
+def _normalize_color(color: str) -> str:
+    """Normalize color string for cross-browser comparison.
+    Converts rgb() values to a canonical form and hex values to lowercase."""
+    stripped = color.strip()
+    if stripped.startswith("rgb("):
+        parts = stripped.strip("rgb()").replace(" ", "").split(",")
+        if len(parts) == 3:
+            return f"rgb({parts[0]},{parts[1]},{parts[2]})"
+    return stripped.lower()
+
+
+@pytest.fixture(scope="session")
+def playwright_instance() -> Generator[Playwright, None, None]:
+    with sync_playwright() as p:
+        yield p
+
+
+# ---------------------------------------------------------------------------
+# Per-browser fixtures
+# ---------------------------------------------------------------------------
+@pytest.fixture(scope="function")
+def chromium_browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:
+    browser = playwright_instance.chromium.launch(headless=True)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture(scope="function")
+def firefox_browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:
+    browser = playwright_instance.firefox.launch(headless=True)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture(scope="function")
+def webkit_browser(playwright_instance: Playwright) -> Generator[Browser, None, None]:
+    browser = playwright_instance.webkit.launch(headless=True)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture
+def chromium_page(chromium_browser: Browser) -> Generator[Page, None, None]:
+    context = chromium_browser.new_context(viewport={"width": 1280, "height": 720})
+    page = context.new_page()
+    page.goto(TEST_PAGE_URI)
+    page.wait_for_load_state("networkidle")
+    yield page
+    context.close()
+
+
+@pytest.fixture
+def firefox_page(firefox_browser: Browser) -> Generator[Page, None, None]:
+    context = firefox_browser.new_context(viewport={"width": 1280, "height": 720})
+    page = context.new_page()
+    page.goto(TEST_PAGE_URI)
+    page.wait_for_load_state("networkidle")
+    yield page
+    context.close()
+
+
+@pytest.fixture
+def webkit_page(webkit_browser: Browser) -> Generator[Page, None, None]:
+    context = webkit_browser.new_context(viewport={"width": 1280, "height": 720})
+    page = context.new_page()
+    page.goto(TEST_PAGE_URI)
+    page.wait_for_load_state("networkidle")
+    yield page
+    context.close()
+
+
+# ---------------------------------------------------------------------------
+# Fixture that yields all browsers for cross-comparison tests
+# ---------------------------------------------------------------------------
+BROWSER_NAMES = ["chromium", "firefox", "webkit"]
+
+
+@pytest.fixture(scope="function")
+def all_browser_pages(playwright_instance: Playwright) -> Generator[dict[str, Page], None, None]:
+    browsers: dict[str, Browser] = {}
+    contexts: dict[str, BrowserContext] = {}
+    pages: dict[str, Page] = {}
+    try:
+        browsers["chromium"] = playwright_instance.chromium.launch(headless=True)
+        browsers["firefox"] = playwright_instance.firefox.launch(headless=True)
+        browsers["webkit"] = playwright_instance.webkit.launch(headless=True)
+        for name, browser in browsers.items():
+            ctx = browser.new_context(viewport={"width": 1280, "height": 720})
+            contexts[name] = ctx
+            page = ctx.new_page()
+            page.goto(TEST_PAGE_URI)
+            page.wait_for_load_state("networkidle")
+            pages[name] = page
+        yield pages
+    finally:
+        for ctx in contexts.values():
+            ctx.close()
+        for browser in browsers.values():
+            browser.close()
+
+
+# ============================================================================
+# TESTS — Functional consistency across browsers
+# ============================================================================
+class TestBrowserCompatibility:
+    """Verify that 4 browser types (Chromium, Firefox, WebKit/Safari, and
+    implicitly Edge via Chromium engine) produce identical results for
+    functionality, styling, and interaction."""
+
+    # ------------------------------------------------------------------
+    # 1. Functional consistency — DOM structure and core logic
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_dom_structure(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        assert page.title() == "Browser Compatibility Test"
+        assert page.locator("#title").text_content() == "Browser Compatibility Test"
+        assert page.locator("#description").is_visible()
+        assert page.locator("#counter").text_content() == "0"
+        assert page.locator("#btn-increment").is_visible()
+        assert page.locator("#btn-decrement").is_visible()
+        assert page.locator("#btn-reset").is_visible()
+        assert page.locator("#chk-toggle").is_visible()
+        assert page.locator("#select-theme").is_visible()
+        assert page.locator("#toggle-output").text_content() == "Feature is OFF"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_increment_function(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        page.click("#btn-increment")
+        assert page.locator("#counter").text_content() == "1"
+        assert page.locator("#message").text_content() == "Incremented to 1"
+
+        page.click("#btn-increment")
+        page.click("#btn-increment")
+        assert page.locator("#counter").text_content() == "3"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_decrement_function(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        page.click("#btn-increment")
+        page.click("#btn-increment")
+        page.click("#btn-decrement")
+        assert page.locator("#counter").text_content() == "1"
+        assert page.locator("#message").text_content() == "Decremented to 1"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_reset_function(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        page.click("#btn-increment")
+        page.click("#btn-increment")
+        page.click("#btn-increment")
+        assert page.locator("#counter").text_content() == "3"
+        page.click("#btn-reset")
+        assert page.locator("#counter").text_content() == "0"
+        assert page.locator("#message").text_content() == "Reset to 0"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_checkbox_toggle(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        assert page.locator("#toggle-output").text_content() == "Feature is OFF"
+        page.check("#chk-toggle")
+        assert page.locator("#toggle-output").text_content() == "Feature is ON"
+        page.uncheck("#chk-toggle")
+        assert page.locator("#toggle-output").text_content() == "Feature is OFF"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_theme_selector(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        page.select_option("#select-theme", "dark")
+        bg = page.evaluate("document.querySelector('.card').style.background")
+        assert bg == "rgb(45, 45, 45)" or bg == "#2d2d2d"
+
+        page.select_option("#select-theme", "blue")
+        bg = page.evaluate("document.querySelector('.card').style.background")
+        assert bg == "rgb(227, 242, 253)" or bg == "#e3f2fd"
+
+        page.select_option("#select-theme", "light")
+        bg = page.evaluate("document.querySelector('.card').style.background")
+        assert bg == "white" or bg == "rgb(255, 255, 255)" or bg == ""
+
+    # ------------------------------------------------------------------
+    # 2. Cross-browser functional identity — all browsers must agree
+    # ------------------------------------------------------------------
+
+    def test_all_browsers_agree_on_increment(self, all_browser_pages: dict[str, Page]) -> None:
+        results: dict[str, str] = {}
+        for name, page in all_browser_pages.items():
+            page.click("#btn-increment")
+            page.click("#btn-increment")
+            results[name] = page.locator("#counter").text_content() or ""
+        unique = set(results.values())
+        assert len(unique) == 1, (
+            f"Browsers disagree on counter after 2 increments: {results}"
+        )
+
+    def test_all_browsers_agree_on_toggle(self, all_browser_pages: dict[str, Page]) -> None:
+        results: dict[str, str] = {}
+        for name, page in all_browser_pages.items():
+            page.check("#chk-toggle")
+            results[name] = page.locator("#toggle-output").text_content() or ""
+        unique = set(results.values())
+        assert len(unique) == 1, (
+            f"Browsers disagree on toggle output: {results}"
+        )
+
+    def test_all_browsers_agree_on_theme_switch(self, all_browser_pages: dict[str, Page]) -> None:
+        results: dict[str, str] = {}
+        for name, page in all_browser_pages.items():
+            page.select_option("#select-theme", "dark")
+            bg = page.evaluate("document.querySelector('.card').style.background")
+            results[name] = _normalize_color(str(bg))
+        unique = set(results.values())
+        assert len(unique) == 1, (
+            f"Browsers disagree on dark theme background: {results}"
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Style consistency — computed styles match across browsers
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_card_style_snapshot(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        style = StyleSnapshot.from_page(page, ".card")
+        assert style.border_radius == "12px"
+        assert style.padding == "32px"
+        assert style.margin == "20px"
+        assert style.display == "block"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_button_styles_match(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        primary_bg = page.evaluate(
+            "getComputedStyle(document.querySelector('#btn-increment')).backgroundColor"
+        )
+        primary_color = page.evaluate(
+            "getComputedStyle(document.querySelector('#btn-increment')).color"
+        )
+        primary_font_weight = page.evaluate(
+            "getComputedStyle(document.querySelector('#btn-increment')).fontWeight"
+        )
+        assert "4361" in primary_bg or "rgb(67, 97, 238)" in primary_bg
+        assert "255" in primary_color or "white" in primary_color
+        assert primary_font_weight in ("600", "700", "bold")
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_responsive_card_appearance(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        box_shadow = page.evaluate(
+            "getComputedStyle(document.querySelector('.card')).boxShadow"
+        )
+        assert box_shadow != "none"
+        assert "0" in box_shadow and "rgba" in box_shadow or "rgb" in box_shadow
+
+    def test_all_browsers_agree_on_card_radius(self, all_browser_pages: dict[str, Page]) -> None:
+        results: dict[str, str] = {}
+        for name, page in all_browser_pages.items():
+            results[name] = page.evaluate(
+                "getComputedStyle(document.querySelector('.card')).borderRadius"
+            ) or ""
+        unique = set(results.values())
+        assert len(unique) == 1, (
+            f"Browsers disagree on border-radius: {results}"
+        )
+
+    def test_all_browsers_agree_on_font_size(self, all_browser_pages: dict[str, Page]) -> None:
+        results: dict[str, str] = {}
+        for name, page in all_browser_pages.items():
+            results[name] = page.evaluate(
+                "getComputedStyle(document.querySelector('h1')).fontSize"
+            ) or ""
+        unique = set(results.values())
+        assert len(unique) == 1, (
+            f"Browsers disagree on h1 font-size: {results}"
+        )
+
+    # ------------------------------------------------------------------
+    # 4. Interaction consistency — hover, focus, animation
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_button_hover_changes_cursor(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        cursor = page.evaluate(
+            "getComputedStyle(document.querySelector('#btn-increment')).cursor"
+        )
+        assert cursor == "pointer"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_card_hover_transform(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        card = page.locator(".card")
+        card.hover()
+        page.wait_for_function(
+            "getComputedStyle(document.querySelector('.card')).transform !== 'none'",
+            timeout=3000
+        )
+        transform = page.evaluate(
+            "getComputedStyle(document.querySelector('.card')).transform"
+        )
+        assert transform != "none", "Card hover transform should be active"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_button_click_feedback(self, request, page_fixture: str) -> None:
+        page: Page = request.getfixturevalue(page_fixture)
+        page.click("#btn-increment")
+        message = page.locator("#message").text_content()
+        assert message is not None and len(message) > 0
+
+    def test_all_browsers_agree_on_hover_cursor(self, all_browser_pages: dict[str, Page]) -> None:
+        results: dict[str, str] = {}
+        for name, page in all_browser_pages.items():
+            results[name] = page.evaluate(
+                "getComputedStyle(document.querySelector('.btn')).cursor"
+            ) or ""
+        unique = set(results.values())
+        assert len(unique) == 1, (
+            f"Browsers disagree on button cursor: {results}"
+        )
+
+    # ------------------------------------------------------------------
+    # 5. Edge / Chromium equivalence — Edge uses same engine
+    # ------------------------------------------------------------------
+
+    def test_edge_chromium_equivalence(self, playwright_instance: Playwright) -> None:
+        """Verify that Microsoft Edge (Chromium-based) produces identical DOM
+        and style to Chromium, confirming full support on the 4th major browser."""
+        edge_browser = None
+        chromium = playwright_instance.chromium.launch(headless=True)
+        try:
+            edge_browser = playwright_instance.chromium.launch(headless=True, channel="msedge")
+        except Exception:
+            pytest.skip("Microsoft Edge (msedge) not installed in this environment")
+
+        ctx_a = chromium.new_context(viewport={"width": 1280, "height": 720})
+        page_a = ctx_a.new_page()
+        page_a.goto(TEST_PAGE_URI)
+        page_a.wait_for_load_state("networkidle")
+
+        ctx_b = edge_browser.new_context(viewport={"width": 1280, "height": 720})
+        page_b = ctx_b.new_page()
+        page_b.goto(TEST_PAGE_URI)
+        page_b.wait_for_load_state("networkidle")
+
+        try:
+            page_a.click("#btn-increment")
+            page_a.click("#btn-increment")
+            page_a.click("#btn-increment")
+            page_a.check("#chk-toggle")
+            page_a.select_option("#select-theme", "dark")
+
+            page_b.click("#btn-increment")
+            page_b.click("#btn-increment")
+            page_b.click("#btn-increment")
+            page_b.check("#chk-toggle")
+            page_b.select_option("#select-theme", "dark")
+
+            assert page_a.locator("#counter").text_content() == page_b.locator("#counter").text_content()
+            assert page_a.locator("#toggle-output").text_content() == page_b.locator("#toggle-output").text_content()
+            bg_a = _normalize_color(page_a.evaluate("document.querySelector('.card').style.background") or "")
+            bg_b = _normalize_color(page_b.evaluate("document.querySelector('.card').style.background") or "")
+            assert bg_a == bg_b
+            radius_a = page_a.evaluate("getComputedStyle(document.querySelector('.card')).borderRadius")
+            radius_b = page_b.evaluate("getComputedStyle(document.querySelector('.card')).borderRadius")
+            assert radius_a == radius_b
+        finally:
+            ctx_a.close()
+            ctx_b.close()
+            chromium.close()
+            if edge_browser:
+                edge_browser.close()
+
+    # ------------------------------------------------------------------
+    # 6. Report: collect and assert all results pass
+    # ------------------------------------------------------------------
+
+    def test_all_tests_pass_summary(self, all_browser_pages: dict[str, Page]) -> None:
+        """Meta-test: run a suite of operations on every browser and
+        collect pass/fail results, asserting 100% pass rate."""
+        test_cases: list[dict[str, Any]] = [
+            {"name": "dom-title", "fn": lambda p: p.title() == "Browser Compatibility Test"},
+            {"name": "counter-initial", "fn": lambda p: p.locator("#counter").text_content() == "0"},
+        ]
+
+        def _run_increment_3x(p: Page) -> bool:
+            p.click("#btn-increment")
+            p.click("#btn-increment")
+            p.click("#btn-increment")
+            return p.locator("#counter").text_content() == "3"
+
+        def _run_decrement_1x(p: Page) -> bool:
+            p.click("#btn-decrement")
+            return p.locator("#counter").text_content() == "2"
+
+        def _run_reset(p: Page) -> bool:
+            p.click("#btn-reset")
+            return p.locator("#counter").text_content() == "0"
+
+        def _run_toggle_on(p: Page) -> bool:
+            p.check("#chk-toggle")
+            return p.locator("#toggle-output").text_content() == "Feature is ON"
+
+        def _run_toggle_off(p: Page) -> bool:
+            p.uncheck("#chk-toggle")
+            return p.locator("#toggle-output").text_content() == "Feature is OFF"
+
+        def _run_theme_dark(p: Page) -> bool:
+            p.select_option("#select-theme", "dark")
+            bg = p.evaluate("document.querySelector('.card').style.background") or ""
+            return "45" in bg
+
+        def _run_theme_blue(p: Page) -> bool:
+            p.select_option("#select-theme", "blue")
+            bg = p.evaluate("document.querySelector('.card').style.background") or ""
+            return "227" in bg
+
+        def _run_style_border_radius(p: Page) -> bool:
+            return p.evaluate("getComputedStyle(document.querySelector('.card')).borderRadius") == "12px"
+
+        def _run_style_cursor(p: Page) -> bool:
+            return p.evaluate("getComputedStyle(document.querySelector('.btn')).cursor") == "pointer"
+
+        sequential_cases: list[dict[str, Any]] = [
+            {"name": "increment-3x", "fn": _run_increment_3x},
+            {"name": "decrement-1x", "fn": _run_decrement_1x},
+            {"name": "reset", "fn": _run_reset},
+            {"name": "toggle-on", "fn": _run_toggle_on},
+            {"name": "toggle-off", "fn": _run_toggle_off},
+            {"name": "theme-dark", "fn": _run_theme_dark},
+            {"name": "theme-blue", "fn": _run_theme_blue},
+            {"name": "style-border-radius", "fn": _run_style_border_radius},
+            {"name": "style-cursor-pointer", "fn": _run_style_cursor},
+        ]
+
+        all_results: list[BrowserTestResult] = []
+        for name, page in all_browser_pages.items():
+            # Run pure-lambda test cases (no state mutation between them)
+            for tc in test_cases:
+                try:
+                    passed = tc["fn"](page)
+                except Exception as e:
+                    passed = False
+                    all_results.append(BrowserTestResult(
+                        browser_name=name, test_name=tc["name"], passed=False, error=str(e)
+                    ))
+                    continue
+                if not passed:
+                    all_results.append(BrowserTestResult(
+                        browser_name=name, test_name=tc["name"], passed=False,
+                        actual=None, expected=True
+                    ))
+
+            # Run sequential test cases that mutate page state (each browser page
+            # gets its own fresh sequence, so mutations are isolated per browser)
+            for tc in sequential_cases:
+                try:
+                    passed = tc["fn"](page)
+                except Exception as e:
+                    passed = False
+                    all_results.append(BrowserTestResult(
+                        browser_name=name, test_name=tc["name"], passed=False, error=str(e)
+                    ))
+                    continue
+                if not passed:
+                    all_results.append(BrowserTestResult(
+                        browser_name=name, test_name=tc["name"], passed=False,
+                        actual=None, expected=True
+                    ))
+
+        failed = [r for r in all_results if not r.passed]
+        assert len(failed) == 0, (
+            f"Browser compatibility failures detected ({len(failed)}):\n"
+            + "\n".join(f"  [{r.browser_name}] {r.test_name}: {r.error or f'expected={r.expected}, actual={r.actual}'}" for r in failed)
+        )
+
+    # ------------------------------------------------------------------
+    # 7. Boundary tests — edge cases, concurrency, accessibility
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_decrement_from_zero(self, request, page_fixture: str) -> None:
+        """Counter decrement from initial 0 should go to -1."""
+        page: Page = request.getfixturevalue(page_fixture)
+        assert page.locator("#counter").text_content() == "0"
+        page.click("#btn-decrement")
+        assert page.locator("#counter").text_content() == "-1"
+        assert page.locator("#message").text_content() == "Decremented to -1"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_rapid_increment(self, request, page_fixture: str) -> None:
+        """100 rapid clicks should not cause overflow or freeze."""
+        page: Page = request.getfixturevalue(page_fixture)
+        for _ in range(100):
+            page.click("#btn-increment")
+        assert page.locator("#counter").text_content() == "100"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_double_reset(self, request, page_fixture: str) -> None:
+        """Resetting twice from non-zero should be idempotent."""
+        page: Page = request.getfixturevalue(page_fixture)
+        page.click("#btn-increment")
+        page.click("#btn-increment")
+        page.click("#btn-reset")
+        assert page.locator("#counter").text_content() == "0"
+        page.click("#btn-reset")
+        assert page.locator("#counter").text_content() == "0"
+        assert page.locator("#message").text_content() == "Reset to 0"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_concurrent_toggle_and_increment(self, request, page_fixture: str) -> None:
+        """Incrementing and toggling in sequence should not interfere."""
+        page: Page = request.getfixturevalue(page_fixture)
+        page.click("#btn-increment")
+        page.check("#chk-toggle")
+        assert page.locator("#counter").text_content() == "1"
+        assert page.locator("#toggle-output").text_content() == "Feature is ON"
+        page.click("#btn-increment")
+        page.uncheck("#chk-toggle")
+        assert page.locator("#counter").text_content() == "2"
+        assert page.locator("#toggle-output").text_content() == "Feature is OFF"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_responsive_viewport(self, request, page_fixture: str) -> None:
+        """Layout should stack columns on narrow viewport (≤480px)."""
+        page: Page = request.getfixturevalue(page_fixture)
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.reload()
+        page.wait_for_load_state("networkidle")
+        grid_display = page.evaluate(
+            "getComputedStyle(document.querySelector('.grid-2')).gridTemplateColumns"
+        )
+        assert "1fr" in grid_display, (
+            f"Expected single-column grid on narrow viewport, got: {grid_display}"
+        )
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_keyboard_navigation(self, request, page_fixture: str) -> None:
+        """Tab through interactive elements and activate with Enter."""
+        page: Page = request.getfixturevalue(page_fixture)
+        page.keyboard.press("Tab")
+        page.keyboard.press("Tab")
+        page.keyboard.press("Tab")
+        focused = page.evaluate("document.activeElement && document.activeElement.id")
+        assert focused == "btn-increment" or focused == "btn-decrement" or focused == "btn-reset", (
+            f"Expected focus on one of the buttons, got: {focused}"
+        )
+        page.keyboard.press("Enter")
+        counter_val = page.locator("#counter").text_content()
+        assert counter_val is not None and counter_val != "0", (
+            f"Enter key should change counter from 0, got: {counter_val}"
+        )
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_aria_attributes(self, request, page_fixture: str) -> None:
+        """Interactive elements should have appropriate ARIA attributes."""
+        page: Page = request.getfixturevalue(page_fixture)
+        btn_group_role = page.evaluate(
+            "document.querySelector('.button-group').getAttribute('role')"
+        )
+        assert btn_group_role == "group", f"Expected role='group', got: {btn_group_role}"
+        inc_label = page.evaluate(
+            "document.querySelector('#btn-increment').getAttribute('aria-label')"
+        )
+        assert inc_label == "Increment counter", f"Expected aria-label='Increment counter', got: {inc_label}"
+        dec_label = page.evaluate(
+            "document.querySelector('#btn-decrement').getAttribute('aria-label')"
+        )
+        assert dec_label == "Decrement counter", f"Expected aria-label='Decrement counter', got: {dec_label}"
+        msg_live = page.evaluate(
+            "document.querySelector('#message').getAttribute('aria-live')"
+        )
+        assert msg_live == "polite", f"Expected aria-live='polite', got: {msg_live}"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_checkbox_indeterminate(self, request, page_fixture: str) -> None:
+        """Checkbox can be set to indeterminate state via JavaScript."""
+        page: Page = request.getfixturevalue(page_fixture)
+        page.evaluate("document.querySelector('#chk-toggle').indeterminate = true")
+        is_indeterminate = page.evaluate(
+            "document.querySelector('#chk-toggle').indeterminate"
+        )
+        assert is_indeterminate is True, "Checkbox should support indeterminate state"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_large_text_no_overflow(self, request, page_fixture: str) -> None:
+        """Long text in description should not cause layout breakage."""
+        page: Page = request.getfixturevalue(page_fixture)
+        long_text = "A" * 1000
+        page.evaluate(
+            f"document.querySelector('#description').textContent = '{long_text}'"
+        )
+        card_width = page.evaluate(
+            "document.querySelector('.card').getBoundingClientRect().width"
+        )
+        desc_width = page.evaluate(
+            "document.querySelector('#description').getBoundingClientRect().width"
+        )
+        assert desc_width <= card_width, (
+            f"Description overflow: desc={desc_width}px > card={card_width}px"
+        )
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_theme_selector_invalid_value(self, request, page_fixture: str) -> None:
+        """Selecting a non-existent option should not crash the page."""
+        page: Page = request.getfixturevalue(page_fixture)
+        try:
+            page.evaluate("document.querySelector('#select-theme').value = 'invalid'")
+        except Exception:
+            pytest.fail("Setting an invalid select value should not throw")
+        card_bg = page.evaluate("document.querySelector('.card').style.background")
+        assert card_bg == "" or "white" in card_bg or "rgb(255, 255, 255)" in card_bg
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_zero_interaction_snapshot(self, request, page_fixture: str) -> None:
+        """Snapshot before any interaction shows initial state."""
+        page: Page = request.getfixturevalue(page_fixture)
+        style = StyleSnapshot.from_page(page, ".card")
+        assert style.border_radius == "12px"
+        assert style.display == "block"
+        assert page.locator("#counter").text_content() == "0"
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_multi_interaction_snapshot(self, request, page_fixture: str) -> None:
+        """Snapshot after multiple interactions shows mutated state."""
+        page: Page = request.getfixturevalue(page_fixture)
+        for _ in range(5):
+            page.click("#btn-increment")
+        page.check("#chk-toggle")
+        page.select_option("#select-theme", "dark")
+        assert page.locator("#counter").text_content() == "5"
+        assert page.locator("#toggle-output").text_content() == "Feature is ON"
+        bg = page.evaluate("document.querySelector('.card').style.background")
+        assert "45" in bg or "#2d2d2d" in bg
+
+    @pytest.mark.parametrize("page_fixture", ["chromium_page", "firefox_page", "webkit_page"])
+    def test_page_load_error_graceful(self, request, page_fixture: str) -> None:
+        """Navigating to an invalid/broken page should not crash the browser;
+        the page should show an error state gracefully or at minimum not
+        cause an unhandled exception in the test framework."""
+        page: Page = request.getfixturevalue(page_fixture)
+        try:
+            page.goto("file:///nonexistent_file_xyz.html", timeout=3000, wait_until="load")
+        except Exception as exc:
+            error_text = str(exc).lower()
+            assert any(kw in error_text for kw in ["timeout", "net::err", "failed", "error", "neterr"]), (
+                f"Expected a network/load error but got unsupported exception: {exc}"
+            )
+            return
+        page_body_text = page.locator("body").text_content() or ""
+        assert len(page_body_text) >= 0

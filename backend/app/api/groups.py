@@ -7,6 +7,7 @@ from app.api.deps import get_current_user
 from app.schemas.group import (
     GroupCreate, GroupUpdate, GroupResponse,
     AddMemberRequest, SetHostRequest,
+    SendMessageRequest,
     MeetingOutcomeResponse, GroupTaskResponse
 )
 from app.services.group_service import GroupService
@@ -33,8 +34,7 @@ async def create_group(request: GroupCreate, db: Session = Depends(get_db), curr
         group = service.create_group(
             name=request.name,
             description=request.description,
-            members=request.members,
-            project_id=request.project_id
+            members=request.members
         )
         # 同步到 chat_store (SQLite) 供 WebSocket 使用
         try:
@@ -146,11 +146,26 @@ async def get_group_messages(group_id: str, limit: int = 200, db: Session = Depe
     return {"code": 0, "message": "success", "data": {"messages": [m.to_dict() for m in messages]}}
 
 
-@router.get("/{group_id}/ws-messages")
-async def get_ws_messages(group_id: str, limit: int = 30, offset: int = 0):
-    messages = chat_store.get_messages(group_id, limit=limit, offset=offset)
-    total = chat_store.count_messages(group_id)
-    return {"code": 0, "message": "success", "data": {"messages": messages, "total": total}}
+@router.post("/{group_id}/messages")
+async def send_group_message(
+    group_id: str,
+    request: SendMessageRequest,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
+):
+    """发送消息到群组"""
+    service = GroupService(db)
+    try:
+        message = service.add_message(
+            group_id=group_id,
+            sender=request.sender,
+            role=request.role,
+            content=request.content,
+            metadata=request.metadata
+        )
+        return {"code": 0, "message": "success", "data": {"message": message.to_dict()}}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to send message: {str(e)}")
 
 
 class StartMeetingRequest(BaseModel):

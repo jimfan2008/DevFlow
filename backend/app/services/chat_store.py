@@ -262,22 +262,22 @@ class ChatStore:
             "metadata": metadata or {}
         }
 
-    def get_messages(self, group_id: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_messages(self, group_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         conn = self._get_connection()
         cursor = conn.cursor()
 
         cursor.execute('''
             SELECT * FROM messages
             WHERE group_id = ?
-            ORDER BY timestamp DESC
-            LIMIT ? OFFSET ?
-        ''', (group_id, limit, offset))
+            ORDER BY timestamp ASC
+            LIMIT ?
+        ''', (group_id, limit))
         rows = cursor.fetchall()
 
         conn.close()
 
         messages = []
-        for row in reversed(rows):
+        for row in rows:
             messages.append({
                 "id": row["id"],
                 "group_id": row["group_id"],
@@ -290,14 +290,6 @@ class ChatStore:
             })
 
         return messages
-
-    def count_messages(self, group_id: str) -> int:
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT COUNT(*) FROM messages WHERE group_id = ?', (group_id,))
-        count = cursor.fetchone()[0]
-        conn.close()
-        return count
 
     # ====== 会议记录 ======
 

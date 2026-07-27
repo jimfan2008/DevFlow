@@ -437,44 +437,45 @@ onUnmounted(() => {
 .step5-see-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 8px;
 }
-.step5-see-status { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #303133; }
+.step5-see-status { display: flex; align-items: center; gap: 8px; font-weight: 500; color: $text-primary; }
 .step5-see-dot {
-  width: 8px; height: 8px; border-radius: 50%; background: #909399;
-  &.is-streaming { background: #67c23a; animation: see-pulse 1.5s ease-in-out infinite; }
+  width: 8px; height: 8px; border-radius: 50%; background: $text-muted;
+  &.is-streaming { background: $secondary; animation: see-pulse 1.5s ease-in-out infinite; box-shadow: 0 0 6px rgba(52, 211, 153, 0.5); }
 }
 .step5-see-meta { display: flex; gap: 8px; align-items: center; }
 
 .step5-see-panel {
-  margin-top: 16px; border: 1px solid #e4e7ed; border-radius: 8px; overflow: hidden; background: #fff;
+  margin-top: 16px; border: 1px solid $glass-border; border-radius: 10px; overflow: hidden;
+  background: $glass-bg; backdrop-filter: $frosted-blur;
 }
 .step5-see-panel-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 16px; background: #f5f7fa; border-bottom: 1px solid #e4e7ed; font-size: 13px; font-weight: 500;
+  padding: 10px 16px; background: rgba(255, 255, 255, 0.04); border-bottom: 1px solid $border-subtle; font-size: 13px; font-weight: 500; color: $text-primary;
 }
 .step5-see-messages {
   max-height: 500px; overflow-y: auto; padding: 8px;
 }
 .step5-see-empty {
-  padding: 32px; text-align: center; color: #909399; font-size: 14px;
+  padding: 32px; text-align: center; color: $text-muted; font-size: 14px;
 }
 .step5-see-msg {
   padding: 8px 12px; margin-bottom: 4px; border-radius: 6px;
-  &.generating { background: #fff7ed; }
-  &.qa_inspecting { background: #eff6ff; }
-  &.qa_passed { background: #f0fdf4; }
-  &.qa_failed { background: #fef2f2; }
-  &.error { background: #fef2f2; }
-  &.done { background: #f0fdf4; font-weight: 500; }
-  &.initializing { background: #f9fafb; }
-  &.warning { background: #fff7ed; }
+  &.generating { background: $warning-dim; }
+  &.qa_inspecting { background: $primary-dim; }
+  &.qa_passed { background: $secondary-dim; }
+  &.qa_failed { background: $danger-dim; }
+  &.error { background: $danger-dim; }
+  &.done { background: $secondary-dim; font-weight: 500; }
+  &.initializing { background: rgba(255, 255, 255, 0.03); }
+  &.warning { background: $warning-dim; }
 }
 .step5-see-msg-header {
   display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12px;
 }
 .step5-see-msg-avatar { font-size: 14px; width: 20px; text-align: center; }
-.step5-see-msg-agent { font-weight: 600; color: #303133; }
-.step5-see-msg-time { color: #909399; margin-left: auto; font-size: 11px; }
+.step5-see-msg-agent { font-weight: 600; color: $text-primary; }
+.step5-see-msg-time { color: $text-muted; margin-left: auto; font-size: 11px; }
 .step5-see-msg-body {
-  font-size: 13px; color: #606266; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+  font-size: 13px; color: $text-secondary; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
 }
 </style>

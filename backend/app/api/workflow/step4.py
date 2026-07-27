@@ -5,7 +5,6 @@ from app.api.workflow.core import (
     Step3InspectRequest, Step5ChatRequest, QAResultRequest,
     DocsListRequest, ARCH_DESIGN_DIMENSIONS, _wf_engines, WorkflowEngine,
 )
-from app.api.ws.step4_progress import broadcast
 
 @router.post("/{project_id}/step4/artifacts")
 def save_step4_artifacts(project_id: str, body: dict = Body(...),
@@ -25,7 +24,7 @@ def get_step4_status(project_id: str,
     return APIResponse(code=0, data=artifacts)
 
 
-# ── Step4 串行子步骤配置与辅助函数 ──
+# ── Step4 并行子流程配置与辅助函数 ──
 
 SUB_FLOW_CONFIGS = [
     {
@@ -85,10 +84,11 @@ SUB_FLOW_CONFIGS = [
 
 def _build_inspect_prompt(
     doc_path: str, dim: dict, standards: list,
-    dim_key: str, prev_feedback: str = "",
-    chapter_label: str = "",
+    dim_key: str, retry_pressure: str = "",
+    doc_content: str = "",
 ) -> str:
-    """构建 hourong 检验提示词（简洁、严格 JSON 格式）"""
+    """构建 hourong 检验提示词（含标准 + 格式化报告要求）"""
+    import json as _json
     dim_label = dim["label"]
     dim_desc = dim["description"]
 
@@ -97,44 +97,106 @@ def _build_inspect_prompt(
         for i, s in enumerate(standards)
     )
 
-    converge_hint = ""
-    if prev_feedback:
-        converge_hint = (
-            f"\n⚠️ 收敛性检查（极其重要）：\n"
-            f"上次检验报告指出了以下问题，请逐条核实本次文档是否已修复：\n"
-            f"{prev_feedback}\n"
-            f"如果问题已修复，不要再重复报告；如果问题未修复，继续报告。\n"
-            f"禁止报告与上次相同的问题（如果上次指出的问题已修复）。\n"
-            f"禁止对合格项提出新的修改要求。\n"
-        )
+    content_section = ""
+    if doc_content:
+        content_section = f"\n=== 文档内容 ===\n{doc_content[:5000]}\n\n"
 
-    chapter_hint = f"\n检验的分片文档：{chapter_label}\n" if chapter_label else ""
-    chapter_field = f'  "chapter": "{chapter_label}",\n' if chapter_label else ""
     return (
-        "你是一个严格的 JSON-only API。只输出 JSON，禁止任何其他文字。\n\n"
-        "角色：专业的设计方案 QA 检验员（后荣 / HouRong）\n\n"
-        f"检验项目：{dim_label}（{dim_desc}）\n"
-        f"文档路径：{doc_path}\n"
-        f"{chapter_hint}"
-        f"任务：读取该文档文件，严格逐项对照以下标准检验。\n\n"
-        f"检验标准：\n{std_items}\n\n"
-        "评分规则：满分100分，扣分制。score≥90 则 passed=true。\n\n"
-        "输出格式（严格 JSON 对象）：\n"
-        "{\n"
+        f"You are a JSON-only API. Your entire response MUST be a single, "
+        f"valid JSON object — nothing else.\n\n"
+        f"Role: 专业的设计方案 QA 检验员（后荣 / HouRong）\n\n"
+        f"=== 检验项目 ===\n"
+        f"{dim_label}（{dim_desc}）\n\n"
+        f"=== 文档路径 ===\n"
+        f"{doc_path}\n\n"
+        f"{content_section}"
+        f"Task: 严格对照以下检验标准逐项评分并输出格式化检验报告。\n"
+        f"注意：文档内容已在上面给出，请直接进行完整检验。\n\n"
+        f"=== 检验标准与权重 ===\n"
+        f"{std_items}\n\n"
+        f"=== 评分规则 ===\n"
+        f"每项标准按1-5分评分：\n"
+        f"  5 = 完全符合（无可挑剔）\n"
+        f"  4 = 良好（有小瑕疵但不影响）\n"
+        f"  3 = 合格（基本满足，需要改进）\n"
+        f"  2 = 不足（有明显缺陷）\n"
+        f"  1 = 严重不达标（基本未涉及）\n\n"
+        f"=== 判定规则 ===\n"
+        f"- 存在任意 critical 权重项评分 < 3 → passed = false\n"
+        f"- 存在 2 项及以上 major 权重项评分 < 3 → passed = false\n"
+        f"- 其余情况 → passed = true\n\n"
+        f"=== OUTPUT JSON FORMAT (STRICT) ===\n"
+        f'Output ONLY a JSON object with the following structure:\n'
+        f'{{\n'
         f'  "key": "{dim_key}",\n'
-        f'{chapter_field}'
-        '  "score": <0-100>,\n'
-        '  "passed": <true/false>,\n'
-        '  "detail": "<简要说明不合格项及修改方向，passed=true可留空>"\n'
-        "}\n\n"
-        f"{converge_hint}"
-        "规则：\n"
-        "1. 只输出 JSON 对象本身，不要 markdown 代码块，不要任何其他文字\n"
-        "2. 不要思考、分析、推理\n"
-        "3. passed=false 时 detail 必须说明问题和修改方向\n"
-        "4. detail 保持简洁，每条不合格项用1-2句话\n"
-        "5. 已合格项不要提修改要求\n"
-        "JSON："
+        f'  "passed": true/false,\n'
+        f'  "detail": "格式化的检验报告文本（见下方要求）",\n'
+        f'  "report": {{\n'
+        f'    "standards": [\n'
+        f'      {{\n'
+        f'        "name": "标准名称",\n'
+        f'        "score": 1-5,\n'
+        f'        "severity": "critical"/"major",\n'
+        f'        "comment": "评分说明",\n'
+        f'        "issue": "发现的问题（无则留空）"\n'
+        f'      }}\n'
+        f'    ],\n'
+        f'    "overall_score": 3.5,\n'
+        f'    "summary": "检验总结",\n'
+        f'    "problems": [\n'
+        f'      {{"severity": "critical"/"major"/"minor", "description": "问题描述"}}\n'
+        f'    ],\n'
+        f'    "recommendations": ["改进建议1", "改进建议2"]\n'
+        f'  }}\n'
+        f'}}\n\n'
+        f"=== detail 字段格式要求 ===\n"
+        f"detail 字段必须是一个格式化的文本报告，包含以下内容：\n"
+        f"1. 报告标题（后荣设计文档检验报告）\n"
+        f"2. 检验项目名称\n"
+        f"3. 各标准逐项评分（名称、评分、说明）\n"
+        f"4. 发现的全部问题列表（含严重程度标记）\n"
+        f"5. 总体评分和判定结果\n"
+        f"6. 改进建议\n\n"
+        f"Example detail format:\n"
+        f"========================================\n"
+        f"后荣（HouRong）设计文档检验报告\n"
+        f"========================================\n"
+        f"检验项目: {dim_label}\n"
+        f"\n"
+        f"【逐项评分】\n"
+        f"1. 完整性 [critical] — 评分: 4/5\n"
+        f"   说明: 覆盖了主要功能需求\n"
+        f"   问题: 非功能需求未充分说明\n"
+        f"2. 合理性 [critical] — 评分: 2/5\n"
+        f"   说明: 模块划分不够清晰\n"
+        f"   问题: 用户模块和订单模块职责重叠\n"
+        f"\n"
+        f"【问题清单】\n"
+        f"- [critical] 模块划分不清晰 — 用户模块和订单模块职责重叠\n"
+        f"- [major] 可扩展性不足 — 未考虑未来扩展\n"
+        f"\n"
+        f"【综合评定】\n"
+        f"总体评分: 3.2/5\n"
+        f"判定: ❌ 未通过（存在critical项评分<3）\n"
+        f"\n"
+        f"【改进建议】\n"
+        f"1. 重新定义模块边界，明确各模块职责\n"
+        f"2. 补充非功能需求覆盖说明\n"
+        f"3. 增加扩展性设计\n"
+        f"========================================\n\n"
+        f"CRITICAL RULES:\n"
+        f"1. The JSON object must be the ONLY content in your response.\n"
+        f"2. Do NOT include any text before or after the JSON object.\n"
+        f"3. Do NOT use markdown code fences (```json ... ```).\n"
+        f"4. Do NOT include thinking, reasoning, analysis, or explanation.\n"
+        f"5. Do NOT include file content, tool calls, or tool results.\n"
+        f"6. Do NOT include greetings, apologies, or any conversational text.\n"
+        f"7. Ensure all string values use double quotes and are properly escaped.\n"
+        f"8. The JSON must parse successfully without any modifications.\n"
+        f"9. After generating the JSON, verify it is valid before outputting.\n"
+        f"10. The detail field must contain the full formatted report text.\n"
+        f"{retry_pressure}"
+        f"Now output the JSON object:"
     )
 
 
@@ -142,104 +204,114 @@ async def _inspect_doc(
     project_id: str, doc_path: str, dim: dict,
     project_name: str = "", project_description: str = "",
     core_goal: str = "", agent_label: str = "",
-    standards: list = None, prev_feedback: str = "",
-    chapter_label: str = "", docs_dir: str = "",
+    max_retries: int = 3, standards: list = None,
 ) -> dict:
-    """调用 hourong-{doc_type} 对单份文档进行单次 QA 检验（项目会话隔离）。
+    """调用 hourong-{doc_type} 对单份文档进行 QA 检验（项目会话隔离）
     将文档路径告知 hourong 让 Agent 自行读取文件，避免在大文档上 context 溢出。
-    空响应或无法解析时内部重试最多3次。
-    prev_feedback: 上一轮检验意见，用于收敛检测。
-    返回 report_path: hourong 原始报告文件的保存路径。
+    若 hourong 未返回有效检验报告（空响应/无法解析），自动重试最多 max_retries 次，
+    禁止将 hourong 的异常直接当作"检验不通过"传给 houwang 重新生成。
     """
-    import json as _json, re as _re, os as _os
-    from datetime import datetime
-    from app.api.ws.step3_qa import _inspect_via_subagent
+    import json as _json, re as _re, asyncio as _asyncio
+    from app.services.gateway_client import GatewayClient
     from app.api.ws.step4_progress import broadcast
 
     dim_key = dim["key"]
     dim_label = dim["label"]
-    max_attempts = 3
 
-    # 确保 docs_dir 存在
-    if docs_dir:
-        _os.makedirs(docs_dir, exist_ok=True)
-
-    for attempt in range(1, max_attempts + 1):
-        insp_prompt = _build_inspect_prompt(
-            doc_path=doc_path, dim=dim, standards=standards or [],
-            dim_key=dim_key, prev_feedback=prev_feedback,
-            chapter_label=chapter_label,
-        )
-
+    for attempt in range(1, max_retries + 1):
         if attempt > 1:
+            await _asyncio.sleep(2)
             await broadcast(project_id, {
                 "type": "stage",
-                "message": f"🔄 {dim_label}：hourong 第{attempt}次重试检验...",
+                "message": f"🔄 hourong 正在第{attempt}次重新检验{dim_label}...",
                 "subflow": dim_key,
             })
 
-        qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=2)
+        # 重试时追加"上次输出无效"批评，强化 JSON 约束
+        retry_pressure = ""
+        if attempt > 1:
+            retry_pressure = (
+                f"\n\n⚠️ 你上一次输出包含了无法解析的内容。"
+                f"你必须输出一个合法的 JSON 对象，不能再包含其他文字、推理、分析、"
+                f"文件内容、工具调用结果或任何解释性说明！\n"
+            )
+
+        insp_prompt = _build_inspect_prompt(
+            doc_path=doc_path, dim=dim, standards=standards or [],
+            dim_key=dim_key, retry_pressure=retry_pressure,
+        )
+        qa_cli = GatewayClient(profile_name="hourong", timeout=180)
+        qa_chunks = []
+        async for chunk in qa_cli.chat_isolated(
+            messages=[{"role": "user", "content": insp_prompt}],
+            project_id=project_id,
+            project_name=project_name,
+            project_description=project_description,
+            core_goal=core_goal,
+            agent_name=agent_label or f"后荣-{dim_key} QA检验员",
+            stream=True, max_tokens=4096,
+        ):
+            qa_chunks.append(chunk)
+        qa_r = "".join(qa_chunks).strip()
 
         if not qa_r:
-            if attempt < max_attempts:
+            if attempt < max_retries:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ hourong 未返回{dim_label}的检验结果（空响应），正在重试（第{attempt}次）",
+                    "subflow": dim_key,
+                })
                 continue
-            return {"key": dim_key, "passed": False, "detail": "后荣未返回检验结果（空响应）", "report_path": ""}
+            return {"key": dim_key, "passed": False, "detail": f"后荣{max_retries}次均未返回检验结果（空响应）"}
 
-        # 保存 hourong 原始报告到文件
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        rnd = _os.urandom(2).hex()
-        fname = f"hourong_report_{dim_key}_{ts}_{rnd}.txt"
-        report_save_path = ""
-        if docs_dir:
-            report_save_path = _os.path.join(docs_dir, fname)
-            try:
-                with open(report_save_path, "w", encoding="utf-8") as f:
-                    f.write(qa_r)
-            except Exception:
-                report_save_path = ""
-
-        # Extract JSON from LLM response — multi-strategy extraction
+        # Extract JSON from LLM response — robust multi-strategy extraction
+        _re = __import__('re')
         single = {}
 
-        # Strip thinking/analysis tags
+        # Strategy 0: Strip thinking/analysis tags (various formats)
         _lt, _gt = chr(60), chr(62)
         _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
         _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
-        clean_text = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
+        qa_r = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
 
+        # Collect candidates for parsing
         candidates = []
 
-        # Strategy: code fences
-        fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', clean_text, _re.DOTALL)
+        # Strategy 1: Strip markdown code fences
+        fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', qa_r, _re.DOTALL)
         for fc in fenced:
             stripped = fc.strip()
             if stripped:
                 candidates.append(stripped)
 
-        # Strategy: brace extraction
-        brace_start = clean_text.find('{')
-        brace_end = clean_text.rfind('}')
+        # Strategy 2: Brace extraction (first { to last })
+        brace_start = qa_r.find('{')
+        brace_end = qa_r.rfind('}')
         if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-            candidates.append(clean_text[brace_start:brace_end + 1])
+            brace_extracted = qa_r[brace_start:brace_end + 1]
+            candidates.append(brace_extracted)
 
-        # Strategy: JSON-like regex
-        json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_text)
+        # Strategy 3: Find JSON-like pattern via regex
+        json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', qa_r)
         for jl in json_like:
             if len(jl) > 10:
                 candidates.append(jl)
 
-        # Strategy: strip non-JSON prefix/suffix
-        stripped = clean_text.strip()
+        # Strategy 4: Strip non-JSON prefix/suffix
+        stripped = qa_r.strip()
         bs2 = stripped.find('{')
         if bs2 > 0:
             candidates.append(stripped[bs2:])
-        be2 = stripped.rfind('}')
-        if be2 >= 0 and be2 < len(stripped) - 1:
-            candidates.append(stripped[:be2 + 1])
+        stripped2 = qa_r.strip()
+        be2 = stripped2.rfind('}')
+        if be2 >= 0 and be2 < len(stripped2) - 1:
+            candidates.append(stripped2[:be2 + 1])
 
-        candidates.append(clean_text)
+        # Strategy 5: Full string (for pure JSON responses)
+        candidates.append(qa_r)
 
         def _repair_json(text):
+            """Fix common JSON formatting issues in LLM output."""
             t = text.strip()
             t = _re.sub(r',\s*([}\]])', r'\1', t)
             try:
@@ -271,97 +343,33 @@ async def _inspect_doc(
                 break
 
         if not single:
-            if attempt < max_attempts:
+            logger.error(f"hourong JSON 解析失败 (attempt {attempt}/{max_retries}): {qa_r[:500]}")
+            if attempt < max_retries:
                 await broadcast(project_id, {
                     "type": "stage",
-                    "message": f"⚠️ {dim_label}：hourong 返回无法解析的检验报告，第{attempt}次重试",
+                    "message": f"⚠️ hourong 返回了{dim_label}无法解析的检验报告，正在重试（第{attempt}次）",
                     "subflow": dim_key,
                 })
                 continue
-            await broadcast(project_id, {
-                "type": "stage",
-                "message": f"❌ hourong 返回了{dim_label}无法解析的检验报告。报告已保存到：{report_save_path}",
-                "subflow": dim_key,
-            })
-            return {
-                "key": dim_key, "passed": False,
-                "detail": f"后荣返回了无法解析的检验报告（{max_attempts}次重试均失败）",
-                "raw_response": qa_r[:1000],
-                "report_path": report_save_path,
-            }
+            logger.warning(f"hourong 返回无法解析 (已重试{max_retries}次): {qa_r[:300]}")
+            return {"key": dim_key, "passed": False, "detail": "后荣返回了无法解析的检验报告"}
 
-        overall_passed = int(single.get("score", 0)) > 90 or bool(single.get("passed", False))
-        detail_text = single.get("detail", "").strip()
-
-        if not overall_passed and (not detail_text or len(detail_text) < 20):
-            detail_text = "后荣判定不合格但未返回详细检验意见"
-
-        score = int(single.get("score", 100))
+        overall_passed = bool(single.get("passed", False))
+        detail_text = single.get("detail", "未返回检验意见")
         return {
             "key": dim_key,
-            "score": score,
             "passed": overall_passed,
-            "detail": detail_text or "检验完成",
-            "report_path": report_save_path,
+            "detail": detail_text,
         }
 
-    # 所有尝试都失败
-    return {"key": dim_key, "passed": False, "detail": "后荣连续3次未返回检验结果", "report_path": ""}
-
-
-# ── 文档分片支持 ──
-CHAPTER_MARKER_START = "<!-- CHAPTER:"
-CHAPTER_MARKER_END = "-->"
-
-
-def _split_chapters(full_text: str) -> dict:
-    import re
-    chapters = {}
-    pattern = re.compile(
-        rf'{re.escape(CHAPTER_MARKER_START)}\s*([\w-]+)\s*{re.escape(CHAPTER_MARKER_END)}'
-        r'([\s\S]*?)(?='
-        rf'{re.escape(CHAPTER_MARKER_START)}|\Z)'
-    )
-    for m in pattern.finditer(full_text):
-        key = m.group(1)
-        content = m.group(2).strip()
-        if content:
-            chapters[key] = content
-    return chapters
-
-
-def _build_chapter_prompt(doc_type, label, gen_instruction, requirement, docs_dir, slug):
-    from app.services.doc_sharder import get_shard_config, get_chapter_filename
-    configs = get_shard_config(doc_type)
-    lines = [
-        f"你是资深软件架构师后旺（HouWang），专门负责{label}。\n",
-        "请根据需求文档，按章节输出完整文档。\n",
-        f"=== 需求文档 ===\n{requirement[:5000]}\n\n",
-        f"=== 章节要求 ===\n",
-    ]
-    for ch in configs:
-        fpath = get_chapter_filename(doc_type, ch["key"], docs_dir, slug)
-        lines.append(
-            f"{CHAPTER_MARKER_START} {ch['key']} {CHAPTER_MARKER_END}\n"
-            f"章节：{ch['title']}\n"
-            f"内容要求：{ch['instruction']}\n"
-            f"保存到：{fpath}\n"
-        )
-    lines.append(
-        "\n要求：\n"
-        "1. 每个章节用 <!-- CHAPTER: key --> 标记包裹\n"
-        "2. 每个章节保存到指定的文件路径\n"
-        "3. 章节内容必须是独立的 Markdown 片段\n"
-        "4. 不要输出推理过程\n"
-    )
-    return "\n".join(lines)
+    return {"key": dim_key, "passed": False, "detail": "后荣检验失败"}
 
 
 async def _run_doc_sub_flow(
     project_id: str, slug: str, docs_dir: str,
     cfg: dict, requirement: str,
     project_name: str = "", project_description: str = "",
-    core_goal: str = "",
+    core_goal: str = "", doc_path: str = "",
 ) -> dict:
     """单个文档子流程：检查已有→houwang生成→hourong检验→收敛循环（项目会话隔离）"""
     import os, glob, re, json as _json
@@ -398,28 +406,23 @@ async def _run_doc_sub_flow(
     convergence_log = []
     max_attempts = 10
 
-    def _result_is_valid(r: dict) -> bool:
-        """检查 inspect 结果是否有有效的检验意见"""
-        if not r.get("report_path") and not r.get("detail"):
-            return False
-        detail = r.get("detail", "")
-        invalid_phrases = ["未返回检验结果", "无法解析的检验报告", "空响应"]
-        if any(p in detail for p in invalid_phrases):
-            return False
-        return len(detail) >= 10
-
-    def _append_convergence(rnd: int, r: dict):
-        """安全追加收敛日志"""
-        convergence_log.append({
-            "round": rnd,
-            "detail": r.get("detail", ""),
-            "passed": r.get("passed", False),
-            "report_path": r.get("report_path", ""),
-        })
-
     for fix_round in range(1, max_attempts + 1):
         # ── 第一轮：先让 hourong 检验现有文档 ──
         if fix_round == 1 and current_path and os.path.exists(current_path):
+            # 续跑模式：已有内容的文档直接通过，不检验
+            if current_content.strip():
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"♻️ {label}：现有文档 V{max_ver} 已有内容，续跑直接通过",
+                    "subflow": dim["key"],
+                })
+                return {
+                    "key": dim["key"], "label": label,
+                    "path": current_path, "content": current_content,
+                    "passed": True, "rounds": 1,
+                    "convergence": [{"round": 1, "detail": "续跑直接通过", "passed": True}],
+                }
+
             await broadcast(project_id, {
                 "type": "stage",
                 "message": f"🔍 {label}：已有 V{max_ver}，houwang-{doc_type} 提交至 hourong 检验现有文档...",
@@ -430,7 +433,6 @@ async def _run_doc_sub_flow(
                 project_name=project_name, project_description=project_description,
                 core_goal=core_goal, agent_label=hourong_label,
                 standards=cfg.get("standards", []),
-                docs_dir=docs_dir,
             )
             if result["passed"]:
                 await broadcast(project_id, {
@@ -441,23 +443,16 @@ async def _run_doc_sub_flow(
                 return {
                     "key": dim["key"], "label": label,
                     "path": current_path, "content": current_content,
-                    "passed": True, "rounds": 0, "convergence": [],
+                    "passed": True, "rounds": 1,
+                    "convergence": convergence_log,
                 }
-            # 检查 inspect 结果是否有效
-            if not _result_is_valid(result):
-                await broadcast(project_id, {
-                    "type": "stage",
-                    "message": f"⚠️ {label}：hourong 未返回有效检验报告，跳过已有文档检验继续执行",
-                    "subflow": dim["key"],
-                })
-                # 不追加 convergence_log，让流程继续到 houwang 首次生成
-            else:
-                await broadcast(project_id, {
-                    "type": "stage",
-                    "message": f"📝 {label}：现有文档 V{max_ver} 未通过（{result.get('detail','')[:120]}），houwang 基于此版本更新",
-                    "subflow": dim["key"],
-                })
-                _append_convergence(0, result)
+            # 现有不合格，houwang 修复
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"📝 {label}：现有文档 V{max_ver} 未通过（{result.get('detail','')[:120]}），houwang 基于此版本更新",
+                "subflow": dim["key"],
+            })
+            convergence_log.append({"round": 0, "detail": result["detail"]})
 
         # ── houwang 生成或修复 ──
         nv = max_ver + fix_round
@@ -468,10 +463,11 @@ async def _run_doc_sub_flow(
             houwang_role = f"houwang-{doc_type}"
             prompt = (
                 f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
-                "请根据以下需求文档，**生成并保存**该文档。\n"
+                "请根据需求文档，**生成并保存**该文档。\n"
                 "请使用你 Agent 的文件写入能力将文档保存到指定路径。\n\n"
-                "=== 需求文档 ===\n"
-                f"{requirement[:5000]}\n\n"
+                "=== 需求文档路径 ===\n"
+                f"{doc_path}\n\n"
+                "请读取该文件获取完整的项目需求。\n\n"
                 f"=== {label}要求 ===\n"
                 f"路径：{gen_path}\n"
                 f"内容：{gen_instruction}\n\n"
@@ -488,40 +484,25 @@ async def _run_doc_sub_flow(
             # 基于已有文档 + hourong 反馈进行修复
             houwang_role = f"houwang-{doc_type}"
             fix_detail = convergence_log[-1]["detail"] if convergence_log else "需整体改进"
-            report_path_hint = ""
-            if convergence_log and convergence_log[-1].get("report_path"):
-                report_path_hint = (
-                    f"\n后荣完整检验报告文件路径（请读取该文件获取完整检验意见）：\n"
-                    f"{convergence_log[-1]['report_path']}\n"
-                )
-            # 将完整检验报告序列化给 houwang，确保它看到结构化结果
-            last_result = convergence_log[-1] if convergence_log else {}
-            last_result_json = _json.dumps(last_result, ensure_ascii=False, indent=2) if last_result else "{}"
             change_hint = ""
             if len(convergence_log) >= 2:
                 prev_detail = convergence_log[-2]["detail"]
-                if prev_detail and len(fix_detail or "") < len(prev_detail) * 0.5:
+                if len(fix_detail) < len(prev_detail) * 0.5:
                     change_hint = "（较上一轮检验意见长度减少超50%，收敛趋势良好，继续改进即可）"
-                elif prev_detail and fix_detail == prev_detail:
+                elif fix_detail == prev_detail:
                     change_hint = "（本轮与上轮检验意见相同——请确保已实际修复所有指出的问题，不要遗漏）"
             prompt = (
                 f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
-                f"后荣（HouRong）的完整检验报告：\n"
-                f"```json\n{last_result_json}\n```\n\n"
-                f"{report_path_hint}"
-                f"=== 当前已有文档 ===\n{current_content[:5000]}\n\n"
-                f"=== 后荣详细检验意见 ===\n{fix_detail}\n\n"
+                f"后荣（HouRong）检验发现以下问题需要修改：\n\n"
+                f"=== 当前已有文档 ===\n{current_path}\n\n"
+                f"=== 后荣最新检验意见 ===\n{fix_detail}\n\n"
                 f"{change_hint}\n"
-                f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
-                "⚠️ 收敛性要求（极其重要）：\n"
-                "1. **只**修改后荣报告中指出的不合格项，其他部分一律不变\n"
-                "2. 如果后荣说某标准已通过，绝对不要修改相关内容\n"
-                "3. 禁止添加新功能、新需求\n"
-                "4. 每个修改必须对应一个后荣指出的具体问题\n\n"
-                f"将修正后的完整文档保存到：{gen_path}\n"
+                f"=== 需求文档（供参考）===\n{doc_path}\n\n"
+                f"请根据后荣的意见严格修正文档，并将修正后的完整文档保存到：{gen_path}\n"
                 "要求：\n"
-                "1. 文档必须是独立完整的 Markdown 文件\n"
-                "2. 不要包含推理过程\n"
+                "1. 只针对后荣指出的不合格项修改，禁止扩大修改范围，禁止添加新功能\n"
+                "2. 文档必须是独立完整的 Markdown 文件\n"
+                "3. 不要包含推理过程\n"
             )
             await broadcast(project_id, {
                 "type": "stage",
@@ -543,7 +524,6 @@ async def _run_doc_sub_flow(
             core_goal=core_goal,
             agent_name=houwang_label,
             stream=True, max_tokens=64000,
-            project_slug=slug,
         ):
             if chunk.strip():
                 houwang_chunks.append(chunk)
@@ -596,33 +576,20 @@ async def _run_doc_sub_flow(
             })
             continue
 
-        # ── hourong 检验（带上轮反馈做收敛） ──
+        # ── hourong 检验 ──
         await broadcast(project_id, {
             "type": "stage",
             "message": f"🔍 hourong-{doc_type} 正在检验{label}...（文件：{current_path}）",
             "subflow": dim["key"],
         })
-        prev_fb = convergence_log[-1]["detail"] if convergence_log else ""
         result = await _inspect_doc(
             project_id, current_path or "", dim,
             project_name=project_name, project_description=project_description,
             core_goal=core_goal, agent_label=hourong_label,
             standards=cfg.get("standards", []),
-            prev_feedback=prev_fb,
-            docs_dir=docs_dir,
         )
 
-        # 检查 inspect 结果是否有效
-        if not _result_is_valid(result):
-            await broadcast(project_id, {
-                "type": "stage",
-                "message": f"⚠️ {label}：hourong 第{fix_round}轮未返回有效检验报告，跳过本轮收敛，houwang 将基于最新文档内容继续修复",
-                "subflow": dim["key"],
-            })
-            # 不追加无效结果到 convergence_log，继续下一轮
-            continue
-
-        _append_convergence(fix_round, result)
+        convergence_log.append({"round": fix_round, "detail": result.get("detail", ""), "passed": result["passed"]})
 
         if result["passed"]:
             await broadcast(project_id, {
@@ -637,6 +604,17 @@ async def _run_doc_sub_flow(
                 "convergence": convergence_log,
             }
         else:
+            # 检查是否hourong自身出错（不是QA检验不通过）
+            error_detail = result.get("detail", "")
+            is_hourong_error = any(kw in error_detail for kw in ["空响应", "无法解析", "未返回", "失败"])
+            if is_hourong_error:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {label}：hourong 检验异常（{error_detail[:100]}），跳过本轮不触发houwang修复",
+                    "subflow": dim["key"],
+                })
+                continue  # 不触发houwang，直接下一轮再试
+
             prev_count = sum(1 for c in convergence_log[:-1] if not c.get("passed", False))
             if prev_count > 0 and len(convergence_log) >= 3:
                 # 检验连续是否收敛：最近3个非通过轮次的 detail 长度是否递减
@@ -681,7 +659,7 @@ async def _cross_check_docs(
     """调用 hourong 对4份文档进行跨文档一致性/对应性检验
     docs_map 的 value 为文档文件路径，hourong Agent 自行读取文件。
     """
-    from app.api.ws.step3_qa import _inspect_via_subagent
+    from app.services.gateway_client import GatewayClient
     from app.api.ws.step4_progress import broadcast
     import json as _json
 
@@ -744,7 +722,19 @@ async def _cross_check_docs(
         "message": "🔍 hourong 正在对4份设计文档进行跨文档一致性检验（架构-前端、架构-后端、前端-后端、后端-数据库）...",
     })
 
-    resp = await _inspect_via_subagent(prompt=prompt, max_retries=3)
+    cli = GatewayClient(profile_name="hourong", timeout=300)
+    chunks = []
+    async for chunk in cli.chat_isolated(
+        messages=[{"role": "user", "content": prompt}],
+        project_id=project_id,
+        project_name=project_name,
+        project_description=project_description,
+        core_goal=core_goal,
+        agent_name="后荣（HouRong）- 跨文档一致性检验员",
+        stream=True, max_tokens=4096,
+    ):
+        chunks.append(chunk)
+    resp = "".join(chunks).strip()
 
     if not resp:
         return {"passed": False, "pairs": [], "summary": "后荣未返回一致性检验结果（空响应）"}
@@ -803,7 +793,7 @@ async def _fix_doc_from_consistency_feedback(
     cfg: dict, requirement: str,
     current_content: str, consistency_feedback: str,
     project_name: str = "", project_description: str = "",
-    core_goal: str = "",
+    core_goal: str = "", doc_path: str = "", current_path: str = "",
     max_attempts: int = 3,
 ) -> dict:
     """根据一致性检验反馈修复单个文档并通过 hourong 个体检验"""
@@ -827,7 +817,6 @@ async def _fix_doc_from_consistency_feedback(
 
     content = current_content
     path = None
-    convergence_log = []
 
     for attempt in range(1, max_attempts + 1):
         nv = max_ver + attempt
@@ -843,16 +832,14 @@ async def _fix_doc_from_consistency_feedback(
             f"你是资深软件架构师后旺（HouWang），代号 houwang-{doc_type}，专门负责{label}。\n\n"
             f"跨文档一致性检验发现以下一致性问题需要修正：\n\n"
             f"{consistency_feedback}\n\n"
-            f"=== 当前文档（{label}） ===\n{content[:5000]}\n\n"
-            f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
-            f"请根据一致性检验意见严格修正当前文档（{label}），"
-            f"确保与其他设计文档对应一致，"
+            f"=== 当前文档路径 ===\n{current_path}\n\n"
+            f"=== 需求文档路径（供参考）===\n{doc_path}\n\n"
+            f"请根据一致性检验意见严格修正文档，确保与其他设计文档对应一致，"
             f"并将修正后的完整文档保存到：{gen_path}\n"
-            "⚠️ 严格限制：\n"
-            "1. **只**修改当前文档（{label}）本身，禁止修改其他子步骤的文档\n"
-            "2. 只针对一致性问题修改，禁止扩大修改范围\n"
-            "3. 文档必须是独立完整的 Markdown 文件\n"
-            "4. 不要包含推理过程"
+            "要求：\n"
+            "1. 只针对一致性问题修改，禁止扩大修改范围\n"
+            "2. 文档必须是独立完整的 Markdown 文件\n"
+            "3. 不要包含推理过程"
         )
 
         houwang_cli = GatewayClient(profile_name="houwang", timeout=1200)
@@ -865,7 +852,6 @@ async def _fix_doc_from_consistency_feedback(
             core_goal=core_goal,
             agent_name=houwang_label,
             stream=True, max_tokens=64000,
-            project_slug=slug,
         ):
             if chunk.strip():
                 houwang_chunks.append(chunk)
@@ -897,22 +883,18 @@ async def _fix_doc_from_consistency_feedback(
             })
             continue
 
-        # hourong 个体检验（带上轮反馈做收敛）
+        # hourong 个体检验
         await broadcast(project_id, {
             "type": "stage",
             "message": f"🔍 hourong-{doc_type} 正在重新检验{label}的一致性修复...（文件：{path}）",
             "subflow": dim["key"],
         })
-        prev_fb = convergence_log[-1]["detail"] if convergence_log else ""
         result = await _inspect_doc(
             project_id, path or "", dim,
             project_name=project_name, project_description=project_description,
             core_goal=core_goal, agent_label=hourong_label,
             standards=cfg.get("standards", []),
-            prev_feedback=prev_fb,
-            docs_dir=docs_dir,
         )
-        convergence_log.append({"round": attempt, "detail": result.get("detail", ""), "passed": result["passed"], "report_path": result.get("report_path", "")})
         if result["passed"]:
             await broadcast(project_id, {
                 "type": "stage",
@@ -938,115 +920,277 @@ async def _fix_doc_from_consistency_feedback(
     }
 
 
-# ── 增量一致性检验（按子步骤只检验相关配对） ──
+# ── Step4 显式4个子步骤 ──
+# step4_1: houwang1 生成架构设计文档 → hourong1 检验架构设计文档
+# step4_2: houwang2 生成前端设计文档 → hourong2 检验前端设计文档 → hourong 检验架构-前端一致性
+# step4_3: houwang3 生成后端设计文档 → hourong3 检验后端设计文档 → hourong 检验架构-后端+前端-后端一致性
+# step4_4: houwang4 生成数据库设计文档 → hourong4 检验数据库设计文档 → hourong 检验后端-数据库一致性
+# 全部通过 → 保存交接文档 → 推进到 step5
 
-async def _check_consistency_pairs(
-    project_id: str,
-    docs_map: dict,
-    pairs: list,
-    project_name: str = "", project_description: str = "",
-    core_goal: str = "",
+
+async def _sub_step4_1(
+    project_id: str, slug: str, docs_dir: str,
+    requirement: str, doc_path: str,
+    proj_name: str, proj_desc: str, core_goal: str,
+    bg_engine: WorkflowEngine, bg_db,
 ) -> dict:
-    """按子步骤增量检验：只检查当前步骤指定的配对"""
-    from app.api.ws.step3_qa import _inspect_via_subagent
+    """step4_1: 架构设计文档生成 + hourong 检验"""
     from app.api.ws.step4_progress import broadcast
-    import json as _json
+    cfg = SUB_FLOW_CONFIGS[0]  # ARCHITECTURE
+    dim_key = cfg["dim"]["key"]
+    label = cfg["label"]
 
-    doc_sections = []
-    doc_labels = {}
-    for key, path in docs_map.items():
-        cfg = next((c for c in SUB_FLOW_CONFIGS if c["dim"]["key"] == key), None)
-        label = cfg["label"] if cfg else key
-        doc_labels[key] = label
-        doc_sections.append(f"=== {label} ===\n文件路径：{path}")
-
-    pair_items = []
-    pair_descs = []
-    for pair in pairs:
-        a_label = doc_labels.get(pair["a"], pair["a"])
-        b_label = doc_labels.get(pair["b"], pair["b"])
-        pair_descs.append(f"- {pair['name']}：{a_label}与{b_label}之间的关键约定（API接口、数据模型、组件名、字段名等）是否一致" + "\n")
-        _pname = pair["name"]
-        _pa = pair["a"]
-        _pb = pair["b"]
-        pair_items.append(
-            '    {\n'
-            f'      "name": "{_pname}",\n'
-            '      "passed": true/false,\n'
-            '      "issue": "具体不一致的描述（如无问题留空）",\n'
-            f'      "affected_docs": ["{_pa}", "{_pb}"]\n'
-            '    }'
-        )
-
-    _nl = chr(10)
-    _pairs_json = (_nl + ',' ).join(pair_items)
-    prompt = (
-        "你是一个跨文档一致性检验专家（后荣）。以下设计文档属于同一个项目：\n\n"
-        f"{chr(10).join(doc_sections)}\n\n"
-        "请依次读取以上文档文件，然后逐项检查以下配对的一致性/对应性：\n"
-        f"{''.join(pair_descs)}\n"
-        "仅输出以下JSON对象，不要有其他文字：\n"
-        '{\n'
-        '  "passed": true/false,\n'
-        '  "pairs": [\n'
-        f"{_pairs_json}\n"
-        '  ],\n'
-        '  "summary": "一致性检验总结"\n'
-        '}'
+    await broadcast(project_id, {"type": "stage", "message": f"【step4_1】▶️ houwang1 开始生成{label}...", "subflow": dim_key})
+    result = await _run_doc_sub_flow(
+        project_id=project_id, slug=slug, docs_dir=docs_dir,
+        cfg=cfg, requirement=requirement,
+        project_name=proj_name, project_description=proj_desc,
+        core_goal=core_goal, doc_path=doc_path,
     )
 
-    await broadcast(project_id, {
-        "type": "stage",
-        "message": "🔍 hourong 正在对已完成的文档进行增量一致性检验...",
-    })
+    _save_sub_result(bg_engine, result)
+    bg_db.commit()
+    if result["passed"]:
+        await broadcast(project_id, {"type": "stage", "message": f"【step4_1】✅ houwang1→hourong1 检验通过", "subflow": dim_key})
+    else:
+        await broadcast(project_id, {"type": "error", "message": f"【step4_1】❌ {label} 未通过 hourong1 检验", "subflow": dim_key})
+    return result
 
-    resp = await _inspect_via_subagent(prompt=prompt, max_retries=3)
 
-    if not resp:
-        return {"passed": False, "pairs": [], "summary": "后荣未返回一致性检验结果（空响应）"}
+async def _sub_step4_2(
+    project_id: str, slug: str, docs_dir: str,
+    requirement: str, doc_path: str,
+    proj_name: str, proj_desc: str, core_goal: str,
+    bg_engine: WorkflowEngine, bg_db,
+    arch_result: dict,
+) -> dict:
+    """step4_2: 前端设计文档生成 + hourong2 检验 + 架构-前端一致性检验"""
+    from app.api.ws.step4_progress import broadcast
+    cfg = SUB_FLOW_CONFIGS[1]  # FRONTEND
+    dim_key = cfg["dim"]["key"]
+    label = cfg["label"]
 
-    _re = __import__('re')
-    single = {}
-    candidates = []
+    await broadcast(project_id, {"type": "stage", "message": f"【step4_2】▶️ houwang2 开始生成{label}...", "subflow": dim_key})
+    result = await _run_doc_sub_flow(
+        project_id=project_id, slug=slug, docs_dir=docs_dir,
+        cfg=cfg, requirement=requirement,
+        project_name=proj_name, project_description=proj_desc,
+        core_goal=core_goal, doc_path=doc_path,
+    )
 
-    fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', resp, _re.DOTALL)
-    for fc in fenced:
-        candidates.append(fc.strip())
+    if result["passed"]:
+        # hourong 检验前端与架构的一致性
+        await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+            "message": "【step4_2】🔄 hourong 正在检验架构设计-前端设计一致性..."})
+        docs_map = {}
+        if arch_result.get("path"):
+            docs_map[arch_result["key"]] = arch_result["path"]
+        if result.get("path"):
+            docs_map[result["key"]] = result["path"]
+        cc_result = await _cross_check_docs(
+            project_id=project_id, docs_map=docs_map,
+            project_name=proj_name, project_description=proj_desc,
+            core_goal=core_goal,
+        )
+        if cc_result["passed"]:
+            await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                "message": "【step4_2】✅ 架构设计-前端设计一致性检验通过"})
+        else:
+            await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                "message": "【step4_2】⚠️ 架构设计-前端设计存在一致性问题，houwang2 正在修复..."})
+            # 修复前端文档的一致性
+            for pair in cc_result.get("pairs", []):
+                if not pair.get("passed", True) and dim_key in pair.get("affected_docs", []):
+                    fix_r = await _fix_doc_from_consistency_feedback(
+                        project_id=project_id, slug=slug, docs_dir=docs_dir,
+                        cfg=cfg, requirement=requirement,
+                        current_content=result.get("content", ""),
+                        consistency_feedback=f"{pair['name']}: {pair['issue']}",
+                        project_name=proj_name, project_description=proj_desc,
+                        core_goal=core_goal, doc_path=doc_path,
+                        current_path=result.get("path", ""),
+                    )
+                    if fix_r.get("passed"):
+                        result = fix_r
+                        await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                            "message": "【step4_2】✅ 前端文档一致性修复通过"})
+                    else:
+                        await broadcast(project_id, {"type": "error", "subflow": dim_key,
+                            "message": "【step4_2】❌ 前端文档一致性修复未通过"})
 
-    brace_start = resp.find('{')
-    brace_end = resp.rfind('}')
-    if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
-        candidates.append(resp[brace_start:brace_end + 1])
+    _save_sub_result(bg_engine, result)
+    bg_db.commit()
+    if result["passed"]:
+        await broadcast(project_id, {"type": "stage", "message": f"【step4_2】✅ houwang2→hourong2 检验通过", "subflow": dim_key})
+    else:
+        await broadcast(project_id, {"type": "error", "message": f"【step4_2】❌ {label} 未通过 hourong2 检验", "subflow": dim_key})
+    return result
 
-    candidates.append(resp)
 
-    for candidate in candidates:
-        try:
-            parsed = _json.loads(candidate)
-            if isinstance(parsed, dict) and parsed:
-                single = parsed
-                break
-        except Exception:
-            continue
+async def _sub_step4_3(
+    project_id: str, slug: str, docs_dir: str,
+    requirement: str, doc_path: str,
+    proj_name: str, proj_desc: str, core_goal: str,
+    bg_engine: WorkflowEngine, bg_db,
+    arch_result: dict, frontend_result: dict,
+) -> dict:
+    """step4_3: 后端设计文档生成 + hourong3 检验 + 架构-后端 + 前端-后端 一致性检验"""
+    from app.api.ws.step4_progress import broadcast
+    cfg = SUB_FLOW_CONFIGS[2]  # BACKEND
+    dim_key = cfg["dim"]["key"]
+    label = cfg["label"]
 
-    if not single:
-        logger.warning(f"_check_consistency_pairs 解析失败: {resp[:300]}")
-        return {"passed": False, "pairs": [], "summary": "后荣返回结果无法解析"}
+    await broadcast(project_id, {"type": "stage", "message": f"【step4_3】▶️ houwang3 开始生成{label}...", "subflow": dim_key})
+    result = await _run_doc_sub_flow(
+        project_id=project_id, slug=slug, docs_dir=docs_dir,
+        cfg=cfg, requirement=requirement,
+        project_name=proj_name, project_description=proj_desc,
+        core_goal=core_goal, doc_path=doc_path,
+    )
 
-    pairs_result = single.get("pairs", [])
-    all_passed = all(p.get("passed", False) for p in pairs_result) if pairs_result else False
+    if result["passed"]:
+        # hourong 检验架构-后端 + 前端-后端一致性
+        await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+            "message": "【step4_3】🔄 hourong 正在检验架构设计-后端设计、前端设计-后端设计一致性..."})
+        docs_map = {}
+        if arch_result.get("path"):
+            docs_map[arch_result["key"]] = arch_result["path"]
+        if frontend_result.get("path"):
+            docs_map[frontend_result["key"]] = frontend_result["path"]
+        if result.get("path"):
+            docs_map[result["key"]] = result["path"]
+        cc_result = await _cross_check_docs(
+            project_id=project_id, docs_map=docs_map,
+            project_name=proj_name, project_description=proj_desc,
+            core_goal=core_goal,
+        )
+        if cc_result["passed"]:
+            await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                "message": "【step4_3】✅ 架构-后端、前端-后端一致性检验通过"})
+        else:
+            await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                "message": "【step4_3】⚠️ 后端设计存在一致性问题，houwang3 正在修复..."})
+            for pair in cc_result.get("pairs", []):
+                if not pair.get("passed", True) and dim_key in pair.get("affected_docs", []):
+                    fix_r = await _fix_doc_from_consistency_feedback(
+                        project_id=project_id, slug=slug, docs_dir=docs_dir,
+                        cfg=cfg, requirement=requirement,
+                        current_content=result.get("content", ""),
+                        consistency_feedback=f"{pair['name']}: {pair['issue']}",
+                        project_name=proj_name, project_description=proj_desc,
+                        core_goal=core_goal, doc_path=doc_path,
+                        current_path=result.get("path", ""),
+                    )
+                    if fix_r.get("passed"):
+                        result = fix_r
+                        await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                            "message": "【step4_3】✅ 后端文档一致性修复通过"})
+                    else:
+                        await broadcast(project_id, {"type": "error", "subflow": dim_key,
+                            "message": "【step4_3】❌ 后端文档一致性修复未通过"})
 
-    for pair in pairs_result:
-        await broadcast(project_id, {
-            "type": "stage",
-            "message": f"{'✅' if pair.get('passed') else '❌'} {pair.get('name','')}: {pair.get('issue','')[:200]}" if not pair.get('passed') else f"✅ {pair['name']}: 一致",
-        })
+    _save_sub_result(bg_engine, result)
+    bg_db.commit()
+    if result["passed"]:
+        await broadcast(project_id, {"type": "stage", "message": f"【step4_3】✅ houwang3→hourong3 检验通过", "subflow": dim_key})
+    else:
+        await broadcast(project_id, {"type": "error", "message": f"【step4_3】❌ {label} 未通过 hourong3 检验", "subflow": dim_key})
+    return result
 
-    return {
-        "passed": all_passed,
-        "pairs": pairs_result,
-        "summary": single.get("summary", ""),
+
+async def _sub_step4_4(
+    project_id: str, slug: str, docs_dir: str,
+    requirement: str, doc_path: str,
+    proj_name: str, proj_desc: str, core_goal: str,
+    bg_engine: WorkflowEngine, bg_db,
+    backend_result: dict,
+) -> dict:
+    """step4_4: 数据库设计文档生成 + hourong4 检验 + 后端-数据库一致性检验"""
+    from app.api.ws.step4_progress import broadcast
+    cfg = SUB_FLOW_CONFIGS[3]  # DATABASE
+    dim_key = cfg["dim"]["key"]
+    label = cfg["label"]
+
+    await broadcast(project_id, {"type": "stage", "message": f"【step4_4】▶️ houwang4 开始生成{label}...", "subflow": dim_key})
+    result = await _run_doc_sub_flow(
+        project_id=project_id, slug=slug, docs_dir=docs_dir,
+        cfg=cfg, requirement=requirement,
+        project_name=proj_name, project_description=proj_desc,
+        core_goal=core_goal, doc_path=doc_path,
+    )
+
+    if result["passed"]:
+        # hourong 检验后端-数据库一致性
+        await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+            "message": "【step4_4】🔄 hourong 正在检验后端设计-数据库设计一致性..."})
+        docs_map = {}
+        if backend_result.get("path"):
+            docs_map[backend_result["key"]] = backend_result["path"]
+        if result.get("path"):
+            docs_map[result["key"]] = result["path"]
+        cc_result = await _cross_check_docs(
+            project_id=project_id, docs_map=docs_map,
+            project_name=proj_name, project_description=proj_desc,
+            core_goal=core_goal,
+        )
+        if cc_result["passed"]:
+            await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                "message": "【step4_4】✅ 后端设计-数据库设计一致性检验通过"})
+        else:
+            await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                "message": "【step4_4】⚠️ 数据库设计存在一致性问题，houwang4 正在修复..."})
+            for pair in cc_result.get("pairs", []):
+                if not pair.get("passed", True) and dim_key in pair.get("affected_docs", []):
+                    fix_r = await _fix_doc_from_consistency_feedback(
+                        project_id=project_id, slug=slug, docs_dir=docs_dir,
+                        cfg=cfg, requirement=requirement,
+                        current_content=result.get("content", ""),
+                        consistency_feedback=f"{pair['name']}: {pair['issue']}",
+                        project_name=proj_name, project_description=proj_desc,
+                        core_goal=core_goal, doc_path=doc_path,
+                        current_path=result.get("path", ""),
+                    )
+                    if fix_r.get("passed"):
+                        result = fix_r
+                        await broadcast(project_id, {"type": "stage", "subflow": dim_key,
+                            "message": "【step4_4】✅ 数据库文档一致性修复通过"})
+                    else:
+                        await broadcast(project_id, {"type": "error", "subflow": dim_key,
+                            "message": "【step4_4】❌ 数据库文档一致性修复未通过"})
+
+    _save_sub_result(bg_engine, result)
+    bg_db.commit()
+    if result["passed"]:
+        await broadcast(project_id, {"type": "stage", "message": f"【step4_4】✅ houwang4→hourong4 检验通过", "subflow": dim_key})
+    else:
+        await broadcast(project_id, {"type": "error", "message": f"【step4_4】❌ {label} 未通过 hourong4 检验", "subflow": dim_key})
+    return result
+
+
+def _save_sub_result(bg_engine: WorkflowEngine, result: dict):
+    """保存单个子步骤结果到 step4 artifacts"""
+    existing = bg_engine.get_step4_artifacts() or {}
+    saved_sub_results = existing.get("sub_flow_results", [])
+    saved_doc_paths = existing.get("doc_paths", {})
+
+    sub_entry = {
+        "key": result["key"], "label": result["label"],
+        "passed": result["passed"], "rounds": result.get("rounds", 0),
+        "convergence": result.get("convergence", []),
     }
+    idx = next((i for i, r in enumerate(saved_sub_results) if r["key"] == result["key"]), None)
+    if idx is not None:
+        saved_sub_results[idx] = sub_entry
+    else:
+        saved_sub_results.append(sub_entry)
+    if result.get("path"):
+        saved_doc_paths[result["key"]] = result["path"]
+
+    bg_engine.save_step4_artifacts({
+        "sub_flow_results": saved_sub_results,
+        "doc_paths": saved_doc_paths,
+        "message": f"{result['label']} {'通过' if result['passed'] else '未通过'}",
+    })
 
 
 @router.post("/{project_id}/step4/execute")
@@ -1054,284 +1198,268 @@ async def execute_step4(project_id: str,
                         db: Session = Depends(get_db),
                         current_user=Depends(get_current_user),
                         resume: bool = False):
-    """异步启动第4步——协调4个子步骤串行执行，聚合设计文档后推进至第5步。
-    支持断点续做：自动从数据库读取已有进度，跳过已完成子步骤，从未完成的子步骤继续。
+    """异步启动第4步架构设计（后旺生成约需30分钟），立即返回
+    step4 现拆分为4个串行子步骤:
+      step4_1: houwang1 生成架构设计 → hourong1 检验
+      step4_2: houwang2 生成前端设计 → hourong2 检验 → hourong 检验架构-前端一致性
+      step4_3: houwang3 生成后端设计 → hourong3 检验 → hourong 检验架构-后端 + 前端-后端一致性
+      step4_4: houwang4 生成数据库设计 → hourong4 检验 → hourong 检验后端-数据库一致性
+    全部通过 → 保存交接文档 → 推进到 step5
+    resume=True: 续跑模式，跳过已通过检验的子流程，只重跑未通过/失败的
     """
+    from app.services.gateway_client import GatewayClient
     import asyncio as _asyncio
 
     try:
         engine = _get_engine(project_id, db)
-        existing_artifacts = engine.get_step4_artifacts() or {}
-        has_progress = any(
-            existing_artifacts.get(k) and existing_artifacts[k].get("passed")
-            for k in ["step4_1_result", "step4_2_result", "step4_3_result", "step4_4_result"]
-        )
-        if resume or has_progress:
-            # 断点续做：保留已有成果
-            await broadcast(project_id, {
-                "type": "stage",
-                "message": "♻️ 检测到已有进度，断点续做模式",
-            })
+
+        if resume:
+            existing = engine.get_step4_artifacts() or {}
         else:
             step4_row = engine._get_step_row(4)
             if step4_row and step4_row.status == "in_progress":
                 engine.reset_step(4)
                 engine = WorkflowEngine(project_id=project_id, db=db)
                 _wf_engines[project_id] = engine
+            # Save initial status BEFORE advance_step so zombie detection
+            # (haimei_auto_advance) sees "status": "generating" and does NOT reset step4
+            engine.save_step4_artifacts({
+                "status": "generating",
+                "message": "🚀 Step4 启动：4个子步骤串行执行——step4_1(架构)→step4_2(前端)→step4_3(后端)→step4_4(数据库)...",
+            })
             engine.advance_step(4)
-            existing_artifacts = {}
+            existing = {}
     except Exception as e:
         return APIResponse(code=1, message=f"无法开始步骤4: {str(e)[:200]}")
 
     step3 = engine.get_step3_artifacts() or {}
     requirement = (step3.get("doc_content") or step3.get("content") or
                    step3.get("requirement") or step3.get("srs") or "")
+
     if not requirement:
-        if not resume and not has_progress:
+        if not resume:
             engine.reset_step(4)
         return APIResponse(code=1, message="未找到 Step3 需求文档，请先完成需求分析")
 
+    _existing_artifacts = engine.get_step4_artifacts() or {}
     engine.save_step4_artifacts({
-        **existing_artifacts,
+        **_existing_artifacts,
         "status": "generating",
-        "message": "🚀 step4 orchestration: step4_1→架构→step4_2→前端→step4_3→后端→step4_4→数据库",
+        "message": "🚀 Step4 启动：4个子步骤串行执行——step4_1(架构)→step4_2(前端)→step4_3(后端)→step4_4(数据库)...",
     })
 
-    # ── 子步骤定义 ──
-    SUB_STEP_ORDER = [
-        {"step": 1, "key": "step4_1_result", "dim_key": "arch_reasonableness",
-         "run_name": "run_sub_step_4_1", "module": "app.api.workflow.step4_1",
-         "label": "架构设计"},
-        {"step": 2, "key": "step4_2_result", "dim_key": "frontend_feasibility",
-         "run_name": "run_sub_step_4_2", "module": "app.api.workflow.step4_2",
-         "label": "前端设计"},
-        {"step": 3, "key": "step4_3_result", "dim_key": "backend_feasibility",
-         "run_name": "run_sub_step_4_3", "module": "app.api.workflow.step4_3",
-         "label": "后端设计"},
-        {"step": 4, "key": "step4_4_result", "dim_key": "database_design",
-         "run_name": "run_sub_step_4_4", "module": "app.api.workflow.step4_4",
-         "label": "数据库设计"},
-    ]
-
-    async def _run_orchestration():
-        """后台任务：串行调用子步骤，汇总后推进至step5"""
+    async def _generate():
+        """后台任务：4个子步骤串行执行"""
         try:
             from app.database import SessionLocal
+            from app.services.workflow_engine import WorkflowEngine
             from app.api.ws.step4_progress import broadcast
-            from app.models.project import Project as _Project
 
             bg_db = SessionLocal()
             try:
-                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db, auto_supervise=False)
-                proj = bg_db.query(_Project).filter(_Project.id == project_id).first()
-                if not proj:
-                    raise Exception("项目不存在")
-
-                slug = proj.slug if proj.slug else project_id.replace("-", "")
-                docs_dir = os.path.join(settings.PROJECTS_BASE_DIR, slug, "docs")
-                os.makedirs(docs_dir, exist_ok=True)
-
-                step2 = bg_engine.get_step2_artifacts() or {}
-                core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
-                proj_name = proj.name or ""
-                proj_desc = proj.description or ""
+                bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
 
                 step3 = bg_engine.get_step3_artifacts() or {}
                 doc_path = step3.get("doc_path", "")
 
-                all_passed = True
-                all_results = {}
+                from app.config import settings as _settings
+                from app.models.project import Project as _Project
+                import os as _os
 
-                for sub in SUB_STEP_ORDER:
-                    step_label = f"step4_{sub['step']}"
+                proj = bg_db.query(_Project).filter(_Project.id == project_id).first()
+                slug = proj.slug if proj else project_id.replace("-", "")
+                docs_dir = _os.path.join(_settings.PROJECTS_BASE_DIR, slug, "docs")
+                _os.makedirs(docs_dir, exist_ok=True)
 
-                    # 续跑跳过
-                    artifacts = bg_engine.get_step4_artifacts() or {}
-                    saved = artifacts.get(sub["key"]) or {}
-                    if saved.get("passed"):
-                        all_results[sub["key"]] = saved
-                        await broadcast(project_id, {
-                            "type": "stage",
-                            "message": f"♻️ {step_label}: {sub['label']}已通过，跳过",
-                            "subflow": sub["dim_key"],
-                        })
-                        continue
+                step2 = bg_engine.get_step2_artifacts() or {}
+                core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
+                proj_name = proj.name if proj else ""
+                proj_desc = proj.description or ""
 
-                    # ⚠️ 严格串行：启动前确认前一个子步骤已完成
-                    if sub["step"] > 1:
-                        prev_key = SUB_STEP_ORDER[sub["step"] - 2]["key"]
-                        prev_artifact = bg_engine.get_step4_artifacts().get(prev_key) or {}
-                        prev_content_key = f"{prev_key}_content"
-                        prev_content = bg_engine.get_step4_artifacts().get(prev_content_key, "")
-                        if not prev_artifact.get("passed"):
-                            err_msg = f"❌ {step_label}: 前序子步骤 {SUB_STEP_ORDER[sub['step'] - 2]['label']} 未通过，禁止启动"
-                            await broadcast(project_id, {"type": "error", "message": err_msg, "subflow": sub["dim_key"]})
-                            all_passed = False
-                            break
-                        if not prev_artifact.get("path") and not prev_content:
-                            err_msg = f"❌ {step_label}: 前序子步骤的文档成果未保存，禁止启动"
-                            await broadcast(project_id, {"type": "error", "message": err_msg, "subflow": sub["dim_key"]})
-                            all_passed = False
-                            break
+                # ── 续跑检测：跳过已通过的子步骤 ──
+                existing_sub_results = (bg_engine.get_step4_artifacts() or {}).get("sub_flow_results", [])
+                passed_keys = {r["key"] for r in existing_sub_results if r.get("passed")}
 
-                    # 保存当前执行进度到数据库（断点续做用）
-                    bg_engine.save_step4_artifacts({
-                        "current_step": sub["step"],
-                        "current_key": sub["key"],
-                        "current_label": sub["label"],
-                    })
+                await broadcast(project_id, {"type": "stage", "message": "📖 后旺正在读取需求文档..."})
 
-                    await broadcast(project_id, {
-                        "type": "stage",
-                        "message": f"🚀 {step_label}: 启动{sub['label']}子步骤...",
-                        "subflow": sub["dim_key"],
-                    })
+                # ── 串行执行4个子步骤 ──
+                all_results = []
 
-                    # 构造前序文档映射（从已有成果中读取 content/path）
-                    prev_docs_map = {}
-                    if sub["step"] >= 2:
-                        for prev_sub in SUB_STEP_ORDER[:sub["step"] - 1]:
-                            prev_content_key = f"{prev_sub['key']}_content"
-                            prev_content = bg_engine.get_step4_artifacts().get(prev_content_key, "")
-                            prev_result = artifacts.get(prev_sub["key"]) or all_results.get(prev_sub["key"]) or {}
-                            if prev_result.get("path"):
-                                prev_docs_map[prev_sub["dim_key"]] = prev_result["path"]
-                            elif prev_content:
-                                # 如有 content 但无 path，临时写文件
-                                fallback_path = os.path.join(docs_dir, f"{slug}_{prev_sub['dim_key']}_V1.md")
-                                with open(fallback_path, "w", encoding="utf-8") as f:
-                                    f.write(prev_content)
-                                prev_docs_map[prev_sub["dim_key"]] = fallback_path
+                # ── step4_1: 架构设计 ──
+                if "arch_reasonableness" in passed_keys and resume:
+                    await broadcast(project_id, {"type": "stage", "message": "♻️ step4_1(架构设计) 上次已通过，跳过"})
+                    arch_result = next((r for r in existing_sub_results if r["key"] == "arch_reasonableness"), {})
+                else:
+                    arch_result = await _sub_step4_1(
+                        project_id, slug, docs_dir, requirement, doc_path,
+                        proj_name, proj_desc, core_goal, bg_engine, bg_db,
+                    )
+                    if not arch_result.get("passed"):
+                        raise _SubStepError("step4_1 未通过", arch_result)
+                all_results.append(arch_result)
 
-                    # 动态导入并运行子步骤（await = 串行阻塞）
-                    import importlib as _il
-                    mod = _il.import_module(sub["module"])
-                    run_fn = getattr(mod, sub["run_name"])
+                # ── step4_2: 前端设计 ──
+                if "frontend_feasibility" in passed_keys and resume:
+                    await broadcast(project_id, {"type": "stage", "message": "♻️ step4_2(前端设计) 上次已通过，跳过"})
+                    frontend_result = next((r for r in existing_sub_results if r["key"] == "frontend_feasibility"), {})
+                else:
+                    frontend_result = await _sub_step4_2(
+                        project_id, slug, docs_dir, requirement, doc_path,
+                        proj_name, proj_desc, core_goal, bg_engine, bg_db,
+                        arch_result,
+                    )
+                    if not frontend_result.get("passed"):
+                        raise _SubStepError("step4_2 未通过", frontend_result)
+                all_results.append(frontend_result)
 
-                    if sub["step"] == 1:
-                        result = await run_fn(
-                            project_id=project_id, slug=slug, docs_dir=docs_dir,
-                            requirement=requirement, project_name=proj_name,
-                            project_description=proj_desc, core_goal=core_goal,
-                        )
-                    else:
-                        result = await run_fn(
-                            project_id=project_id, slug=slug, docs_dir=docs_dir,
-                            requirement=requirement, project_name=proj_name,
-                            project_description=proj_desc, core_goal=core_goal,
-                            prev_docs_map=prev_docs_map,
-                        )
+                # ── step4_3: 后端设计 ──
+                if "backend_feasibility" in passed_keys and resume:
+                    await broadcast(project_id, {"type": "stage", "message": "♻️ step4_3(后端设计) 上次已通过，跳过"})
+                    backend_result = next((r for r in existing_sub_results if r["key"] == "backend_feasibility"), {})
+                else:
+                    backend_result = await _sub_step4_3(
+                        project_id, slug, docs_dir, requirement, doc_path,
+                        proj_name, proj_desc, core_goal, bg_engine, bg_db,
+                        arch_result, frontend_result,
+                    )
+                    if not backend_result.get("passed"):
+                        raise _SubStepError("step4_3 未通过", backend_result)
+                all_results.append(backend_result)
 
-                    all_results[sub["key"]] = result
-                    # 保存完整子步骤成果（含 content/detail/score，供后续子步骤读取）
-                    save_data = {
-                        "key": result["key"], "label": result.get("label", ""),
-                        "path": result.get("path", ""), "passed": result["passed"],
-                        "rounds": result.get("rounds", 0),
-                        "content": result.get("content", ""),
-                        "detail": result.get("detail", ""),
-                        "score": result.get("score", 0),
-                        "convergence": result.get("convergence", []),
-                    }
-                    bg_engine.save_step4_artifacts({
-                        sub["key"]: save_data,
-                        f"{sub['key']}_content": result.get("content", ""),
-                        "message": f"{step_label}: {sub['label']} {'通过' if result['passed'] else '未通过'}",
-                    })
+                # ── step4_4: 数据库设计 ──
+                if "database_design" in passed_keys and resume:
+                    await broadcast(project_id, {"type": "stage", "message": "♻️ step4_4(数据库设计) 上次已通过，跳过"})
+                    db_result = next((r for r in existing_sub_results if r["key"] == "database_design"), {})
+                else:
+                    db_result = await _sub_step4_4(
+                        project_id, slug, docs_dir, requirement, doc_path,
+                        proj_name, proj_desc, core_goal, bg_engine, bg_db,
+                        backend_result,
+                    )
+                    if not db_result.get("passed"):
+                        raise _SubStepError("step4_4 未通过", db_result)
+                all_results.append(db_result)
 
-                    if not result["passed"]:
-                        all_passed = False
-                        await broadcast(project_id, {
-                            "type": "stage",
-                            "message": f"❌ {step_label}: {sub['label']}未通过，终止后续子步骤",
-                            "subflow": sub["dim_key"],
-                        })
-                        break
-
-                # ── 汇总结果 ──
+                # ── 全部通过 → 保存交接文档 → 推进到 step5 ──
                 design_parts = []
-                final_paths = {}
-                step4_1 = all_results.get("step4_1_result") or {}
-                step4_2 = all_results.get("step4_2_result") or {}
-                step4_3 = all_results.get("step4_3_result") or {}
-                step4_4 = all_results.get("step4_4_result") or {}
-
-                for r in [step4_1, step4_2, step4_3, step4_4]:
-                    if r and r.get("passed"):
-                        content = r.get("content", "")
-                        if not content.strip() and r.get("path", ""):
-                            try:
-                                with open(r["path"], "r", encoding="utf-8") as f:
-                                    content = f.read()
-                            except Exception:
-                                pass
-                        if content.strip():
-                            design_parts.append(f"# {r.get('label', '')}\n\n{content}")
-                            final_paths[r["key"]] = r.get("path", "")
+                doc_paths = {}
+                for r in all_results:
+                    content = r.get("content", "")
+                    # 续跑模式下已有的结果 content 可能为空，尝试从文件读取
+                    if not content.strip() and r.get("path", ""):
+                        import os as _os2
+                        if _os2.path.exists(r["path"]):
+                            with open(r["path"], "r", encoding="utf-8") as _f:
+                                content = _f.read()
+                    if content.strip():
+                        design_parts.append(f"# {r['label']}\n\n{content}")
+                        doc_paths[r["key"]] = r.get("path", "")
 
                 full_design = "\n\n---\n\n".join(design_parts) if design_parts else ""
-                passed_count = sum(1 for r in all_results.values() if r.get("passed"))
+                passed_count = sum(1 for r in all_results if r.get("passed"))
+                sub_flow_detail = "; ".join(
+                    f"{r['label']}: {'✅' if r.get('passed') else '❌'}({r.get('rounds', 0)}轮)"
+                    for r in all_results
+                )
 
                 if full_design and len(full_design) >= 50:
                     artifacts = {
                         "design_doc": full_design,
                         "requirement_source": requirement[:200],
                         "status": "done",
-                        "message": f"✅ 架构设计完成（{passed_count}/4 通过）",
+                        "message": f"✅ Step4 全部完成（{passed_count}/4 通过）\n{sub_flow_detail}",
                         "docs_dir": docs_dir,
-                        "doc_paths": final_paths,
+                        "doc_paths": doc_paths,
+                        "sub_flow_results": [
+                            {
+                                "key": r["key"], "label": r["label"],
+                                "passed": r.get("passed", False),
+                                "rounds": r.get("rounds", 0),
+                                "convergence": r.get("convergence", []),
+                            }
+                            for r in all_results
+                        ],
+                        "qa_passed": True,
+                        "qa_checked": True,
                     }
                     if doc_path:
                         artifacts["requirement_doc_path"] = doc_path
 
-                    if all_passed:
-                        bg_engine.save_step4_artifacts({**artifacts, "qa_passed": True, "qa_checked": True})
-                        bg_engine.complete_step(4, artifacts={**artifacts, "qa_passed": True})
-                        await broadcast(project_id, {
-                            "type": "done",
-                            "message": "✅ 全部4个子步骤通过hourong QA检验与一致性检验，已推进至第5步",
-                        })
-                    else:
-                        bg_engine.save_step4_artifacts({
-                            **artifacts, "qa_passed": False, "qa_checked": True, "status": "qa_failed",
-                        })
-                        await broadcast(project_id, {
-                            "type": "done",
-                            "message": f"⚠️ {4 - passed_count} 份文档未通过检验",
-                        })
+                    bg_engine.save_step4_artifacts(artifacts)
+                    bg_engine.complete_step(4)
+                    bg_engine.pass_qa(4)
+                    bg_db.commit()
+                    bg_engine.advance_step(5)
+                    bg_db.commit()
+                    await broadcast(project_id, {
+                        "type": "done",
+                        "message": f"✅ Step4 全部 4 个子步骤通过 houwang→hourong 检验与一致性检验，交接文档已保存，已自动推进至第5步\n{sub_flow_detail}",
+                    })
                 else:
-                    bg_engine.save_step4_artifacts({"status": "error", "message": "❌ 子步骤未生成有效设计文档"})
+                    bg_engine.save_step4_artifacts({
+                        "status": "error",
+                        "message": "❌ 子步骤未生成有效设计文档，请重新执行",
+                    })
                     bg_engine.reset_step(4)
-                    await broadcast(project_id, {"type": "error", "message": "❌ 子步骤未生成有效设计文档"})
+                    await broadcast(project_id, {"type": "error", "message": "❌ 子步骤未生成有效设计文档，请重新执行"})
 
-            except Exception as e:
-                logger.error(f"Step4 orchestration failed: {e}")
+            except _SubStepError as e:
+                # 子步骤未通过，保存失败状态
+                failed_result = e.result
                 try:
-                    eng = WorkflowEngine(project_id=project_id, db=bg_db)
-                    eng.save_step4_artifacts({"status": "error", "message": f"❌ 执行失败: {str(e)[:200]}"})
-                    eng.reset_step(4)
+                    bg_engine.save_step4_artifacts({
+                        "status": "qa_failed",
+                        "qa_passed": False,
+                        "qa_checked": True,
+                        "message": f"⚠️ {e.message}: {failed_result.get('label', '')} 未通过检验",
+                    })
+                    await broadcast(project_id, {
+                        "type": "done",
+                        "message": f"⚠️ {e.message}，请修复后重试或续跑",
+                    })
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.error(f"Step4 sub-steps failed: {e}")
+                try:
+                    bg_engine = WorkflowEngine(project_id=project_id, db=bg_db)
+                    bg_engine.save_step4_artifacts({
+                        "status": "error",
+                        "message": f"❌ Step4 子步骤执行失败: {str(e)[:200]}",
+                    })
+                    bg_engine.reset_step(4)
                 except Exception:
                     pass
                 try:
-                    await broadcast(project_id, {"type": "error", "message": f"❌ 执行失败: {str(e)[:200]}"})
+                    await broadcast(project_id, {"type": "error", "message": f"❌ Step4 子步骤执行失败: {str(e)[:200]}"})
                 except Exception:
                     pass
             finally:
                 bg_db.close()
         except Exception as e:
-            logger.error(f"Step4 orchestration fatal: {e}")
+            logger.error(f"Step4 background task fatal: {e}")
 
-    _asyncio.create_task(_run_orchestration())
+    task = _asyncio.create_task(_generate())
 
+    sub_flow_results = existing.get("sub_flow_results", []) if resume else []
     response_data = {
-        "message": "第四步已启动，4个子步骤串行执行（架构→前端→后端→数据库）",
+        "message": "第四步已启动，4个子步骤串行执行——step4_1(架构)→step4_2(前端)→step4_3(后端)→step4_4(数据库)",
         "status": "generating",
     }
-    if resume:
-        existing_results = engine.get_step4_artifacts().get("step4_1_result") or {}
-        if existing_results:
-            response_data["resume_info"] = "检测到已有进度，将跳过已通过的子步骤"
+    if resume and sub_flow_results:
+        response_data["sub_flow_results"] = [
+            {"key": r["key"], "label": r.get("label", ""), "passed": r.get("passed", False)}
+            for r in sub_flow_results
+        ]
     return APIResponse(code=0, data=response_data)
+
+
+class _SubStepError(Exception):
+    """子步骤执行失败异常"""
+    def __init__(self, message: str, result: dict):
+        self.message = message
+        self.result = result
+        super().__init__(message)
 
 
 class Step4ChatRequest(BaseModel):
@@ -1343,10 +1471,7 @@ class Step4ChatRequest(BaseModel):
 async def step4_chat(project_id: str, body: Step4ChatRequest,
                      db: Session = Depends(get_db),
                      current_user=Depends(get_current_user)):
-    """与后旺（HouWang）架构师对话 - 使用项目隔离模式
-    每次对话后自动持久化消息历史到 DB。
-    """
-    from datetime import datetime, timezone
+    """与后旺（HouWang）架构师对话 - 使用项目隔离模式"""
     logger.info(f"Step4 chat: project_id={project_id}, message={body.message[:50]}")
     from app.services.gateway_client import GatewayClient
     from app.models.project import Project
@@ -1356,23 +1481,18 @@ async def step4_chat(project_id: str, body: Step4ChatRequest,
         step4 = engine.get_step4_artifacts()
         design_context = (step4 or {}).get("design_doc", "")
 
+        # 加载项目信息
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
+        # 加载核心目标（步骤2产物）
         step2 = engine.get_step2_artifacts()
         core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
 
         messages = body.messages + [{"role": "user", "content": body.message}]
 
-        # 持久化：保存对话进度到 DB
-        saved_msgs = step4.get("chat_messages", [])
-        saved_msgs.append({"role": "user", "content": body.message, "saved_at": datetime.now(timezone.utc).isoformat()})
-        engine.save_step4_artifacts({
-            "chat_messages": saved_msgs,
-            "last_activity_at": datetime.now(timezone.utc).isoformat(),
-        })
-
+        # 使用项目隔离模式
         client = GatewayClient(profile_name="houwang", timeout=1200)
         reply_chunks = []
         async for chunk in client.chat_isolated(
@@ -1383,19 +1503,11 @@ async def step4_chat(project_id: str, body: Step4ChatRequest,
             core_goal=core_goal,
             agent_name="后旺（HouWang）架构师",
             stream=False,
-            project_slug=project.slug if project.slug else project_id,
         ):
             reply_chunks.append(chunk)
         reply = "".join(reply_chunks)
         if not reply or len(reply.strip()) < 5:
             return APIResponse(code=1, message="后旺未生成有效回复", data=None)
-
-        saved_msgs.append({"role": "assistant", "content": reply, "saved_at": datetime.now(timezone.utc).isoformat()})
-        engine.save_step4_artifacts({
-            "chat_messages": saved_msgs,
-            "last_reply": reply,
-            "last_reply_at": datetime.now(timezone.utc).isoformat(),
-        })
         return APIResponse(code=0, message="success", data={"reply": reply})
     except HTTPException:
         raise
@@ -1504,7 +1616,7 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
             ],
         })
 
-    from app.api.ws.step3_qa import _inspect_via_subagent
+    from app.services.gateway_client import GatewayClient
     import json as _json
 
     # 从 SUB_FLOW_CONFIGS 中提取检验标准
@@ -1530,9 +1642,6 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
         "- 任意 critical 项评分 < 3 → 该维度 passed = false\n"
         "- 2项及以上 major 项评分 < 3 → 该维度 passed = false\n"
         "- 其余情况 → passed = true\n\n"
-        "⚠️ 收敛性要求：检验报告必须聚焦于不合格项，明确指出不合格项的问题和修改方向。"
-        "后续Agent将只根据你的检验报告修改不合格项，禁止扩大修改范围。"
-        "已合格维度不得提出修改要求。\n\n"
         "直接输出 JSON 数组，不要包含其他说明文字：\n"
         "[\n"
         + ",\n".join(
@@ -1547,7 +1656,14 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
     )
 
     try:
-        reply = await _inspect_via_subagent(prompt=prompt, max_retries=3)
+        client = GatewayClient(profile_name="hourong", timeout=180)
+        chunks = []
+        async for chunk in client.chat_completions(
+            messages=[{"role": "user", "content": prompt}],
+            stream=False, max_tokens=4096,
+        ):
+            chunks.append(chunk)
+        reply = "".join(chunks).strip()
         if not reply:
             raise ValueError("后荣未返回检验结果")
 
@@ -1600,26 +1716,14 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
         matched = next((r for r in parsed_list if r.get("key") == dim["key"]), None)
         results.append({
             "key": dim["key"], "label": dim["label"], "description": dim["description"],
-            "passed": int(matched.get("score", 100)) >= 90 if matched else False,
-            "score": int(matched.get("score", 100)) if matched else 0,
+            "passed": bool(matched.get("passed", False)) if matched else False,
+            "score": matched.get("score", None) if matched else None,
             "detail": matched.get("detail", "未返回该维度检验结果") if matched else "后荣未返回该维度的检验结果",
         })
 
-    from datetime import datetime, timezone
-    avg_score = sum(r.get("score", 0) for r in results) / len(results) if results else 0
-    all_passed = avg_score > 90
-    # 持久化：保存检验结果到 DB
-    engine = _get_engine(project_id, db)
-    engine.save_step4_artifacts({
-        "inspect_result": {
-            "passed": all_passed, "avg_score": avg_score, "dimensions": results,
-            "inspected_at": datetime.now(timezone.utc).isoformat(),
-        },
-        "qa_checked": True, "qa_passed": all_passed,
-    })
+    all_passed = all(r["passed"] for r in results)
     return APIResponse(code=0, data={
         "passed": all_passed,
-        "score": avg_score,
         "message": "所有检验项目均通过 ✅" if all_passed else "部分检验项目未通过",
         "dimensions": results,
     })
@@ -1629,15 +1733,11 @@ async def inspect_step4_design(project_id: str, body: Step3InspectRequest,
 def qa_step4(project_id: str, body: QAResultRequest,
              db: Session = Depends(get_db),
              current_user=Depends(get_current_user)):
-    from datetime import datetime, timezone
     engine = _get_engine(project_id, db)
-    now_iso = datetime.now(timezone.utc).isoformat()
     if body.result == "passed":
         result = engine.pass_qa(4)
-        engine.save_step4_artifacts({"qa_passed": True, "qa_status": "passed", "qa_checked_at": now_iso})
     else:
         result = engine.fail_qa(4, reason=body.reason or "", suggestions=body.suggestions)
-        engine.save_step4_artifacts({"qa_passed": False, "qa_status": "failed", "qa_checked_at": now_iso, "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
     return APIResponse(code=0, data={"message": f"第四步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
 
 

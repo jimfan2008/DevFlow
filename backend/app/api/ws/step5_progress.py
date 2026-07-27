@@ -1,28 +1,18 @@
+"""Step5 WebSocket handler — splits into step5_1 (config) then step5_2 (setup)."""
 import json as _json
 import os
-import re as _re
-import glob
 import logging
 from typing import Dict, List
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 
 from app.api.ws.auth import verify_token
 from app.services.workflow_engine import WorkflowEngine
-from app.services.gateway_client import GatewayClient
-from app.models.project import Project
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 _active_connections: Dict[str, List[WebSocket]] = {}
-
-ENV_SETUP_DIMENSIONS = [
-    {"key": "environment_availability", "label": "环境可用性", "description": "开发环境是否可正常运行"},
-    {"key": "config_correctness", "label": "配置正确性", "description": "配置文件是否完整、正确"},
-    {"key": "dependency_completeness", "label": "依赖完整性", "description": "依赖包、工具链是否齐全"},
-]
 
 
 async def broadcast(project_id: str, message: dict):
@@ -56,21 +46,24 @@ async def step5_progress_ws(websocket: WebSocket, project_id: str,
         try:
             while True:
                 data = await websocket.receive_text()
-                logger.info(f"Step5 WS received: {data}")
                 payload = _json.loads(data)
                 action = payload.get("action", "")
-                logger.info(f"Step5 action: {action}")
 
                 if action == "execute":
-                    logger.info(f"Step5: Starting _run_step5 for project {project_id}")
-                    should_close = await _run_step5(websocket, project_id, db)
-                    logger.info(f"Step5: _run_step5 completed for project {project_id}")
-                    if should_close:
-                        break
+                    await _run_step5_chain(websocket, project_id, db)
 
                 elif action == "subscribe":
-                    logger.info(f"Step5: Subscribed for project {project_id}")
                     await websocket.send_json({"type": "subscribed", "message": "已订阅实时状态"})
+                    # Send current status
+                    try:
+                        engine = WorkflowEngine(project_id=project_id, db=db)
+                        artifacts = engine.get_step5_artifacts() or {}
+                        status = artifacts.get("status", "pending")
+                        message = artifacts.get("message", "")
+                        if status and status != "pending":
+                            await websocket.send_json({"type": "progress", "message": f"当前状态: {message or status}"})
+                    except Exception as e:
+                        logger.error(f"Step5 WS: failed to send status: {e}")
 
                 elif action == "ping":
                     await websocket.send_json({"type": "pong"})
@@ -91,114 +84,193 @@ async def step5_progress_ws(websocket: WebSocket, project_id: str,
         db.close()
 
 
-async def _run_step5(websocket: WebSocket, project_id: str, db) -> bool:
-    """执行步骤5"""
+async def _run_step5_chain(websocket: WebSocket, project_id: str, db):
+    """Execute step5_1 (config generation) then step5_2 (environment setup)."""
+    logger.info(f"[STEP5] _run_step5_chain 开始: project_id={project_id}")
 
-    # Register this WS for broadcasts (dedup)
     if websocket not in _active_connections.get(project_id, []):
         _active_connections.setdefault(project_id, []).append(websocket)
 
     try:
         engine = WorkflowEngine(project_id=project_id, db=db)
-        engine.advance_step(5)
 
-        # Gather context from previous steps
-        step3 = engine.get_step3_artifacts() or {}
-        requirement = (step3.get("doc_content") or step3.get("content") or
-                       step3.get("requirement") or step3.get("srs") or "")
-        step4 = engine.get_step4_artifacts() or {}
-        step2 = engine.get_step2_artifacts() or {}
-        core_goal = step2.get("confirmed_goal") or step2.get("core_goal") or ""
-
-        # Use aggregated design_doc from step4 orchestrator (new: step4_N_result keys, old: sub_flow_results)
-        design_summary = step4.get("design_doc") or ""
-        if not design_summary:
-            subs = step4.get("sub_flow_results") or []
-            parts = []
-            for doc in subs:
-                label = doc.get("label", "")
-                content = doc.get("content", "")
-                if content:
-                    parts.append(f"\n=== {label} ===\n{content}\n")
-            design_summary = "\n".join(parts)
-
-        # Resolve project info
-        proj = db.query(Project).filter(Project.id == project_id).first()
-        if not proj:
-            await websocket.send_json({"type": "error", "message": "Project not found"})
-            return True
-        slug = proj.slug or project_id.replace("-", "")
-        docs_dir = os.path.join(settings.PROJECTS_BASE_DIR, slug, "docs")
-        os.makedirs(docs_dir, exist_ok=True)
-        proj_name = proj.name
-        proj_desc = proj.description or ""
-
-        engine.save_step5_artifacts({"status": "generating", "message": "🔧 后富正在建立开发环境..."})
-        await websocket.send_json({"type": "progress", "message": "🔧 后富正在建立开发环境..."})
-
-        # Check for existing artifacts (resume case)
+        # Check if fully completed
         existing = engine.get_step5_artifacts() or {}
-        if existing.get("qa_passed") and existing.get("doc_path") and os.path.exists(existing["doc_path"]):
-            engine.save_step5_artifacts({**existing, "status": "done", "message": "♻️ 续跑：环境配置已通过检验"})
-            engine.complete_step(5)
-            engine.pass_qa(5)
+        if existing.get("qa_passed") and existing.get("setup_doc_path"):
+            await websocket.send_json({"type": "progress", "message": "♻️ 环境搭建已通过检验"})
             await websocket.send_json({"type": "done", "message": "✅ 开发环境已建立完毕（续跑）"})
-            return True
+            return
 
-        # 发一条提示词给 houfu，不循环不收斂
-        gen_path = os.path.join(docs_dir, f"{slug}_env_V1.md")
-        await websocket.send_json({"type": "progress", "message": "📤 正在向后富（HouFu）Agent发送开发环境搭建请求..."})
+        # Check if step5_1 already passed — skip to step5_2
+        skip_to_5_2 = existing.get("qa_passed") and existing.get("doc_path") and not existing.get("setup_doc_path")
 
-        prompt = (
-            "你是资深CI/CD工程师后富（HouFu），负责建立软件开发环境。\n\n"
-            f"=== 需求文档 ===\n{requirement}\n\n"
-            f"=== 设计文档 ===\n{design_summary}\n\n"
-            "读取本项目的需求文档和设计文档，建立本项目的开发环境。\n"
-            f"请将部署配置保存到：{gen_path}\n"
-            "要求：代码仓库初始化、框架搭建、依赖配置、数据库初始化、CI/CD流水线配置\n"
-            "不要输出推理过程。"
+        from app.models.user import User
+        mock_user = db.query(User).first()
+        if not mock_user:
+            await websocket.send_json({"type": "error", "message": "❌ 无可用用户"})
+            return
+
+        if not skip_to_5_2:
+            # ── Phase 1: step5_1 — Generate env config file ──
+            await websocket.send_json({"type": "progress", "message": "📋 阶段1/2：后富生成环境配置文件..."})
+
+            from app.api.ws.step5_1_progress import (
+                _active_connections as conns_51,
+            )
+            forwarder_51 = _Forwarder(websocket)
+            conns_51.setdefault(project_id, []).append(forwarder_51)
+
+            try:
+                from app.api.workflow.step5_1 import execute_step5_1_async
+
+                resp = await execute_step5_1_async(project_id=project_id, db=db, current_user=mock_user)
+                if hasattr(resp, 'code') and resp.code != 0:
+                    await websocket.send_json({"type": "error", "message": f"❌ 步骤5_1启动失败: {resp.message}"})
+                    return
+            except Exception as e:
+                logger.error(f"[STEP5] step5_1 execute failed: {e}", exc_info=True)
+                await websocket.send_json({"type": "error", "message": f"❌ 步骤5_1启动失败: {str(e)[:200]}"})
+                return
+            finally:
+                conns_51.get(project_id, []).remove(forwarder_51)
+
+            # Wait for step5_1 to complete (poll status)
+            await _wait_for_step(project_id, db, websocket, phase="config generation")
+
+            # Check if step5_1 passed
+            engine2 = WorkflowEngine(project_id=project_id, db=db)
+            artifacts = engine2.get_step5_artifacts() or {}
+            if not artifacts.get("qa_passed") or not artifacts.get("doc_path"):
+                await websocket.send_json({"type": "error", "message": "❌ 环境配置文件未通过检验，无法进入阶段2"})
+                return
+        else:
+            await websocket.send_json({"type": "progress", "message": "♻️ 步骤5_1已通过检验，跳过直接进入阶段2..."})
+
+        # ── Phase 2: step5_2 — Execute environment setup ──
+        # Set step5 to in_progress directly (bypass advance_step supervision check
+        # because step5 is a sub-step chain — step4 completion is not required)
+        from datetime import datetime, timezone
+        from sqlalchemy import text as _sa_text
+        db.execute(
+            _sa_text("UPDATE workflow_steps SET status='in_progress', started_at=:now WHERE project_id=:pid AND step_number=5"),
+            {"now": datetime.now(timezone.utc).isoformat(), "pid": project_id}
         )
+        db.commit()
+        logger.info(f"[STEP5] 已直接设置 step5 状态为 in_progress")
 
-        houfu = GatewayClient(profile_name="houfu", timeout=1200)
-        chunks = []
+        await websocket.send_json({"type": "progress", "message": "📋 阶段2/2：后富执行环境搭建..."})
+
+        from app.api.ws.step5_2_progress import (
+            _active_connections as conns_52,
+        )
+        forwarder_52 = _Forwarder(websocket)
+        conns_52.setdefault(project_id, []).append(forwarder_52)
+
         try:
-            async for chunk in houfu.chat_isolated(
-                messages=[{"role": "user", "content": prompt}],
-                project_id=project_id, project_name=proj_name,
-                project_description=proj_desc, core_goal=core_goal,
-                agent_name="后富（HouFu）CI/CD工程师",
-                stream=True, max_tokens=64000,
-                project_slug=slug,
-            ):
-                if chunk.strip():
-                    chunks.append(chunk)
-                    await websocket.send_json({"type": "progress", "content": chunk})
+            from app.api.workflow.step5_2 import execute_step5_2_async
 
+            resp = await execute_step5_2_async(project_id=project_id, db=db, current_user=mock_user, resume=True)
+            if hasattr(resp, 'code') and resp.code != 0:
+                await websocket.send_json({"type": "error", "message": f"❌ 步骤5_2启动失败: {resp.message}"})
+                return
         except Exception as e:
-            logger.error(f"Step5 houfu调用失败: {e}", exc_info=True)
-            await websocket.send_json({"type": "error", "message": f"❌ 后富执行失败，已通知海梅处理: {str(e)[:100]}"})
-            engine.reset_step(5)
-            return True
+            logger.error(f"[STEP5] step5_2 execute failed: {e}", exc_info=True)
+            await websocket.send_json({"type": "error", "message": f"❌ 步骤5_2启动失败: {str(e)[:200]}"})
+            return
+        finally:
+            conns_52.get(project_id, []).remove(forwarder_52)
 
-        content = "".join(chunks).strip()
-        with open(gen_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        # Wait for step5_2 to complete
+        await _wait_for_step(project_id, db, websocket, phase="environment setup")
 
-        engine.save_step5_artifacts({
-            "env_info": content, "doc_path": gen_path,
-            "status": "done", "message": "✅ 开发环境已建立完毕",
-        })
-        engine.complete_step(5)
-        engine.pass_qa(5)
-        await websocket.send_json({"type": "done", "message": "✅ 开发环境已建立完毕"})
-        return True
+        # Final check
+        engine3 = WorkflowEngine(project_id=project_id, db=db)
+        final = engine3.get_step5_artifacts() or {}
+        if final.get("qa_passed"):
+            # ── Auto-start step6 ──
+            await websocket.send_json({"type": "progress", "message": "🚀 环境搭建通过检验，自动启动步骤6（制订TDD计划）..."})
+            try:
+                import json as _json_step6
+
+                # Set step6 to in_progress
+                db.execute(
+                    _sa_text("UPDATE workflow_steps SET status='in_progress', started_at=:now, output_artifacts=:arts WHERE project_id=:pid AND step_number=6"),
+                    {"now": datetime.now(timezone.utc).isoformat(), "arts": _json_step6.dumps({"status": "generating", "message": "📋 海梅正在制订TDD测试用例编写计划..."}), "pid": project_id}
+                )
+                db.execute(
+                    _sa_text("UPDATE projects SET current_step=6 WHERE id=:pid"),
+                    {"pid": project_id}
+                )
+                db.commit()
+
+                # Forward step6 WS messages to client
+                from app.api.ws.step6_progress import _active_connections as conns_6
+                forwarder_6 = _Forwarder(websocket)
+                conns_6.setdefault(project_id, []).append(forwarder_6)
+
+                try:
+                    from app.api.workflow.step6 import execute_step6_async
+                    if mock_user:
+                        resp = await execute_step6_async(project_id=project_id, db=db, current_user=mock_user)
+                        if hasattr(resp, 'code') and resp.code != 0:
+                            await websocket.send_json({"type": "progress", "message": f"⚠️ 步骤6启动异常: {resp.message}"})
+                except Exception as e6:
+                    logger.error(f"[STEP5] step6 auto-start failed: {e6}", exc_info=True)
+                    await websocket.send_json({"type": "progress", "message": f"⚠️ 步骤6自动启动失败: {str(e6)[:200]}"})
+                finally:
+                    conns_6.get(project_id, []).remove(forwarder_6)
+
+                await websocket.send_json({"type": "auto_next", "step": 6, "message": "✅ 步骤5完成，已自动启动步骤6"})
+            except Exception as e_auto:
+                logger.error(f"[STEP5] step6 auto-start error: {e_auto}", exc_info=True)
+                await websocket.send_json({"type": "done", "message": "✅ 开发环境已建立完毕（步骤6自动启动失败，请手动执行）"})
+        else:
+            await websocket.send_json({"type": "error", "message": "❌ 环境搭建未通过检验"})
 
     except Exception as e:
-        logger.error(f"Step5 execution error: {e}", exc_info=True)
+        logger.error(f"[STEP5] _run_step5_chain 异常: {e}", exc_info=True)
+        await websocket.send_json({"type": "error", "message": f"❌ 步骤5失败: {str(e)[:200]}"})
+
+
+async def _wait_for_step(project_id: str, db, websocket: WebSocket, phase: str, timeout: int = 1800):
+    """Poll step status until completed or timed out."""
+    import asyncio
+    import time
+    start = time.time()
+    while time.time() - start < timeout:
+        await asyncio.sleep(5)
         try:
-            err_engine = WorkflowEngine(project_id=project_id, db=db)
-            err_engine.reset_step(5)
+            from app.database import SessionLocal
+            poll_db = SessionLocal()
+            try:
+                engine = WorkflowEngine(project_id=project_id, db=poll_db)
+                artifacts = engine.get_step5_artifacts() or {}
+                status = artifacts.get("status", "")
+                if status == "done":
+                    return True
+                if status == "error":
+                    msg = artifacts.get("message", "未知错误")
+                    await websocket.send_json({"type": "error", "message": f"❌ {phase}失败: {msg}"})
+                    return False
+                if status == "generating":
+                    msg = artifacts.get("message", "")
+                    if msg:
+                        await websocket.send_json({"type": "progress", "message": msg})
+            finally:
+                poll_db.close()
+        except Exception as e:
+            logger.error(f"[STEP5] poll error: {e}")
+    await websocket.send_json({"type": "error", "message": f"❌ {phase}超时"})
+    return False
+
+
+class _Forwarder:
+    """Minimal WS-like object that forwards send_json to the real client WS."""
+    def __init__(self, target_ws: WebSocket):
+        self._target = target_ws
+
+    async def send_json(self, msg: dict):
+        try:
+            await self._target.send_json(msg)
         except Exception:
             pass
-        await websocket.send_json({"type": "error", "message": f"❌ 步骤5失败，已通知海梅处理"})
-        return True

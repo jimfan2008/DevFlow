@@ -59,7 +59,6 @@ declare module 'vue' {
     ElTabs: typeof import('element-plus/es')['ElTabs']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
-    ElUpload: typeof import('element-plus/es')['ElUpload']
     EmptyState: typeof import('./src/components/common/EmptyState.vue')['default']
     HaimeiBoardPanel: typeof import('./src/components/boards/HaimeiBoardPanel.vue')['default']
     KanbanBoard: typeof import('./src/components/boards/KanbanBoard.vue')['default']

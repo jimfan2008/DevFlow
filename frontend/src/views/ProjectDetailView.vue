@@ -176,8 +176,10 @@ function goToStep(stepNum: number) {
     router.push({ name: 'Step3', params: { projectId }, query: { name: projectName } })
   } else if (stepNum === 4) {
     router.push({ name: 'Step4', params: { projectId }, query: { name: projectName } })
-  } else {
+  } else if (stepNum >= 5 && stepNum <= 16) {
     router.push({ name: `Step${stepNum}`, params: { projectId }, query: { name: projectName } })
+  } else {
+    router.push({ name: 'ProjectDetail', params: { projectId } })
   }
 }
 
@@ -228,7 +230,7 @@ function formatTime(t: string) {
       font-weight: $display-lg-weight;
       line-height: $display-lg-leading;
       letter-spacing: $display-lg-tracking;
-      color: $ink;
+      color: $text-primary;
     }
   }
 
@@ -237,11 +239,12 @@ function formatTime(t: string) {
       margin: 0 0 $spacing-xxs;
       font-family: $font-display;
       font-size: $tagline-size;
+      color: $text-primary;
     }
   }
 
   &__workflow-sub {
-    color: $ink-muted-48;
+    color: $text-muted;
     margin: 0 0 $spacing-4;
     font-size: $caption-size;
   }
@@ -257,46 +260,58 @@ function formatTime(t: string) {
     align-items: center;
     gap: $spacing-sm;
     padding: $spacing-sm $spacing-4;
-    background: $canvas;
-    border: 1px solid $hairline;
-    border-radius: $radius-sm;
-    transition: all 0.2s;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    -webkit-backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border;
+    border-radius: 10px;
+    transition: all $transition-base;
     cursor: pointer;
 
     &:hover {
-      border-color: $primary;
-      background: rgba($primary, 0.03);
+      border-color: $glass-border-hover;
+      background: $glass-bg-light;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.08);
     }
 
     &--active {
-      border-color: $primary;
-      background: rgba($primary, 0.03);
+      border-color: $border-cyan;
+      background: rgba(0, 212, 255, 0.08);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.15);
+      .project-detail-view__workflow-step-num {
+        background: $primary;
+        color: $text-inverse;
+        box-shadow: 0 0 10px rgba(0, 212, 255, 0.4);
+      }
     }
 
     &--completed {
-      border-color: $status-done;
-      background: rgba($status-done, 0.03);
+      border-color: rgba(52, 211, 153, 0.3);
+      background: rgba(52, 211, 153, 0.05);
       .project-detail-view__workflow-step-num {
-        background: $status-done;
-        color: $on-primary;
+        background: $secondary;
+        color: $text-inverse;
+        box-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
       }
       .project-detail-view__workflow-step-name {
-        color: $ink-muted-48;
+        color: $text-muted;
       }
     }
 
     &-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: $canvas-parchment;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: $font-mono;
       font-size: $fine-print-size;
       font-weight: 600;
-      color: $ink-muted-48;
+      color: $text-muted;
       flex-shrink: 0;
+      transition: all $transition-base;
     }
 
     &-info {
@@ -307,12 +322,12 @@ function formatTime(t: string) {
     &-name {
       font-size: $body-size;
       font-weight: 500;
-      color: $ink;
+      color: $text-primary;
     }
 
     &-executor {
       font-size: $fine-print-size;
-      color: $ink-muted-48;
+      color: $text-muted;
     }
 
     &-action {

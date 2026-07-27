@@ -1,0 +1,858 @@
+"""Aeternova AI原生集团管理系统 - TDD测试用例 (Step 7)
+基于 SRS V23 验收标准，覆盖六大功能模块 50+ 功能需求
+"""
+import pytest
+import pytest_asyncio
+from datetime import datetime, timezone, date, timedelta
+from decimal import Decimal
+from typing import Dict, List, Optional, AsyncGenerator
+from sqlalchemy import create_engine, func, and_, or_
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker
+from httpx import AsyncClient, ASGITransport
+import json
+import os
+import sys
+import asyncio
+from uuid import uuid4
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from app.main import app
+from app.database import get_db, Base
+from app.models.user import User
+from app.models.project import Project
+from app.models.agent import Agent
+from app.models.task import Task
+from app.models.requirement import Requirement
+from app.models.group import Group
+from app.models.qa_record import QARecord
+from app.utils.security import get_password_hash, create_access_token
+
+TEST_DB_URL = "sqlite://"
+TEST_ENGINE = create_engine(
+    TEST_DB_URL,
+    echo=False,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
+
+
+def setup_test_database():
+    Base.metadata.create_all(bind=TEST_ENGINE)
+
+
+def teardown_test_database():
+    with TEST_ENGINE.connect() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            try:
+                table.drop(conn, checkfirst=True)
+            except Exception:
+                pass
+        conn.commit()
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def db_session():
+    setup_test_database()
+    session = TestSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        teardown_test_database()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client(db_session):
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+    app.dependency_overrides[get_db] = override_get_db
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Content-Type": "application/json"},
+        follow_redirects=True,
+    ) as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def test_admin(db_session) -> User:
+    admin = User(
+        id="aet-admin-001",
+        username="集团管理员",
+        email="admin@aeternova.com",
+        password_hash=get_password_hash("Admin@2026"),
+        role="super_admin",
+    )
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+    yield admin
+    db_session.rollback()
+
+
+@pytest_asyncio.fixture
+async def test_finance_user(db_session) -> User:
+    user = User(
+        id="aet-fin-001",
+        username="财务主管",
+        email="finance@aeternova.com",
+        password_hash=get_password_hash("Fin@2026"),
+        role="finance_manager",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    yield user
+    db_session.rollback()
+
+
+@pytest_asyncio.fixture
+async def test_hr_user(db_session) -> User:
+    user = User(
+        id="aet-hr-001",
+        username="HR主管",
+        email="hr@aeternova.com",
+        password_hash=get_password_hash("Hr@2026"),
+        role="hr_manager",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    yield user
+    db_session.rollback()
+
+
+@pytest_asyncio.fixture
+async def test_org(db_session) -> Project:
+    org = Project(
+        id="aet-org-001",
+        name="Aeternova集团",
+        slug="aeternova-group",
+        description="AI原生集团企业运营管理平台",
+        creator_id="aet-admin-001",
+    )
+    db_session.add(org)
+    db_session.commit()
+    db_session.refresh(org)
+    yield org
+    db_session.rollback()
+
+
+@pytest_asyncio.fixture
+async def auth_headers_admin(test_admin) -> dict:
+    token = create_access_token(user_id=test_admin.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def auth_headers_finance(test_finance_user) -> dict:
+    token = create_access_token(user_id=test_finance_user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def auth_headers_hr(test_hr_user) -> dict:
+    token = create_access_token(user_id=test_hr_user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def swarm_agents(db_session) -> Dict[str, Agent]:
+    agents = {
+        "haimei": Agent(id="aet-agent-pm", name="海梅", agent_type="hermes", status="online", config={"role": "project_manager"}),
+        "houxing": Agent(id="aet-agent-ra", name="后兴", agent_type="hermes", status="online", config={"role": "requirement_analyst"}),
+        "houfa": Agent(id="aet-agent-dev", name="后发", agent_type="hermes", status="online", config={"role": "developer"}),
+        "hourong": Agent(id="aet-agent-qa", name="后荣", agent_type="hermes", status="online", config={"role": "qa"}),
+    }
+    for key, agent in agents.items():
+        db_session.add(agent)
+    db_session.commit()
+    for key in agents:
+        db_session.refresh(agents[key])
+    yield agents
+    db_session.rollback()
+
+
+class TestAeternovaOrgStructure:
+    """集团组织架构管理 - 功能需求模块1"""
+
+    @pytest.mark.asyncio
+    async def test_create_subsidiary(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/org/{test_org.id}/subsidiaries",
+            headers=auth_headers_admin,
+            json={
+                "name": "Aeternova科技子公司",
+                "code": "TECH-001",
+                "type": "wholly_owned",
+                "address": "北京市海淀区中关村",
+                "contact": "张总",
+                "phone": "13800138001",
+                "established_date": "2026-01-15",
+                "business_scope": ["AI研发", "企业服务", "云计算"],
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        assert data.get("code") == 0 or resp.status_code == 201
+        result = data.get("data", data)
+        assert result.get("name") == "Aeternova科技子公司"
+
+    @pytest.mark.asyncio
+    async def test_create_department(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/org/{test_org.id}/departments",
+            headers=auth_headers_admin,
+            json={
+                "name": "AI研发中心",
+                "code": "AIDEPT-001",
+                "parent_id": None,
+                "manager_name": "王博士",
+                "headcount": 50,
+                "budget_center": "BC-AI-001",
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert result.get("name") == "AI研发中心"
+
+    @pytest.mark.asyncio
+    async def test_org_tree_hierarchy(self, client, auth_headers_admin, test_org):
+        resp = await client.get(
+            f"/api/aeternova/org/{test_org.id}/tree",
+            headers=auth_headers_admin,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "subsidiaries" in result or "children" in result or "tree" in result
+
+    @pytest.mark.asyncio
+    async def test_update_org_unit(self, client, auth_headers_admin, test_org):
+        resp = await client.put(
+            f"/api/aeternova/org/{test_org.id}/departments/AIDEPT-001",
+            headers=auth_headers_admin,
+            json={"name": "AI研发中心（升级）", "headcount": 80},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_delete_department_requires_empty(self, client, auth_headers_admin, test_org):
+        resp = await client.delete(
+            f"/api/aeternova/org/{test_org.id}/departments/AIDEPT-001",
+            headers=auth_headers_admin,
+        )
+        assert resp.status_code in (200, 409, 400)
+
+    @pytest.mark.asyncio
+    async def test_ai_suggest_org_optimization(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/org/{test_org.id}/ai-optimize",
+            headers=auth_headers_admin,
+            json={"current_structure": "扁平化管理", "employee_count": 200},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "suggestions" in result or "recommendations" in result
+
+    @pytest.mark.asyncio
+    async def test_org_unit_permission_boundary(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/org/{test_org.id}/subsidiaries",
+            headers=auth_headers_finance,
+            json={"name": "未授权创建", "code": "UNAUTH", "type": "joint_venture"},
+        )
+        assert resp.status_code in (401, 403)
+
+    @pytest.mark.asyncio
+    async def test_batch_update_org_units(self, client, auth_headers_admin, test_org):
+        resp = await client.put(
+            f"/api/aeternova/org/{test_org.id}/batch-update",
+            headers=auth_headers_admin,
+            json={"updates": [{"id": "DEPT-001", "headcount": 60}, {"id": "DEPT-002", "headcount": 30}]},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_org_audit_log(self, client, auth_headers_admin, test_org):
+        resp = await client.get(
+            f"/api/aeternova/org/{test_org.id}/audit-log",
+            headers=auth_headers_admin,
+            params={"page": 1, "page_size": 20},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_org_report_kpi(self, client, auth_headers_admin, test_org):
+        resp = await client.get(
+            f"/api/aeternova/org/{test_org.id}/kpi-report",
+            headers=auth_headers_admin,
+        )
+        assert resp.status_code == 200
+
+
+class TestAeternovaHRManagement:
+    """人事管理 - 功能需求模块2 (AI原生)"""
+
+    @pytest.mark.asyncio
+    async def test_ai_recruitment_screening(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/ai-screen",
+            headers=auth_headers_hr,
+            json={"position": "AI架构师", "requirements": "5年经验, 熟悉LLM", "candidates": [
+                {"name": "候选人A", "skills": ["LLM", "Python", "系统设计"], "experience_years": 6},
+                {"name": "候选人B", "skills": ["Java", "Spring", "SQL"], "experience_years": 8},
+            ]},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "rankings" in result or "scores" in result or "recommendations" in result
+
+    @pytest.mark.asyncio
+    async def test_employee_onboarding_workflow(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/onboard",
+            headers=auth_headers_hr,
+            json={
+                "name": "新员工李某",
+                "department_id": "AIDEPT-001",
+                "position": "算法工程师",
+                "entry_date": "2026-07-01",
+                "workflow_auto": True,
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert result.get("status") in ("onboarding", "active", "pending")
+
+    @pytest.mark.asyncio
+    async def test_ai_performance_review(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/performance-review",
+            headers=auth_headers_hr,
+            json={
+                "employee_id": "EMP-001",
+                "period": "2026-Q2",
+                "ai_generate_draft": True,
+                "kpi_data": {"完成任务": 95, "代码质量": 88, "团队协作": 92},
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "review" in result or "score" in result or "evaluation" in result
+
+    @pytest.mark.asyncio
+    async def test_employee_turnover_prediction(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/turnover-predict",
+            headers=auth_headers_hr,
+            json={"employee_id": "EMP-001", "include_factors": True},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "risk_level" in result or "probability" in result
+
+    @pytest.mark.asyncio
+    async def test_org_chart_live_update(self, client, auth_headers_hr, test_org):
+        resp = await client.get(
+            f"/api/aeternova/hr/{test_org.id}/org-chart",
+            headers=auth_headers_hr,
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_ai_training_recommendation(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/training-recommend",
+            headers=auth_headers_hr,
+            json={"employee_id": "EMP-001", "career_goal": "技术管理"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_attendance_ai_analysis(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/attendance-analysis",
+            headers=auth_headers_hr,
+            json={"month": "2026-06", "anomaly_detection": True},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_salary_structure_optimization(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/salary-optimize",
+            headers=auth_headers_hr,
+            json={"department_id": "AIDEPT-001", "budget_total": 5000000},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_employee_self_service_portal(self, client, auth_headers_hr, test_org):
+        resp = await client.get(
+            f"/api/aeternova/hr/{test_org.id}/employees/EMP-001/profile",
+            headers=auth_headers_hr,
+        )
+        assert resp.status_code in (200, 404)
+
+    @pytest.mark.asyncio
+    async def test_hr_compliance_check(self, client, auth_headers_hr, test_org):
+        resp = await client.post(
+            f"/api/aeternova/hr/{test_org.id}/compliance-check",
+            headers=auth_headers_hr,
+            json={"check_type": "social_insurance", "year": 2026},
+        )
+        assert resp.status_code == 200
+
+
+class TestAeternovaFinance:
+    """财务管理 - 功能需求模块3 (AI驱动)"""
+
+    @pytest.mark.asyncio
+    async def test_ai_budget_proposal(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/budget-proposal",
+            headers=auth_headers_finance,
+            json={
+                "fiscal_year": 2027,
+                "ai_generate": True,
+                "historical_data": {"2026_revenue": 50000000, "2026_cost": 35000000},
+                "growth_rate": 0.15,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "budget" in result or "proposal" in result or "recommendations" in result
+
+    @pytest.mark.asyncio
+    async def test_expense_reimbursement_workflow(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/expense-claim",
+            headers=auth_headers_finance,
+            json={
+                "applicant": "EMP-001",
+                "amount": 15000.00,
+                "category": "差旅费",
+                "description": "北京出差-客户拜访",
+                "attachments": ["receipt_001.pdf", "ticket_002.pdf"],
+                "ai_audit": True,
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert result.get("status") in ("pending", "approved", "auditing")
+
+    @pytest.mark.asyncio
+    async def test_ai_expense_audit(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/ai-audit/{test_org.id}-claim-001",
+            headers=auth_headers_finance,
+            json={"auto_approve_threshold": 10000, "risk_scan": True},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_financial_report_generation(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/report",
+            headers=auth_headers_finance,
+            json={
+                "report_type": "income_statement",
+                "period": "2026-Q2",
+                "format": "json",
+                "ai_commentary": True,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "report" in result or "data" in result or "commentary" in result
+
+    @pytest.mark.asyncio
+    async def test_ai_financial_anomaly_detection(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/anomaly-detect",
+            headers=auth_headers_finance,
+            json={"month": "2026-06", "sensitivity": "high"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_cross_subsidiary_funding(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/cross-funding",
+            headers=auth_headers_finance,
+            json={
+                "from_subsidiary": "SUB-001",
+                "to_subsidiary": "SUB-002",
+                "amount": 1000000.00,
+                "purpose": "项目周转",
+                "ai_risk_assessment": True,
+            },
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_tax_optimization_suggestion(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/tax-optimize",
+            headers=auth_headers_finance,
+            json={"fiscal_year": 2026, "group_structure": {" subsidiaries": 5, "regions": ["北京", "上海", "深圳"]}},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_budget_execution_tracking(self, client, auth_headers_finance, test_org):
+        resp = await client.get(
+            f"/api/aeternova/finance/{test_org.id}/budget-tracking",
+            headers=auth_headers_finance,
+            params={"department_id": "AIDEPT-001", "quarter": "Q2"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_invoice_ai_recognition(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/finance/{test_org.id}/invoice-recognize",
+            headers=auth_headers_finance,
+            json={"image_base64": "base64_encoded_invoice_data", "ocr_engine": "ai"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_financial_risk_warning(self, client, auth_headers_finance, test_org):
+        resp = await client.get(
+            f"/api/aeternova/finance/{test_org.id}/risk-warnings",
+            headers=auth_headers_finance,
+            params={"risk_level": "high", "unresolved_only": True},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_finance_permission_denied_for_hr(self, client, auth_headers_hr, test_org):
+        resp = await client.get(
+            f"/api/aeternova/finance/{test_org.id}/budget-tracking",
+            headers=auth_headers_hr,
+        )
+        assert resp.status_code in (401, 403)
+
+
+class TestAeternovaApprovalWorkflow:
+    """智能审批流程 - 功能需求模块4 (Agent驱动)"""
+
+    @pytest.mark.asyncio
+    async def test_create_approval_template(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/templates",
+            headers=auth_headers_admin,
+            json={
+                "name": "采购审批流程",
+                "type": "purchase",
+                "steps": [
+                    {"step_order": 1, "approver_role": "department_manager", "action": "review"},
+                    {"step_order": 2, "approver_role": "finance_manager", "action": "audit"},
+                    {"step_order": 3, "approver_role": "ceo", "action": "approve", "condition": "amount > 50000"},
+                ],
+                "ai_recommend_route": True,
+                "timeout_hours": 48,
+            },
+        )
+        assert resp.status_code in (200, 201)
+
+    @pytest.mark.asyncio
+    async def test_submit_approval_with_ai_routing(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/submit",
+            headers=auth_headers_finance,
+            json={
+                "template_id": "AP-TPL-001",
+                "title": "采购GPU服务器",
+                "content": {"amount": 80000, "supplier": "NVIDIA", "department": "AI研发中心"},
+                "ai_route": True,
+                "priority": "high",
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert result.get("status") in ("pending", "routing")
+
+    @pytest.mark.asyncio
+    async def test_ai_auto_approve_low_risk(self, client, auth_headers_finance, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/submit",
+            headers=auth_headers_finance,
+            json={
+                "template_id": "AP-TPL-001",
+                "title": "采购办公用品",
+                "content": {"amount": 3000, "category": "低值易耗品"},
+                "ai_auto_approve": True,
+                "auto_approve_threshold": 5000,
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert result.get("status") in ("approved", "pending")
+
+    @pytest.mark.asyncio
+    async def test_approval_chain_escalation(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/escalate",
+            headers=auth_headers_admin,
+            json={"approval_id": "AP-001", "reason": "超时未审批"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_approval_history_query(self, client, auth_headers_admin, test_org):
+        resp = await client.get(
+            f"/api/aeternova/approval/{test_org.id}/history",
+            headers=auth_headers_admin,
+            params={"status": "completed", "page": 1, "page_size": 20},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_ai_approval_recommendation(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/ai-recommend",
+            headers=auth_headers_admin,
+            json={"approval_id": "AP-001", "user_id": "admin-001"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "recommendation" in result or "suggestion" in result or "decision" in result
+
+    @pytest.mark.asyncio
+    async def test_parallel_approval(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/parallel-approve",
+            headers=auth_headers_admin,
+            json={
+                "approval_id": "AP-001",
+                "approvers": ["user-fin-001", "user-hr-001"],
+                "strategy": "all_must_approve",
+            },
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_approval_deadline_warning(self, client, auth_headers_admin, test_org):
+        resp = await client.get(
+            f"/api/aeternova/approval/{test_org.id}/deadline-alerts",
+            headers=auth_headers_admin,
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_batch_approval(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/batch-approve",
+            headers=auth_headers_admin,
+            json={"approval_ids": ["AP-001", "AP-002"], "decision": "approve", "comment": "批量审批通过"},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_reject_with_ai_suggestion(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/approval/{test_org.id}/reject",
+            headers=auth_headers_admin,
+            json={"approval_id": "AP-001", "reason": "预算不足", "ai_suggest_alternative": True},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "alternative" in result or "suggestion" in result
+
+
+class TestAeternovaMultiAgent:
+    """多Agent协作管理 - 功能需求模块5 (Agent-first)"""
+
+    @pytest.mark.asyncio
+    async def test_agent_group_chat_creation(self, client, auth_headers_admin, test_org, swarm_agents):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/group-chat",
+            headers=auth_headers_admin,
+            json={
+                "topic": "2026下半年经营计划讨论",
+                "agents": ["海梅", "后兴", "后发", "后荣"],
+                "mode": "meeting",
+                "host_agent": "海梅",
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert "group_id" in result or "chat_id" in result or "id" in result
+
+    @pytest.mark.asyncio
+    async def test_ai_meeting_summary(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/meeting-summary",
+            headers=auth_headers_admin,
+            json={
+                "chat_id": "chat-001",
+                "include_decisions": True,
+                "include_tasks": True,
+                "format": "structured",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "summary" in result or "minutes" in result or "decisions" in result
+
+    @pytest.mark.asyncio
+    async def test_agent_task_delegation(self, client, auth_headers_admin, test_org, swarm_agents):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/delegate",
+            headers=auth_headers_admin,
+            json={
+                "task": "分析Q2财报并生成报告",
+                "assign_to": "后兴",
+                "context": {"period": "2026-Q2", "format": "markdown"},
+                "priority": "high",
+                "deadline": "2026-07-10T18:00:00",
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert result.get("status") in ("accepted", "pending")
+
+    @pytest.mark.asyncio
+    async def test_natural_language_query(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/nl-query",
+            headers=auth_headers_admin,
+            json={
+                "query": "上个月各子公司营收排名",
+                "context": {"time_range": "2026-06", "scope": "all_subsidiaries"},
+                "response_format": "json",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "result" in result or "answer" in result or "data" in result
+
+    @pytest.mark.asyncio
+    async def test_multi_step_agent_workflow(self, client, auth_headers_admin, test_org, swarm_agents):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/workflow",
+            headers=auth_headers_admin,
+            json={
+                "name": "季度经营分析全流程",
+                "steps": [
+                    {"agent": "后兴", "action": "收集数据", "depends_on": []},
+                    {"agent": "后发", "action": "生成图表", "depends_on": ["后兴"]},
+                    {"agent": "海梅", "action": "汇总报告", "depends_on": ["后兴", "后发"]},
+                ],
+                "auto_execute": True,
+            },
+        )
+        assert resp.status_code in (200, 201)
+        data = resp.json()
+        result = data.get("data", data)
+        assert "workflow_id" in result or "id" in result
+
+    @pytest.mark.asyncio
+    async def test_agent_health_monitor(self, client, auth_headers_admin, test_org, swarm_agents):
+        resp = await client.get(
+            f"/api/aeternova/agent/{test_org.id}/health",
+            headers=auth_headers_admin,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "agents" in result or "status" in result
+
+    @pytest.mark.asyncio
+    async def test_agent_conversation_history(self, client, auth_headers_admin, test_org):
+        resp = await client.get(
+            f"/api/aeternova/agent/{test_org.id}/conversations",
+            headers=auth_headers_admin,
+            params={"page": 1, "limit": 50},
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_ai_data_visualization(self, client, auth_headers_admin, test_org):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/visualize",
+            headers=auth_headers_admin,
+            json={
+                "query": "按部门展示2026上半年营收对比",
+                "chart_type": "bar",
+                "data_source": "finance",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        result = data.get("data", data)
+        assert "chart" in result or "visualization" in result or "image" in result
+
+    @pytest.mark.asyncio
+    async def test_agent_collision_resolution(self, client, auth_headers_admin, test_org, swarm_agents):
+        resp = await client.post(
+            f"/api/aeternova/agent/{test_org.id}/resolve-conflict",
+            headers=auth_headers_admin,
+            json={
+                "conflict_type": "schedule",
+                "agents_involved": ["海梅", "后发"],
+                "resource": "H100 GPU服务器",
+                "ai_suggest": True,
+            },
+        )
+        assert resp.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_voice_command_execution(self, client, auth_headers_admin, test_or
+
+[…truncated 11698 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+: str = Field(..., min_length=1, max_length=500)
+            amount: float = Field(..., gt=0, le=999999999.99)
+            priority: str = Field(..., pattern=r"^(low|medium|high|urgent)$")
+        req = ApprovalRequest(title="测试审批", amount=5000.00, priority="medium")
+        assert req.amount == 5000.00
+        with pytest.raises(Exception):
+            ApprovalRequest(title="错误审批", amount=-100, priority="invalid")
+
+    @pytest.mark.asyncio
+    async def test_employee_id_format(self):
+        from pydantic import BaseModel, Field
+        class Employee(BaseModel):
+            employee_id: str = Field(..., pattern=r"^EMP-\d{3,6}$")
+            email: str = Field(..., pattern=r"^[\w.+-]+@[\w-]+\.[\w.]+$")
+            phone: Optional[str] = Field(None, pattern=r"^1[3-9]\d{9}$")
+        emp = Employee(employee_id="EMP-001", email="test@aeternova.com", phone="13800138001")
+        assert emp.employee_id == "EMP-001"
+        with pytest.raises(Exception):
+            Employee(employee_id="EMP-1", email="bad-email")

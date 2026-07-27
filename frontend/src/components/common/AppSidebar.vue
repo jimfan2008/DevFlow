@@ -89,8 +89,10 @@ const activeRoute = computed(() => route.path)
 <style lang="scss" scoped>
 .app-sidebar {
   width: $sidebar-width;
-  background: $canvas;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  background: $glass-bg;
+  backdrop-filter: $frosted-blur;
+  -webkit-backdrop-filter: $frosted-blur;
+  border-right: 1px solid $border-subtle;
   transition: width 0.3s;
   overflow-y: auto;
   overflow-x: hidden;
@@ -106,27 +108,36 @@ const activeRoute = computed(() => route.path)
     :deep(.el-sub-menu__title) {
       font-family: $font-text;
       font-size: $caption-size;
-      font-weight: $caption-weight;
+      font-weight: 500;
       letter-spacing: $caption-tracking;
-      color: $ink-muted-48;
+      color: $text-muted;
       height: 40px;
       line-height: 40px;
       padding: 0 $spacing-4;
-      border-radius: 0;
-      margin: 1px 0;
-      transition: color 0.15s, background 0.15s;
+      border-radius: 6px;
+      margin: 2px 6px;
+      transition: color $transition-fast, background $transition-fast;
 
-      &:hover { color: $ink; background: $canvas-parchment; }
+      &:hover { color: $text-primary; background: rgba(255, 255, 255, 0.05); }
     }
 
     :deep(.el-menu-item.is-active) {
       color: $primary;
-      background: $canvas-parchment;
-    }
+      background: rgba(0, 212, 255, 0.1);
+      position: relative;
 
-    :deep(.el-sub-menu__title) {
-      .el-icon { color: $ink-muted-48; }
-      &:hover .el-icon { color: $ink; }
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 20px;
+        background: $primary;
+        border-radius: 0 3px 3px 0;
+        box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+      }
     }
 
     :deep(.el-menu-item .el-icon),

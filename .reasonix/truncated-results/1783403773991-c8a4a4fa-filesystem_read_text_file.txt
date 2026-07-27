@@ -1,0 +1,848 @@
+from app.api.workflow.core import (
+    router, _get_engine, logger, APIResponse, Depends, get_db,
+    get_current_user, Session, Body, Request, HTTPException,
+    BaseModel, Optional, asyncio, os, settings,
+    Step3InspectRequest, Step5ChatRequest, QAResultRequest,
+    DocsListRequest, ARCH_DESIGN_DIMENSIONS, _wf_engines, WorkflowEngine,
+)
+from app.api.ws.step4_progress import broadcast
+
+@router.post("/{project_id}/step4/artifacts")
+def save_step4_artifacts(project_id: str, body: dict = Body(...),
+                         db: Session = Depends(get_db),
+                         current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    engine.save_step4_artifacts(body)
+    return APIResponse(code=0, data={"message": "步骤4状态已保存"})
+
+
+@router.get("/{project_id}/step4/status")
+def get_step4_status(project_id: str,
+                     db: Session = Depends(get_db),
+                     current_user=Depends(get_current_user)):
+    engine = _get_engine(project_id, db)
+    artifacts = engine.get_step4_artifacts()
+    return APIResponse(code=0, data=artifacts)
+
+
+# ── Step4 串行子步骤配置与辅助函数 ──
+
+SUB_FLOW_CONFIGS = [
+    {
+        "doc_type": "ARCHITECTURE",
+        "label": "架构设计文档",
+        "dim": {"key": "arch_reasonableness", "label": "架构合理性", "description": "架构设计是否合理，是否满足需求文档中的功能和非功能需求"},
+        "gen_instruction": "系统整体架构图描述、分层架构、模块划分、技术栈选型、部署架构",
+        "standards": [
+            {"name": "完整性", "description": "是否覆盖所有功能和非功能需求", "weight": "critical"},
+            {"name": "合理性", "description": "架构分层是否清晰，模块划分是否合理，边界是否明确", "weight": "critical"},
+            {"name": "技术选型", "description": "技术栈选择理由是否充分，选型是否适合项目规模和团队能力", "weight": "major"},
+            {"name": "可扩展性", "description": "是否考虑了未来功能扩展、性能扩展和团队扩展", "weight": "major"},
+            {"name": "部署架构", "description": "部署方案是否完整可行，环境划分、CI/CD、容灾是否提及", "weight": "major"},
+        ],
+    },
+    {
+        "doc_type": "FRONTEND",
+        "label": "前端设计文档",
+        "dim": {"key": "frontend_feasibility", "label": "前端可行性", "description": "前端设计方案是否可行，技术选型是否合理"},
+        "gen_instruction": "前端技术栈、组件树、路由设计、状态管理、页面布局",
+        "standards": [
+            {"name": "技术选型", "description": "前端框架、UI组件库、构建工具选择是否合理，版本是否明确", "weight": "critical"},
+            {"name": "组件设计", "description": "组件树层级划分是否合理，复用性和可维护性如何", "weight": "critical"},
+            {"name": "路由设计", "description": "路由结构是否完整，是否覆盖所有页面，权限控制方案是否合理", "weight": "major"},
+            {"name": "状态管理", "description": "状态管理方案（全局/局部）选择是否合理，数据流向是否清晰", "weight": "major"},
+            {"name": "页面布局", "description": "页面布局是否覆盖所有需求中的页面，响应式方案是否考虑", "weight": "major"},
+        ],
+    },
+    {
+        "doc_type": "BACKEND",
+        "label": "后端设计文档",
+        "dim": {"key": "backend_feasibility", "label": "后端可行性", "description": "后端设计方案是否可行，API设计是否合理"},
+        "gen_instruction": "后端技术栈、API接口列表、数据流、中间件、安全策略",
+        "standards": [
+            {"name": "技术选型", "description": "后端语言、框架、数据库、中间件选择是否合理", "weight": "critical"},
+            {"name": "API设计", "description": "API接口设计是否RESTful（或一致风格），参数/返回值定义是否完整", "weight": "critical"},
+            {"name": "数据流", "description": "数据流向（请求→控制器→服务→数据源）是否清晰，缓存策略是否合理", "weight": "major"},
+            {"name": "安全策略", "description": "认证、授权、数据加密、防注入等安全方案是否完整", "weight": "critical"},
+            {"name": "可扩展性", "description": "模块化程度如何，是否支持水平扩展，微服务拆分是否合理", "weight": "major"},
+        ],
+    },
+    {
+        "doc_type": "DATABASE",
+        "label": "数据库设计脚本",
+        "dim": {"key": "database_design", "label": "数据库设计", "description": "数据库设计是否规范，ER关系是否清晰"},
+        "gen_instruction": "完整SQL DDL脚本（含表结构、索引、外键），以及ER概述",
+        "standards": [
+            {"name": "规范性", "description": "命名规范（表名、字段名）、数据类型选择是否合理，是否符合范式", "weight": "critical"},
+            {"name": "完整性", "description": "是否覆盖所有业务实体，字段定义是否完整（非空、默认值、注释）", "weight": "critical"},
+            {"name": "关系设计", "description": "ER关系是否清晰，外键约束是否合理，关联表设计是否规范", "weight": "critical"},
+            {"name": "索引设计", "description": "索引是否覆盖常用查询条件，是否避免冗余索引", "weight": "major"},
+            {"name": "可维护性", "description": "DDL脚本是否有充分注释，是否支持幂等执行（IF NOT EXISTS等）", "weight": "major"},
+        ],
+    },
+]
+
+
+def _build_inspect_prompt(
+    doc_path: str, dim: dict, standards: list,
+    dim_key: str, prev_feedback: str = "",
+    chapter_label: str = "",
+) -> str:
+    """构建 hourong 检验提示词（简洁、严格 JSON 格式）"""
+    dim_label = dim["label"]
+    dim_desc = dim["description"]
+
+    std_items = "\n".join(
+        f"  {i+1}. [{s['weight'].upper()}] {s['name']}：{s['description']}"
+        for i, s in enumerate(standards)
+    )
+
+    converge_hint = ""
+    if prev_feedback:
+        converge_hint = (
+            f"\n⚠️ 收敛性检查（极其重要）：\n"
+            f"上次检验报告指出了以下问题，请逐条核实本次文档是否已修复：\n"
+            f"{prev_feedback}\n"
+            f"如果问题已修复，不要再重复报告；如果问题未修复，继续报告。\n"
+            f"禁止报告与上次相同的问题（如果上次指出的问题已修复）。\n"
+            f"禁止对合格项提出新的修改要求。\n"
+        )
+
+    chapter_hint = f"\n检验的分片文档：{chapter_label}\n" if chapter_label else ""
+    chapter_field = f'  "chapter": "{chapter_label}",\n' if chapter_label else ""
+    return (
+        "你是一个严格的 JSON-only API。只输出 JSON，禁止任何其他文字。\n\n"
+        "角色：专业的设计方案 QA 检验员（后荣 / HouRong）\n\n"
+        f"检验项目：{dim_label}（{dim_desc}）\n"
+        f"文档路径：{doc_path}\n"
+        f"{chapter_hint}"
+        f"任务：读取该文档文件，严格逐项对照以下标准检验。\n\n"
+        f"检验标准：\n{std_items}\n\n"
+        "评分规则：满分100分，扣分制。score≥90 则 passed=true。\n\n"
+        "输出格式（严格 JSON 对象）：\n"
+        "{\n"
+        f'  "key": "{dim_key}",\n'
+        f'{chapter_field}'
+        '  "score": <0-100>,\n'
+        '  "passed": <true/false>,\n'
+        '  "detail": "<简要说明不合格项及修改方向，passed=true可留空>"\n'
+        "}\n\n"
+        f"{converge_hint}"
+        "规则：\n"
+        "1. 只输出 JSON 对象本身，不要 markdown 代码块，不要任何其他文字\n"
+        "2. 不要思考、分析、推理\n"
+        "3. passed=false 时 detail 必须说明问题和修改方向\n"
+        "4. detail 保持简洁，每条不合格项用1-2句话\n"
+        "5. 已合格项不要提修改要求\n"
+        "JSON："
+    )
+
+
+async def _inspect_doc(
+    project_id: str, doc_path: str, dim: dict,
+    project_name: str = "", project_description: str = "",
+    core_goal: str = "", agent_label: str = "",
+    standards: list = None, prev_feedback: str = "",
+    chapter_label: str = "",
+) -> dict:
+    """调用 hourong-{doc_type} 对单份文档进行单次 QA 检验（项目会话隔离）。
+    将文档路径告知 hourong 让 Agent 自行读取文件，避免在大文档上 context 溢出。
+    单次尝试，不重试——失败立即返回原始响应供前端查看。
+    prev_feedback: 上一轮检验意见，用于收敛检测。
+    """
+    import json as _json, re as _re
+    from app.api.ws.step3_qa import _inspect_via_subagent
+    from app.api.ws.step4_progress import broadcast
+
+    dim_key = dim["key"]
+    dim_label = dim["label"]
+
+    insp_prompt = _build_inspect_prompt(
+        doc_path=doc_path, dim=dim, standards=standards or [],
+        dim_key=dim_key, prev_feedback=prev_feedback,
+        chapter_label=chapter_label,
+    )
+    qa_r = await _inspect_via_subagent(prompt=insp_prompt, max_retries=1)
+
+    if not qa_r:
+        return {"key": dim_key, "passed": False, "detail": "后荣未返回检验结果（空响应）"}
+
+    # Extract JSON from LLM response — multi-strategy extraction
+    single = {}
+
+    # Strip thinking/analysis tags
+    _lt, _gt = chr(60), chr(62)
+    _think_open = rf'{_lt}(?:thinking|think|analysis){_gt}'
+    _think_close = rf'{_lt}/(?:thinking|think|analysis){_gt}'
+    qa_r = _re.sub(rf'(?:{_think_open})[\s\S]*?(?:{_think_close})', '', qa_r)
+
+    candidates = []
+
+    # Strategy: code fences
+    fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', qa_r, _re.DOTALL)
+    for fc in fenced:
+        stripped = fc.strip()
+        if stripped:
+            candidates.append(stripped)
+
+    # Strategy: brace extraction
+    brace_start = qa_r.find('{')
+    brace_end = qa_r.rfind('}')
+    if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+        candidates.append(qa_r[brace_start:brace_end + 1])
+
+    # Strategy: JSON-like regex
+    json_like = _re.findall(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', qa_r)
+    for jl in json_like:
+        if len(jl) > 10:
+            candidates.append(jl)
+
+    # Strategy: strip non-JSON prefix/suffix
+    stripped = qa_r.strip()
+    bs2 = stripped.find('{')
+    if bs2 > 0:
+        candidates.append(stripped[bs2:])
+    be2 = stripped.rfind('}')
+    if be2 >= 0 and be2 < len(stripped) - 1:
+        candidates.append(stripped[:be2 + 1])
+
+    candidates.append(qa_r)
+
+    def _repair_json(text):
+        t = text.strip()
+        t = _re.sub(r',\s*([}\]])', r'\1', t)
+        try:
+            return _json.loads(t)
+        except Exception:
+            pass
+        core = t.lstrip('\n\r\t ')
+        while core and core[0] not in '{[":':
+            core = core[1:]
+        while core and core[-1] not in '}]\n\r\t ':
+            core = core[:-1]
+        try:
+            return _json.loads(core.strip())
+        except Exception:
+            pass
+        return None
+
+    for candidate in candidates:
+        try:
+            parsed = _json.loads(candidate)
+            if isinstance(parsed, dict) and parsed:
+                single = parsed
+                break
+        except Exception:
+            pass
+        repaired = _repair_json(candidate)
+        if repaired and isinstance(repaired, dict) and repaired:
+            single = repaired
+            break
+
+    if not single:
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"❌ hourong 返回了{dim_label}无法解析的检验报告。原始返回内容：\n\n{qa_r[:3000]}",
+            "subflow": dim_key,
+        })
+        return {"key": dim_key, "passed": False, "detail": f"后荣返回了无法解析的检验报告\n\n原始返回：\n{qa_r[:1000]}", "raw_response": qa_r}
+
+    overall_passed = int(single.get("score", 0)) > 90 or bool(single.get("passed", False))
+    detail_text = single.get("detail", "").strip()
+
+    if not overall_passed and (not detail_text or len(detail_text) < 20):
+        detail_text = "后荣判定不合格但未返回详细检验意见"
+
+    score = int(single.get("score", 100))
+    return {
+        "key": dim_key,
+        "score": score,
+        "passed": overall_passed,
+        "detail": detail_text or "检验完成",
+    }
+
+
+# ── 文档分片支持 ──
+CHAPTER_MARKER_START = "<!-- CHAPTER:"
+CHAPTER_MARKER_END = "-->"
+
+
+def _split_chapters(full_text: str) -> dict:
+    import re
+    chapters = {}
+    pattern = re.compile(
+        rf'{re.escape(CHAPTER_MARKER_START)}\s*(\w+)\s*{re.escape(CHAPTER_MARKER_END)}'
+        r'([\s\S]*?)(?='
+        rf'{re.escape(CHAPTER_MARKER_START)}|\Z)'
+    )
+    for m in pattern.finditer(full_text):
+        key = m.group(1)
+        content = m.group(2).strip()
+        if content:
+            chapters[key] = content
+    return chapters
+
+
+def _build_chapter_prompt(doc_type, label, gen_instruction, requirement, docs_dir, slug):
+    from app.services.doc_sharder import get_shard_config, get_chapter_filename
+    configs = get_shard_config(doc_type)
+    lines = [
+        f"你是资深软件架构师后旺（HouWang），专门负责{label}。\n",
+        "请根据需求文档，按章节输出完整文档。\n",
+        f"=== 需求文档 ===\n{requirement[:5000]}\n\n",
+        f"=== 章节要求 ===\n",
+    ]
+    for ch in configs:
+        fpath = get_chapter_filename(doc_type, ch["key"], docs_dir, slug)
+        lines.append(
+            f"{CHAPTER_MARKER_START} {ch['key']} {CHAPTER_MARKER_END}\n"
+            f"章节：{ch['title']}\n"
+            f"内容要求：{ch['instruction']}\n"
+            f"保存到：{fpath}\n"
+        )
+    lines.append(
+        "\n要求：\n"
+        "1. 每个章节用 <!-- CHAPTER: key --> 标记包裹\n"
+        "2. 每个章节保存到指定的文件路径\n"
+        "3. 章节内容必须是独立的 Markdown 片段\n"
+        "4. 不要输出推理过程\n"
+    )
+    return "\n".join(lines)
+
+
+async def _run_doc_sub_flow(
+    project_id: str, slug: str, docs_dir: str,
+    cfg: dict, requirement: str,
+    project_name: str = "", project_description: str = "",
+    core_goal: str = "",
+) -> dict:
+    """单个文档子流程：检查已有→houwang生成→hourong检验→收敛循环（项目会话隔离）"""
+    import os, glob, re, json as _json
+    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step4_progress import broadcast
+
+    doc_type = cfg["doc_type"]
+    label = cfg["label"]
+    dim = cfg["dim"]
+    gen_instruction = cfg["gen_instruction"]
+    houwang_label = f"后旺-{doc_type}（HouWang-{doc_type}）{label}设计师"
+    hourong_label = f"后荣-{doc_type}（HouRong-{doc_type}）{label}QA检验员"
+
+    # 1. 扫描该文档类型的最新已有版本
+    latest_path = None
+    latest_content = ""
+    max_ver = 0
+    for f in sorted(glob.glob(os.path.join(docs_dir, f"{slug}_{doc_type}_V*.md"))):
+        m = re.search(r'_V(\d+)\.md$', f)
+        if m:
+            v = int(m.group(1))
+            if v > max_ver:
+                max_ver = v
+                latest_path = f
+    if latest_path:
+        try:
+            with open(latest_path, "r", encoding="utf-8") as fh:
+                latest_content = fh.read()
+        except Exception:
+            pass
+
+    current_content = latest_content
+    current_path = latest_path
+    convergence_log = []
+    max_attempts = 10
+
+    for fix_round in range(1, max_attempts + 1):
+        # ── 第一轮：先让 hourong 检验现有文档 ──
+        if fix_round == 1 and current_path and os.path.exists(current_path):
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🔍 {label}：已有 V{max_ver}，houwang-{doc_type} 提交至 hourong 检验现有文档...",
+                "subflow": dim["key"],
+            })
+            result = await _inspect_doc(
+                project_id, current_path, dim,
+                project_name=project_name, project_description=project_description,
+                core_goal=core_goal, agent_label=hourong_label,
+                standards=cfg.get("standards", []),
+            )
+            if result["passed"]:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"✅ {label}：现有文档 V{max_ver} 已通过 hourong 检验，无需重新生成",
+                    "subflow": dim["key"],
+                })
+                return {
+                    "key": dim["key"], "label": label,
+                    "path": current_path, "content": current_content,
+                    "passed": True, "rounds": 0, "convergence": [],
+                }
+            # 现有不合格，houwang 修复
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"📝 {label}：现有文档 V{max_ver} 未通过（{result.get('detail','')[:120]}），houwang 基于此版本更新",
+                "subflow": dim["key"],
+            })
+            convergence_log.append({"round": 0, "detail": result["detail"]})
+
+        # ── houwang 生成或修复 ──
+        nv = max_ver + fix_round
+        gen_path = os.path.join(docs_dir, f"{slug}_{doc_type}_V{nv}.md")
+
+        if fix_round == 1 and not current_content.strip():
+            # 首次从零生成（无已有文档）
+            houwang_role = f"houwang-{doc_type}"
+            prompt = (
+                f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
+                "请根据以下需求文档，**生成并保存**该文档。\n"
+                "请使用你 Agent 的文件写入能力将文档保存到指定路径。\n\n"
+                "=== 需求文档 ===\n"
+                f"{requirement[:5000]}\n\n"
+                f"=== {label}要求 ===\n"
+                f"路径：{gen_path}\n"
+                f"内容：{gen_instruction}\n\n"
+                "要求：\n"
+                "1. 文档必须是独立完整的 Markdown 文件\n"
+                "2. 保存到文件中的内容必须是纯文档内容，不要包含推理过程\n"
+            )
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🏗️ {label}：{houwang_role} 正在从需求生成初始文档...",
+                "subflow": dim["key"],
+            })
+        else:
+            # 基于已有文档 + hourong 反馈进行修复
+            houwang_role = f"houwang-{doc_type}"
+            fix_detail = convergence_log[-1]["detail"] if convergence_log else "需整体改进"
+            # 将完整检验报告序列化给 houwang，确保它看到结构化结果
+            last_result = convergence_log[-1] if convergence_log else {}
+            last_result_json = _json.dumps(last_result, ensure_ascii=False, indent=2) if last_result else "{}"
+            change_hint = ""
+            if len(convergence_log) >= 2:
+                prev_detail = convergence_log[-2]["detail"]
+                if prev_detail and len(fix_detail or "") < len(prev_detail) * 0.5:
+                    change_hint = "（较上一轮检验意见长度减少超50%，收敛趋势良好，继续改进即可）"
+                elif prev_detail and fix_detail == prev_detail:
+                    change_hint = "（本轮与上轮检验意见相同——请确保已实际修复所有指出的问题，不要遗漏）"
+            prompt = (
+                f"你是资深软件架构师后旺（HouWang），代号 {houwang_role}，专门负责{label}。\n\n"
+                f"后荣（HouRong）的完整检验报告：\n"
+                f"```json\n{last_result_json}\n```\n\n"
+                f"=== 当前已有文档 ===\n{current_content[:5000]}\n\n"
+                f"=== 后荣详细检验意见 ===\n{fix_detail}\n\n"
+                f"{change_hint}\n"
+                f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
+                "⚠️ 收敛性要求（极其重要）：\n"
+                "1. **只**修改后荣报告中指出的不合格项，其他部分一律不变\n"
+                "2. 如果后荣说某标准已通过，绝对不要修改相关内容\n"
+                "3. 禁止添加新功能、新需求\n"
+                "4. 每个修改必须对应一个后荣指出的具体问题\n\n"
+                f"将修正后的完整文档保存到：{gen_path}\n"
+                "要求：\n"
+                "1. 文档必须是独立完整的 Markdown 文件\n"
+                "2. 不要包含推理过程\n"
+            )
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"🔧 {label}：{houwang_role} 正在根据 hourong 检验意见修复（第{fix_round}轮）...",
+                "subflow": dim["key"],
+            })
+
+        # 调用 houwang（项目会话隔离）
+        houwang_cli = GatewayClient(
+            profile_name="houwang",
+            timeout=2700 if fix_round <= 1 else 1200,
+        )
+        houwang_chunks = []
+        async for chunk in houwang_cli.chat_isolated(
+            messages=[{"role": "user", "content": prompt}],
+            project_id=project_id,
+            project_name=project_name,
+            project_description=project_description,
+            core_goal=core_goal,
+            agent_name=houwang_label,
+            stream=True, max_tokens=64000,
+        ):
+            if chunk.strip():
+                houwang_chunks.append(chunk)
+                await broadcast(project_id, {
+                    "type": "content",
+                    "content": chunk,
+                    "subflow": dim["key"],
+                })
+
+        # 从磁盘读取修复后的文档（houwang 可能已保存到文件）
+        # 如果文件不存在，使用流式输出作为文档内容（防止截断丢失）
+        if os.path.exists(gen_path):
+            try:
+                with open(gen_path, "r", encoding="utf-8") as f:
+                    current_content = f.read()
+                current_path = gen_path
+            except Exception:
+                pass
+        else:
+            streamed = "".join(houwang_chunks).strip()
+            if streamed:
+                current_content = streamed
+                current_path = gen_path
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"📝 {label}：流式输出已作为文档内容保存（{len(current_content)} 字符）",
+                    "subflow": dim["key"],
+                })
+            else:
+                await broadcast(project_id, {
+                    "type": "stage",
+                    "message": f"⚠️ {label}：{houwang_role} 未保存文件到 {gen_path}，尝试查找最新版本",
+                    "subflow": dim["key"],
+                })
+                for f in sorted(glob.glob(os.path.join(docs_dir, f"{slug}_{doc_type}_V*.md")), reverse=True):
+                    try:
+                        with open(f, "r", encoding="utf-8") as fh:
+                            current_content = fh.read()
+                        current_path = f
+                        if current_content.strip():
+                            break
+                    except Exception:
+                        pass
+
+        if not current_content.strip():
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"❌ {label}：houwang 未能生成有效内容，进入下一轮重试",
+                "subflow": dim["key"],
+            })
+            continue
+
+        # ── hourong 检验（带上轮反馈做收敛） ──
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"🔍 hourong-{doc_type} 正在检验{label}...（文件：{current_path}）",
+            "subflow": dim["key"],
+        })
+        prev_fb = convergence_log[-1]["detail"] if convergence_log else ""
+        result = await _inspect_doc(
+            project_id, current_path or "", dim,
+            project_name=project_name, project_description=project_description,
+            core_goal=core_goal, agent_label=hourong_label,
+            standards=cfg.get("standards", []),
+            prev_feedback=prev_fb,
+        )
+
+        convergence_log.append({"round": fix_round, "detail": result.get("detail", ""), "passed": result["passed"]})
+
+        if result["passed"]:
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"✅ {label}：hourong-{doc_type} 检验通过（共{fix_round}轮）",
+                "subflow": dim["key"],
+            })
+            return {
+                "key": dim["key"], "label": label,
+                "path": current_path, "content": current_content,
+                "passed": True, "rounds": fix_round,
+                "convergence": convergence_log,
+            }
+        else:
+            prev_count = sum(1 for c in convergence_log[:-1] if not c.get("passed", False))
+            if prev_count > 0 and len(convergence_log) >= 3:
+                # 检验连续是否收敛：最近3个非通过轮次的 detail 长度是否递减
+                non_passing = [c for c in convergence_log if not c.get("passed", False)]
+                if len(non_passing) >= 3:
+                    lens = [len(c["detail"]) for c in non_passing[-3:]]
+                    if lens[-1] >= lens[-2] and lens[-2] >= lens[-3]:
+                        await broadcast(project_id, {
+                            "type": "stage",
+                            "message": f"⚠️ {label}：连续3轮检验意见未收敛（detail长度未递减），houwang 需更彻底地修复问题",
+                            "subflow": dim["key"],
+                        })
+
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"❌ {label}：hourong-{doc_type} 第{fix_round}轮检验未通过\n📋 意见：{result.get('detail','')[:150]}",
+                "subflow": dim["key"],
+            })
+
+    # 超出最大尝试次数
+    await broadcast(project_id, {
+        "type": "stage",
+        "message": f"❌ {label}：经过{max_attempts}轮仍未通过 hourong 检验",
+        "subflow": dim["key"],
+    })
+    return {
+        "key": dim["key"], "label": label,
+        "path": current_path, "content": current_content,
+        "passed": False, "rounds": max_attempts,
+        "convergence": convergence_log,
+    }
+
+
+# ── 跨文档一致性检验 ──
+
+async def _cross_check_docs(
+    project_id: str,
+    docs_map: dict,
+    project_name: str = "", project_description: str = "",
+    core_goal: str = "",
+) -> dict:
+    """调用 hourong 对4份文档进行跨文档一致性/对应性检验
+    docs_map 的 value 为文档文件路径，hourong Agent 自行读取文件。
+    """
+    from app.api.ws.step3_qa import _inspect_via_subagent
+    from app.api.ws.step4_progress import broadcast
+    import json as _json
+
+    arch_path = docs_map.get("arch_reasonableness", "")
+    frontend_path = docs_map.get("frontend_feasibility", "")
+    backend_path = docs_map.get("backend_feasibility", "")
+    db_path = docs_map.get("database_design", "")
+
+    prompt = (
+        "你是一个跨文档一致性检验专家（后荣）。以下4份设计文档属于同一个项目：\n\n"
+        "=== 1. 软件架构设计文档（Architecture Design）===\n"
+        f"文件路径：{arch_path}\n\n"
+        "=== 2. 软件前端设计文档（Frontend Design）===\n"
+        f"文件路径：{frontend_path}\n\n"
+        "=== 3. 软件后端设计文档（Backend Design）===\n"
+        f"文件路径：{backend_path}\n\n"
+        "=== 4. 软件数据库设计脚本（Database Design）===\n"
+        f"文件路径：{db_path}\n\n"
+        "请依次读取以上4份文档文件，然后逐项检查以下配对的一致性/对应性：\n"
+        "1. 架构设计文档 ←→ 前端设计文档：前端技术栈、组件划分、通信方式是否与架构设计一致\n"
+        "2. 架构设计文档 ←→ 后端设计文档：后端模块划分、API风格、部署方式是否与架构设计一致\n"
+        "3. 前端设计文档 ←→ 后端设计文档：API接口定义、请求/响应数据格式是否在前端和后端文档中一致\n"
+        "4. 后端设计文档 ←→ 数据库设计脚本：数据模型、实体名称、字段名、字段类型是否在后端和数据库文档中一致\n\n"
+        "仅输出以下JSON对象，不要有其他文字：\n"
+        '{\n'
+        '  "passed": true/false,\n'
+        '  "pairs": [\n'
+        '    {\n'
+        '      "name": "架构-前端",\n'
+        '      "passed": true/false,\n'
+        '      "issue": "具体不一致的描述（如无问题留空）",\n'
+        '      "affected_docs": ["arch_reasonableness", "frontend_feasibility"]\n'
+        '    },\n'
+        '    {\n'
+        '      "name": "架构-后端",\n'
+        '      "passed": true/false,\n'
+        '      "issue": "具体不一致的描述",\n'
+        '      "affected_docs": ["arch_reasonableness", "backend_feasibility"]\n'
+        '    },\n'
+        '    {\n'
+        '      "name": "前端-后端",\n'
+        '      "passed": true/false,\n'
+        '      "issue": "具体不一致的描述",\n'
+        '      "affected_docs": ["frontend_feasibility", "backend_feasibility"]\n'
+        '    },\n'
+        '    {\n'
+        '      "name": "后端-数据库",\n'
+        '      "passed": true/false,\n'
+        '      "issue": "具体不一致的描述",\n'
+        '      "affected_docs": ["backend_feasibility", "database_design"]\n'
+        '    }\n'
+        '  ],\n'
+        '  "summary": "一致性检验总结"\n'
+        '}\n'
+        "注意：所有检验仅针对这4份文档之间的一致性/对应性，不检查文档内容与需求的一致性。"
+    )
+
+    await broadcast(project_id, {
+        "type": "stage",
+        "message": "🔍 hourong 正在对4份设计文档进行跨文档一致性检验（架构-前端、架构-后端、前端-后端、后端-数据库）...",
+    })
+
+    resp = await _inspect_via_subagent(prompt=prompt, max_retries=3)
+
+    if not resp:
+        return {"passed": False, "pairs": [], "summary": "后荣未返回一致性检验结果（空响应）"}
+
+    # Extract JSON from hourong response — try multiple strategies
+    _re = __import__('re')
+    single = {}
+    candidates = []
+
+    # Strategy 1: Strip markdown code fences
+    fenced = _re.findall(r'```(?:json)?\s*\n?(.*?)\n?```', resp, _re.DOTALL)
+    for fc in fenced:
+        candidates.append(fc.strip())
+
+    # Strategy 2: Brace extraction
+    brace_start = resp.find('{')
+    brace_end = resp.rfind('}')
+    if brace_start != -1 and brace_end != -1 and brace_end > brace_start:
+        candidates.append(resp[brace_start:brace_end+1])
+
+    # Strategy 3: Full string
+    candidates.append(resp)
+
+    for candidate in candidates:
+        try:
+            parsed = _json.loads(candidate)
+            if isinstance(parsed, dict) and parsed:
+                single = parsed
+                break
+        except Exception:
+            continue
+
+    if not single:
+        logger.warning(f"cross_check_docs 解析失败: {resp[:300]}")
+        return {"passed": False, "pairs": [], "summary": "后荣返回结果无法解析"}
+
+    pairs = single.get("pairs", [])
+    all_passed = all(p.get("passed", False) for p in pairs) if pairs else False
+
+    for pair in pairs:
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"{'✅' if pair.get('passed') else '❌'} {pair.get('name','')}: {pair.get('issue','')[:200]}" if not pair.get('passed') else f"✅ {pair['name']}: 一致",
+            "subflow": pair.get("affected_docs", [None])[0] if pair.get("affected_docs") else None,
+        })
+
+    return {
+        "passed": all_passed,
+        "pairs": pairs,
+        "summary": single.get("summary", ""),
+    }
+
+
+async def _fix_doc_from_consistency_feedback(
+    project_id: str, slug: str, docs_dir: str,
+    cfg: dict, requirement: str,
+    current_content: str, consistency_feedback: str,
+    project_name: str = "", project_description: str = "",
+    core_goal: str = "",
+    max_attempts: int = 3,
+) -> dict:
+    """根据一致性检验反馈修复单个文档并通过 hourong 个体检验"""
+    import os, glob, re
+    from app.services.gateway_client import GatewayClient
+    from app.api.ws.step4_progress import broadcast
+
+    doc_type = cfg["doc_type"]
+    label = cfg["label"]
+    dim = cfg["dim"]
+    houwang_label = f"后旺-{doc_type}（HouWang-{doc_type}）{label}设计师"
+    hourong_label = f"后荣-{doc_type}（HouRong-{doc_type}）{label}QA检验员"
+
+    max_ver = 0
+    for f in sorted(glob.glob(os.path.join(docs_dir, f"{slug}_{doc_type}_V*.md"))):
+        m = re.search(r'_V(\d+)\.md$', f)
+        if m:
+            v = int(m.group(1))
+            if v > max_ver:
+                max_ver = v
+
+    content = current_content
+    path = None
+    convergence_log = []
+
+    for attempt in range(1, max_attempts + 1):
+        nv = max_ver + attempt
+        gen_path = os.path.join(docs_dir, f"{slug}_{doc_type}_V{nv}.md")
+
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"🔧 {label}：houwang 正在根据一致性检验反馈修复一致性问题（第{attempt}轮）...",
+            "subflow": dim["key"],
+        })
+
+        prompt = (
+            f"你是资深软件架构师后旺（HouWang），代号 houwang-{doc_type}，专门负责{label}。\n\n"
+            f"跨文档一致性检验发现以下一致性问题需要修正：\n\n"
+            f"{consistency_feedback}\n\n"
+            f"=== 当前文档（{label}） ===\n{content[:5000]}\n\n"
+            f"=== 需求文档（供参考）===\n{requirement[:3000]}\n\n"
+            f"请根据一致性检验意见严格修正当前文档（{label}），"
+            f"确保与其他设计文档对应一致，"
+            f"并将修正后的完整文档保存到：{gen_path}\n"
+            "⚠️ 严格限制：\n"
+            "1. **只**修改当前文档（{label}）本身，禁止修改其他子步骤的文档\n"
+            "2. 只针对一致性问题修改，禁止扩大修改范围\n"
+            "3. 文档必须是独立完整的 Markdown 文件\n"
+            "4. 不要包含推理过程"
+        )
+
+        houwang_cli = GatewayClient(profile_name="houwang", timeout=1200)
+        houwang_chunks = []
+        async for chunk in houwang_cli.chat_isolated(
+            messages=[{"role": "user", "content": prompt}],
+            project_id=project_id,
+            project_name=project_name,
+            project_description=project_description,
+            core_goal=core_goal,
+            agent_name=houwang_label,
+            stream=True, max_tokens=64000,
+        ):
+            if chunk.strip():
+                houwang_chunks.append(chunk)
+                await broadcast(project_id, {
+                    "type": "content",
+                    "content": chunk,
+                    "subflow": dim["key"],
+                })
+
+        # 从磁盘读取修复后的文档（houwang 可能已保存到文件）
+        # 如果文件不存在，使用流式输出作为修复内容
+        if os.path.exists(gen_path):
+            try:
+                with open(gen_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                path = gen_path
+            except Exception:
+                pass
+        else:
+            streamed = "".join(houwang_chunks).strip()
+            if streamed:
+                content = streamed
+
+        if not content.strip():
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"⚠️ {label}：houwang 修复后内容为空，重试",
+                "subflow": dim["key"],
+            })
+            continue
+
+        # hourong 个体检验（带上轮反馈做收敛）
+        await broadcast(project_id, {
+            "type": "stage",
+            "message": f"🔍 hourong-{doc_type} 正在重新检验{label}的一致性修复...（文件：{path}）",
+            "subflow": dim["key"],
+        })
+        prev_fb = convergence_log[-1]["detail"] if convergence_log else ""
+        result = await _inspect_doc(
+            project_id, path or "", dim,
+            project_name=project_name, project_description=project_description,
+            core_goal=core_goal, agent_label=hourong_label,
+            standards=cfg.get("standards", []),
+            prev_feedback=prev_fb,
+        )
+        convergence_log.append({"round": attempt, "detail": result.get("detail", ""), "passed": result["passed"]})
+        if result["passed"]:
+            await broadcast(project_id, {
+                "type": "stage",
+                "message": f"✅ {label}：hourong 个体检验通过（一致性修复第{attempt}轮）",
+                "subflow": di
+
+[…truncated 29077 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+hecked_at": now_iso})
+    else:
+        result = engine.fail_qa(4, reason=body.reason or "", suggestions=body.suggestions)
+        engine.save_step4_artifacts({"qa_passed": False, "qa_status": "failed", "qa_checked_at": now_iso, "qa_fail_reason": body.reason, "qa_suggestions": body.suggestions})
+    return APIResponse(code=0, data={"message": f"第四步QA检验{'通过' if body.result == 'passed' else '未通过'}", "qa": result})
+
+
+@router.post("/{project_id}/step4/reset")
+def reset_step4(project_id: str,
+                db: Session = Depends(get_db),
+                current_user=Depends(get_current_user)):
+    """强制重置第四步为待执行状态（用于恢复中断/卡死，清空产物）"""
+    engine = _get_engine(project_id, db)
+    engine.reset_step(4)
+    engine.save_step4_artifacts({"status": "reset", "message": "第四步已重置"})
+    if project_id in _wf_engines:
+        _wf_engines[project_id] = WorkflowEngine(project_id=project_id, db=db)
+    return APIResponse(code=0, data={"message": "第四步已重置为待执行状态，可以重新开始"})
+
+
+# ==================== Step 5: 后富建立开发环境 ====================

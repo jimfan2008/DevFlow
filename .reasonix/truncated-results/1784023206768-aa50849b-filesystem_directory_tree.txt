@@ -1,0 +1,1149 @@
+[
+  {
+    "name": ".codegraph",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-shm",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-wal",
+        "type": "file"
+      },
+      {
+        "name": "daemon.log",
+        "type": "file"
+      },
+      {
+        "name": "daemon.pid",
+        "type": "file"
+      },
+      {
+        "name": "daemon.sock",
+        "type": "file"
+      },
+      {
+        "name": "errors.log",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": ".coverage",
+    "type": "file"
+  },
+  {
+    "name": ".env",
+    "type": "file"
+  },
+  {
+    "name": ".env.example",
+    "type": "file"
+  },
+  {
+    "name": ".env.production",
+    "type": "file"
+  },
+  {
+    "name": ".github",
+    "type": "directory",
+    "children": [
+      {
+        "name": "workflows",
+        "type": "directory",
+        "children": [
+          {
+            "name": "ci.yml",
+            "type": "file"
+          },
+          {
+            "name": "deploy.yml",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".gitignore",
+    "type": "file"
+  },
+  {
+    "name": ".mimo-code.json",
+    "type": "file"
+  },
+  {
+    "name": ".pytest_cache",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "CACHEDIR.TAG",
+        "type": "file"
+      },
+      {
+        "name": "README.md",
+        "type": "file"
+      },
+      {
+        "name": "v",
+        "type": "directory",
+        "children": [
+          {
+            "name": "cache",
+            "type": "directory",
+            "children": [
+              {
+                "name": "lastfailed",
+                "type": "file"
+              },
+              {
+                "name": "nodeids",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".reasonix",
+    "type": "directory",
+    "children": [
+      {
+        "name": "truncated-results",
+        "type": "directory",
+        "children": [
+          {
+            "name": "1783392592966-cf948641-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392614159-b86269f1-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392711212-3683678e-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392713826-b2197b17-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783392783845-30fab603-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398027868-b3b6019d-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398038596-550ce97b-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398038662-a61022b2-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783398044165-945a2cc9-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403754432-6cb2b785-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403766452-91f47a70-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403766501-03e7b5b5-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403773991-c8a4a4fa-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1783403786086-e3c8f285-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016588997-dcd0fc75-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016771564-5cbd8603-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784016911964-f41e3640-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784017132486-41979287-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784021838662-5af0f256-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784021896159-2a5ad6c9-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784022304780-0f1eb3c6-filesystem_directory_tree.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784022367341-8764a349-filesystem_read_text_file.txt",
+            "type": "file"
+          },
+          {
+            "name": "1784022397855-e2ba0f60-filesystem_directory_tree.txt",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".superpowers",
+    "type": "directory",
+    "children": [
+      {
+        "name": "sdd",
+        "type": "directory",
+        "children": [
+          {
+            "name": ".gitignore",
+            "type": "file"
+          },
+          {
+            "name": "progress.md",
+            "type": "file"
+          },
+          {
+            "name": "review-102ce14..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-102ce14..8039683.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2995d02..012be04.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2995d02..fe92408.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2fce59a..6240d77.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-2fce59a..abe8617.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-49a1b25..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-49a1b25..56e6a41.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..49a1b25.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..b75dfe6.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-5828570..b75dfe68.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-6240d77..102ce14.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-b75dfe6..2995d02.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-fe92408..2fce59a.diff",
+            "type": "file"
+          },
+          {
+            "name": "review-fe92408..718cc51.diff",
+            "type": "file"
+          },
+          {
+            "name": "task-1-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-1-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-2-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-2-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-3-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-3-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-4-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-4-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-5-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-5-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-6-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-6-report.md",
+            "type": "file"
+          },
+          {
+            "name": "task-7-brief.md",
+            "type": "file"
+          },
+          {
+            "name": "task-7-report.md",
+            "type": "file"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": ".venv",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": ".lock",
+        "type": "file"
+      },
+      {
+        "name": "CACHEDIR.TAG",
+        "type": "file"
+      },
+      {
+        "name": "bin",
+        "type": "directory",
+        "children": [
+          {
+            "name": "activate",
+            "type": "file"
+          },
+          {
+            "name": "activate.bat",
+            "type": "file"
+          },
+          {
+            "name": "activate.csh",
+            "type": "file"
+          },
+          {
+            "name": "activate.fish",
+            "type": "file"
+          },
+          {
+            "name": "activate.nu",
+            "type": "file"
+          },
+          {
+            "name": "activate.ps1",
+            "type": "file"
+          },
+          {
+            "name": "activate_this.py",
+            "type": "file"
+          },
+          {
+            "name": "alembic",
+            "type": "file"
+          },
+          {
+            "name": "celery",
+            "type": "file"
+          },
+          {
+            "name": "coverage",
+            "type": "file"
+          },
+          {
+            "name": "coverage-3.12",
+            "type": "file"
+          },
+          {
+            "name": "coverage3",
+            "type": "file"
+          },
+          {
+            "name": "deactivate.bat",
+            "type": "file"
+          },
+          {
+            "name": "dotenv",
+            "type": "file"
+          },
+          {
+            "name": "fastapi",
+            "type": "file"
+          },
+          {
+            "name": "httpx",
+            "type": "file"
+          },
+          {
+            "name": "mako-render",
+            "type": "file"
+          },
+          {
+            "name": "py.test",
+            "type": "file"
+          },
+          {
+            "name": "pydoc.bat",
+            "type": "file"
+          },
+          {
+            "name": "pygmentize",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-decrypt",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-encrypt",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-keygen",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-priv2pub",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-sign",
+            "type": "file"
+          },
+          {
+            "name": "pyrsa-verify",
+            "type": "file"
+          },
+          {
+            "name": "pytest",
+            "type": "file"
+          },
+          {
+            "name": "python",
+            "type": "file"
+          },
+          {
+            "name": "python3",
+            "type": "file"
+          },
+          {
+            "name": "python3.12",
+            "type": "file"
+          },
+          {
+            "name": "uvicorn",
+            "type": "file"
+          },
+          {
+            "name": "watchfiles",
+            "type": "file"
+          },
+          {
+            "name": "websockets",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "include",
+        "type": "directory",
+        "children": [
+          {
+            "name": "site",
+            "type": "directory",
+            "children": [
+              {
+                "name": "python3.12",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "greenlet",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "greenlet.h",
+                        "type": "file"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "lib",
+        "type": "directory",
+        "children": [
+          {
+            "name": "python3.12",
+            "type": "directory",
+            "children": [
+              {
+                "name": "site-packages",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "_cffi_backend.cpython-312-x86_64-linux-gnu.so",
+                    "type": "file"
+                  },
+                  {
+                    "name": "_pytest",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "_argcomplete.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "_code",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "code.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "source.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "_io",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "pprint.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "saferepr.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "terminalwriter.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "wcwidth.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "_py",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "error.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "path.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "_version.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "assertion",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "rewrite.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "truncate.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "util.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "cacheprovider.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "capture.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "compat.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "config",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "argparsing.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "compat.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "exceptions.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "findpaths.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "debugging.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "deprecated.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "doctest.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "faulthandler.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "fixtures.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "freeze_support.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "helpconfig.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "hookspec.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "junitxml.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "legacypath.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "logging.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "main.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "mark",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "expression.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "structures.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "monkeypatch.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "nodes.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "outcomes.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pastebin.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pathlib.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "py.typed",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pytester.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "pytester_assertions.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "python.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "python_api.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "raises.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "recwarn.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "reports.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "runner.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "scope.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "setuponly.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "setupplan.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "skipping.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "stash.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "stepwise.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "subtests.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "terminal.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "terminalprogress.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "threadexception.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "timing.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "tmpdir.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "tracemalloc.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "unittest.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "unraisableexception.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "warning_types.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "warnings.py",
+                        "type": "file"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "_virtualenv.pth",
+                    "type": "file"
+                  },
+                  {
+                    "name": "_virtualenv.py",
+                    "type": "file"
+                  },
+                  {
+                    "name": "_yaml",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "a1_coverage.pth",
+                    "type": "file"
+                  },
+                  {
+                    "name": "aiosqlite",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "__version__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "context.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "core.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "cursor.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "py.typed",
+                        "type": "file"
+                      },
+                      {
+                        "name": "tests",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "__main__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "helpers.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "perf.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "smoke.py",
+                            "type": "file"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "aiosqlite-0.22.1.dist-info",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "INSTALLER",
+                        "type": "file"
+                      },
+                      {
+                        "name": "METADATA",
+                        "type": "file"
+                      },
+                      {
+                        "name": "RECORD",
+                        "type": "file"
+                      },
+                      {
+                        "name": "REQUESTED",
+                        "type": "file"
+                      },
+                      {
+                        "name": "WHEEL",
+                        "type": "file"
+                      },
+                      {
+                        "name": "licenses",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "LICENSE",
+                            "type": "file"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "alembic",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "__init__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "__main__.py",
+                        "type": "file"
+                      },
+                      {
+                        "name": "autogenerate",
+                        "type": "directory",
+                        "children": [
+                          {
+                            "name": "__init__.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "api.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "compare",
+                            "type": "directory",
+                            "children": [
+                              {
+                                "name": "__init__.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "comments.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "constraints.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "schema.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "server_defaults.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "tables.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "types.py",
+                                "type": "file"
+                              },
+                              {
+                                "name": "util.py",
+                                "type": "file"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "render.py",
+                            "type": "file"
+                          },
+                          {
+                            "name": "rewriter.py",
+                            "type": "file"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "command.py",
+                        "type": "file"
+                      },
+             
+
+[…truncated 1377070 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+h",
+    "type": "file"
+  },
+  {
+    "name": "start_docker.py",
+    "type": "file"
+  },
+  {
+    "name": "start_project.py",
+    "type": "file"
+  },
+  {
+    "name": "test_agent_chat.py",
+    "type": "file"
+  },
+  {
+    "name": "test_devflow.db",
+    "type": "file"
+  },
+  {
+    "name": "test_devflow.db-journal",
+    "type": "file"
+  },
+  {
+    "name": "test_perf_devflow.db",
+    "type": "file"
+  },
+  {
+    "name": "test_results.txt",
+    "type": "file"
+  },
+  {
+    "name": "tests",
+    "type": "directory",
+    "children": [
+      {
+        "name": "conftest.py",
+        "type": "file"
+      },
+      {
+        "name": "srs_acceptance_report.json",
+        "type": "file"
+      },
+      {
+        "name": "test_config.py",
+        "type": "file"
+      },
+      {
+        "name": "test_health.py",
+        "type": "file"
+      },
+      {
+        "name": "test_jwt.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "trigger_step4.py",
+    "type": "file"
+  },
+  {
+    "name": "uv.lock",
+    "type": "file"
+  }
+]

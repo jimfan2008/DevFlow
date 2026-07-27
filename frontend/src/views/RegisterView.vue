@@ -2,8 +2,9 @@
   <div class="register-view">
     <div class="register-view__card">
       <div class="register-view__header">
-        <div class="register-view__logo">D</div>
+        <div class="register-view__logo">DF</div>
         <h2 class="register-view__title">注册 DevFlow</h2>
+        <p class="register-view__subtitle">AI 原生多智能体开发平台</p>
       </div>
 
       <el-form
@@ -159,18 +160,69 @@ async function handleRegister() {
 
 <style lang="scss" scoped>
 .register-view {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: $canvas-parchment;
+  background: $bg-deep;
+  overflow: hidden;
+
+  // Animated gradient orbs
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(52, 211, 153, 0.04) 0%, transparent 50%);
+    animation: bg-shift 12s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+
+  // Grid overlay
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image:
+      linear-gradient(rgba(0, 212, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 212, 255, 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    pointer-events: none;
+  }
+
+  @keyframes bg-shift {
+    0%   { transform: translate(0%, 0%) rotate(0deg); }
+    100% { transform: translate(5%, 5%) rotate(3deg); }
+  }
 
   &__card {
+    position: relative;
+    z-index: 1;
     width: 420px;
     padding: $spacing-xl;
-    background: $canvas;
-    border-radius: $radius-lg;
-    border: 1px solid $hairline;
+    background: $glass-bg;
+    backdrop-filter: $frosted-blur;
+    -webkit-backdrop-filter: $frosted-blur;
+    border-radius: 16px;
+    border: 1px solid $glass-border;
+    box-shadow: 0 0 40px rgba(0, 212, 255, 0.08), 0 20px 60px rgba(0, 0, 0, 0.4);
+    animation: card-enter 0.5s ease-out;
+  }
+
+  @keyframes card-enter {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   &__header {
@@ -182,23 +234,31 @@ async function handleRegister() {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 48px;
-    background: $primary;
-    color: $on-primary;
-    font-size: 24px;
-    font-weight: 600;
-    border-radius: $radius-lg;
+    width: 52px;
+    height: 52px;
+    background: $gradient-primary;
+    color: $text-inverse;
+    font-family: $font-mono;
+    font-size: 22px;
+    font-weight: 700;
+    border-radius: 14px;
     margin-bottom: $spacing-4;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
   }
 
   &__title {
     margin: 0;
     font-family: $font-display;
     font-size: $display-md-size;
-    font-weight: $display-md-weight;
-    letter-spacing: $display-md-tracking;
-    color: $ink;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__subtitle {
+    margin: 8px 0 0;
+    font-size: $caption-size;
+    color: $text-muted;
+    font-family: $font-text;
   }
 
   &__form {
@@ -209,6 +269,7 @@ async function handleRegister() {
 
   &__submit {
     width: 100%;
+    height: 44px;
   }
 
   &__footer {
@@ -216,11 +277,12 @@ async function handleRegister() {
     text-align: center;
     font-family: $font-text;
     font-size: $caption-size;
-    color: $ink-muted-48;
+    color: $text-muted;
 
     a {
       color: $primary;
       text-decoration: none;
+      font-weight: 500;
       &:hover { text-decoration: underline; }
     }
   }

@@ -40,6 +40,16 @@ async def step8_progress_ws(websocket: WebSocket, project_id: str,
             return
         _active_connections.setdefault(project_id, []).append(websocket)
         try:
+            from sqlalchemy import text as _text
+            row = db.execute(_text("SELECT status, output_artifacts FROM workflow_steps WHERE project_id=:pid AND step_number=8"), {"pid": project_id}).fetchone()
+            if row:
+                arts = _json.loads(row[1]) if row[1] else {}
+                await websocket.send_json({"type": "progress", "message": f"📋 当前状态: {row[0]}"})
+                if arts.get("message"):
+                    await websocket.send_json({"type": "progress", "message": arts["message"]})
+        except Exception:
+            pass
+        try:
             while True:
                 data = await websocket.receive_text()
                 payload = _json.loads(data)

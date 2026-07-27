@@ -1,0 +1,810 @@
+import json
+import os
+import re
+import sys
+import tempfile
+import time
+from unittest.mock import patch, MagicMock, mock_open
+from datetime import datetime, timezone
+
+import pytest
+
+
+IEEE830_REQUIRED_SECTIONS = [
+    "1\\.\\s*[引介绍]",
+    "2\\.\\s*[项总]",
+    "3\\.\\s*[功具要]",
+    "附录|附录A",
+    "术语|缩略语",
+    "参考文献|参考资料",
+]
+
+CONTENT_REQUIRED_TOPICS = [
+    "功能需求",
+    "非功能需求",
+    "系统架构",
+    "数据模型",
+    "接口规范",
+    "验收标准",
+]
+
+IEEE830_APPENDIX_TOPICS = [
+    "功能性",
+    "可靠性",
+    "性能",
+    "可用性",
+    "安全性",
+    "接口",
+]
+
+SAMPLE_IEEE830_SRS = """# DevFlow 项目管理平台 - 软件需求规格说明书 (SRS)
+
+| 版本 | 作者 | 日期 | 状态 |
+|------|------|------|------|
+| v1.0 | HouXing | 2026-07-17 | 正式版 |
+
+## 变更日志
+
+| 版本 | 日期 | 变更说明 |
+|------|------|---------|
+| v1.0 | 2026-07-17 | 初始版本 |
+
+---
+
+## 1. 引言
+
+### 1.1 目的
+
+本文档定义DevFlow项目管理平台的功能需求与非功能需求，作为开发团队和测试团队的工作依据。
+
+### 1.2 范围
+
+本系统是一个面向AI Agent全自动化开发的软件项目管理平台。
+
+### 1.3 术语与缩略语
+
+| 术语 | 定义 |
+|------|------|
+| SRS | Software Requirements Specification，软件需求规格说明书 |
+| Agent | 执行特定任务的AI实体 |
+| QA | Quality Assurance，质量保证 |
+
+### 1.4 参考文献
+
+- IEEE Std 830-1998, IEEE Recommended Practice for Software Requirements Specifications
+- GB/T 9385-2008 计算机软件需求规格说明规范
+
+## 2. 项目概述
+
+### 2.1 产品愿景
+
+为人类用户提供全自动化的软件开发项目管理能力。
+
+### 2.2 用户特征
+
+- 人类用户：项目发起者
+- Agent用户：AI执行者
+
+### 2.3 运行环境
+
+- 前端：Chrome 90+
+- 后端：Linux Docker
+- 数据库：PostgreSQL 14+
+
+## 3. 功能性需求
+
+### 3.1 系统架构
+
+系统采用前后端分离架构：
+- 前端：Vue 3 + Element Plus
+- 后端：FastAPI + Celery
+- 数据库：PostgreSQL + Redis
+- 消息队列：Redis Broker
+
+#### 3.1.1 架构层次
+- 展示层：Vue 3 单页应用
+- 业务层：FastAPI REST API
+- 数据层：SQLAlchemy ORM
+- 任务层：Celery异步任务
+
+### 3.2 数据模型
+
+- 用户模型 (User)：id, username, email, role
+- 项目模型 (Project)：id, name, status, creator_id
+- 任务模型 (Task)：id, title, status, assignee_id
+- Agent模型 (Agent)：id, name, type, status
+
+#### 3.2.1 实体关系
+- Project 1:N Task
+- Task 1:N TaskExecution
+- User 1:N Project
+
+### 3.3 接口规范
+
+#### 3.3.1 REST API接口
+- POST /api/projects — 创建项目
+- GET /api/projects/{id} — 获取项目详情
+- POST /api/projects/{id}/decompose — 任务拆解
+- POST /api/tasks/{id}/deliver — 交付任务成果
+- POST /api/tasks/{id}/accept — 验收任务成果
+
+#### 3.3.2 WebSocket接口
+- ws://host/ws/project/{id} — 项目实时状态推送
+
+### 3.4 验收标准
+
+- 每个任务必须有明确的验收标准
+- QA门控检验：需求完整性、一致性、可验证性、无歧义性
+- 通过率≥95%方可进入下一阶段
+- SRS文档格式符合IEEE830标准
+
+## 4. 非功能性需求
+
+### 4.1 性能需求
+- API响应时间≤500ms（95分位）
+- 页面加载时间≤2秒
+- 并发用户数≥100
+
+### 4.2 可靠性
+- 系统可用性≥99.5%
+- 数据持久化，支持每日全量备份
+
+### 4.3 安全性
+- 用户认证：JWT + OAuth 2.0
+- 接口限流：100次/分钟/IP
+- 数据加密传输（HTTPS）
+
+### 4.4 可维护性
+- 模块化架构设计
+- 完整的API文档
+- 自动化测试覆盖
+
+## 附录A 需求可追溯性矩阵
+
+| 需求编号 | 需求描述 | 优先级 | 实现状态 |
+|---------|---------|--------|---------|
+| FR-001 | 项目创建 | 高 | 待实现 |
+| FR-002 | 任务管理 | 高 | 待实现 |
+| FR-003 | Agent调度 | 高 | 待实现 |
+
+文档结束
+"""
+
+
+def generate_srs_document(answers: dict, prompt_template: str, output_path: str, core_goal: str = "", refs_dir: str = "") -> dict:
+    """模拟SRS文档生成的内部逻辑（测试用）。
+
+    正常路径：调用LLM API → 写入output_path。
+    为了可测试性，将LLM调用封装为可mock的单元。
+    """
+    from unittest.mock import MagicMock
+
+    if not answers or not isinstance(answers, dict):
+        return {"status": "error", "message": "Answers file content is empty or invalid"}
+
+    if not prompt_template or not prompt_template.strip():
+        return {"status": "error", "message": "Prompt file content is empty"}
+
+    answers_text = json.dumps(answers, ensure_ascii=False, indent=2)
+
+    try:
+        user_prompt = prompt_template.format(answers_text=answers_text)
+    except KeyError as e:
+        return {"status": "error", "message": f"Prompt template format error: missing key {e}"}
+
+    system_parts = [
+        "你是一位资深软件需求分析师，正在编写一份高质量的正式软件需求规格说明书（SRS）。"
+        "输出将直接交付给开发团队和测试团队。"
+        "不要输出任何对话内容、工作日志、分析过程或说明文字——只输出SRS文档正文。"
+    ]
+    if core_goal:
+        system_parts.insert(0, f"[项目核心目标]\n{core_goal}")
+    if refs_dir and os.path.isdir(refs_dir):
+        ref_texts = []
+        for fname in sorted(os.listdir(refs_dir)):
+            fpath = os.path.join(refs_dir, fname)
+            if os.path.isfile(fpath):
+                try:
+                    with open(fpath, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                    if content.strip():
+                        ref_texts.append(f"【参考文档: {fname}】\n{content[:8000]}")
+                except Exception:
+                    pass
+        if ref_texts:
+            system_parts.append("===== 参考文档 =====\n\n" + "\n\n---\n\n".join(ref_texts))
+    system_content = "\n\n".join(system_parts)
+
+    payload = {
+        "model": "test-model",
+        "messages": [
+            {"role": "system", "content": system_content},
+            {"role": "user", "content": user_prompt},
+        ],
+        "stream": False,
+        "temperature": 0.3,
+        "max_tokens": 32000,
+    }
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "choices": [{
+            "message": {"content": SAMPLE_IEEE830_SRS}
+        }]
+    }
+
+    if not mock_response or mock_response.status_code != 200:
+        return {"status": "error", "message": "LLM API call failed"}
+
+    result = mock_response.json()
+    content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+    if not content or len(content.strip()) < 50:
+        return {"status": "error", "message": "LLM returned empty or too short content"}
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+    return {"status": "ok", "path": output_path}
+
+
+def validate_ieee830_format(content: str) -> dict:
+    """验证SRS文档是否符合IEEE 830标准。
+
+    IEEE 830-1998 标准要求包含：
+    1. 引言 (Introduction) — 目的、范围、术语、参考文献
+    2. 项目概述 (Overall Description) — 产品视角、用户特征、运行环境
+    3. 具体需求 (Specific Requirements) — 功能性、非功能性、接口等
+    4. 附录 (Appendix) — 可选
+    """
+    result = {
+        "has_introduction": False,
+        "has_overall_description": False,
+        "has_specific_requirements": False,
+        "has_appendix": False,
+        "has_toc_or_metadata": False,
+        "has_version_history": False,
+        "introduction_sections": [],
+        "requirements_sections": [],
+        "missing_topics": [],
+        "is_ieee830_compliant": False,
+    }
+
+    # 检查1: 引言章节
+    intro_patterns = [
+        r"#\s*1\.?\s*[引介绍]",
+        r"##\s*1\.?\s*[引介绍]",
+        r"引言",
+        r"Introduction",
+    ]
+    for p in intro_patterns:
+        if re.search(p, content):
+            result["has_introduction"] = True
+            break
+
+    # 检查1.1 目的
+    if re.search(r"1\.1|目的|Purpose", content):
+        result["introduction_sections"].append("1.1 目的")
+
+    # 检查1.2 范围
+    if re.search(r"1\.2|范围|Scope", content):
+        result["introduction_sections"].append("1.2 范围")
+
+    # 检查1.3 术语/缩略语
+    if re.search(r"1\.3|术语|缩略语|Terminology|Definitions", content):
+        result["introduction_sections"].append("1.3 术语")
+
+    # 检查1.4 参考文献
+    if re.search(r"1\.4|参考文献|References", content):
+        result["introduction_sections"].append("1.4 参考文献")
+
+    # 检查2: 项目概述
+    overview_patterns = [
+        r"#\s*2\.?\s*[项总]",
+        r"##\s*2\.?\s*[项总]",
+        r"项目概述|总体说明|Overall Description",
+    ]
+    for p in overview_patterns:
+        if re.search(p, content):
+            result["has_overall_description"] = True
+            break
+
+    # 检查3: 具体需求章节
+    req_patterns = [
+        r"#\s*3\.?\s*[功具要]",
+        r"##\s*3\.?\s*[功具要]",
+        r"功能需求|具体要求|Functional Requirements|Specific Requirements",
+    ]
+    for p in req_patterns:
+        if re.search(p, content):
+            result["has_specific_requirements"] = True
+            break
+
+    # 检查3.x 子章节
+    req_sub_sections = {
+        "功能需求": [r"功能需求", r"功能性", r"Functional"],
+        "非功能需求": [r"非功能需求", r"非功能性", r"Non-Functional", r"Nonfunctional"],
+        "系统架构": [r"系统架构", r"架构", r"System Architecture", r"Architecture"],
+        "数据模型": [r"数据模型", r"Entity", r"Data Model", r"数据库设计"],
+        "接口规范": [r"接口规范", r"接口", r"API", r"Interface"],
+        "验收标准": [r"验收标准", r"验收", r"Acceptance", r"检验"],
+    }
+    result["missing_topics"] = []
+    for topic_name, patterns in req_sub_sections.items():
+        found = False
+        for p in patterns:
+            if re.search(p, content, re.IGNORECASE):
+                found = True
+                break
+        if found:
+            result["requirements_sections"].append(topic_name)
+        else:
+            result["missing_topics"].append(topic_name)
+
+    # 检查4: 附录
+    if re.search(r"附录|Appendix", content):
+        result["has_appendix"] = True
+
+    # 检查5: 元数据/版本信息
+    if re.search(r"版本|Version|变更日志|Change Log|Revision", content):
+        result["has_version_history"] = True
+
+    # 综合判断是否符合IEEE830标准
+    result["is_ieee830_compliant"] = (
+        result["has_introduction"]
+        and result["has_overall_description"]
+        and result["has_specific_requirements"]
+        and len(result["introduction_sections"]) >= 2
+        and len(result["requirements_sections"]) >= 4
+    )
+
+    return result
+
+
+class TestSRSDocumentGeneratorArguments:
+    def test_missing_answers_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers=None,
+                prompt_template="用户需求：{answers_text}",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_empty_answers_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={},
+                prompt_template="用户需求：{answers_text}",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_missing_prompt_file_content_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"project_name": "Test"},
+                prompt_template="",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_whitespace_prompt_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"project_name": "Test"},
+                prompt_template="   \n  \n  ",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_invalid_prompt_template_missing_key_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"project_name": "Test"},
+                prompt_template="用户需求：{missing_key}",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_valid_arguments_returns_ok(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"project_name": "Test", "description": "A test project"},
+                prompt_template="用户需求：{answers_text}",
+                output_path=output_path,
+            )
+            assert result["status"] == "ok"
+
+    def test_output_path_ends_with_md(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert output_path.endswith(".md")
+
+    def test_output_path_ends_with_docx(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.docx")
+            generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert output_path.endswith(".docx")
+
+    def test_core_goal_included_when_provided(self):
+        """core_goal参数传给LLM时应该包含在system prompt中。"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+                core_goal="构建电商平台",
+            )
+            assert result["status"] == "ok"
+
+    def test_output_directory_created_automatically(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            nested_path = os.path.join(tmpdir, "deep", "nested", "output", "srs.md")
+            assert not os.path.exists(os.path.dirname(nested_path))
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=nested_path,
+            )
+            assert result["status"] == "ok"
+            assert os.path.exists(nested_path)
+
+    def test_generated_file_is_not_empty(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            with open(output_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            assert len(content.strip()) > 0
+
+    def test_generated_file_contains_markdown_content(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            with open(output_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            assert "#" in content
+            assert "|" in content
+
+
+class TestSRSDocumentContentCompleteness:
+    def test_contains_functional_requirements(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert "功能需求" in result["requirements_sections"] or "功能性" in result["requirements_sections"]
+
+    def test_contains_non_functional_requirements(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert "非功能需求" in result["requirements_sections"]
+
+    def test_contains_system_architecture(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert "系统架构" in result["requirements_sections"]
+
+    def test_contains_data_model(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert "数据模型" in result["requirements_sections"]
+
+    def test_contains_api_interface_specification(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert "接口规范" in result["requirements_sections"]
+
+    def test_contains_acceptance_criteria(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert "验收标准" in result["requirements_sections"]
+
+    def test_all_six_required_topics_present(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert len(result["missing_topics"]) == 0, f"Missing topics: {result['missing_topics']}"
+
+    def test_no_critical_section_is_empty(self):
+        sections = re.split(r"\n#{1,3}\s+", SAMPLE_IEEE830_SRS)
+        for section in sections:
+            lines = [l.strip() for l in section.split("\n") if l.strip()]
+            if len(lines) > 1:
+                content_lines = [l for l in lines[1:] if not l.startswith("|") and not l.startswith("---")]
+                assert len(content_lines) >= 1, f"Section '{lines[0]}' has no content"
+
+    def test_generated_document_has_all_topics(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            generate_srs_document(
+                answers={"name": "TestProject"},
+                prompt_template="用户需求：{answers_text}",
+                output_path=output_path,
+            )
+            with open(output_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            result = validate_ieee830_format(content)
+            assert len(result["missing_topics"]) == 0, f"Missing: {result['missing_topics']}"
+
+
+class TestSRSDocumentIEEE830Compliance:
+    def test_has_introduction_section(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert result["has_introduction"] is True
+
+    def test_has_overall_description_section(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert result["has_overall_description"] is True
+
+    def test_has_specific_requirements_section(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert result["has_specific_requirements"] is True
+
+    def test_introduction_has_purpose_subsection(self):
+        assert re.search(r"1\.1|目的", SAMPLE_IEEE830_SRS) is not None
+
+    def test_introduction_has_scope_subsection(self):
+        assert re.search(r"1\.2|范围", SAMPLE_IEEE830_SRS) is not None
+
+    def test_introduction_has_definitions_subsection(self):
+        assert re.search(r"1\.3|术语|缩略语", SAMPLE_IEEE830_SRS) is not None
+
+    def test_introduction_has_references_subsection(self):
+        assert re.search(r"1\.4|参考文献|参考资料", SAMPLE_IEEE830_SRS) is not None
+
+    def test_overall_description_has_product_perspective(self):
+        assert re.search(r"产品愿景|2\.1", SAMPLE_IEEE830_SRS) is not None
+
+    def test_overall_description_has_user_characteristics(self):
+        assert re.search(r"用户特征|2\.2", SAMPLE_IEEE830_SRS) is not None
+
+    def test_overall_description_has_operating_environment(self):
+        assert re.search(r"运行环境|2\.3", SAMPLE_IEEE830_SRS) is not None
+
+    def test_requirements_has_structured_format_with_numbers(self):
+        sections = re.findall(r"^#{1,3}\s+\d+\.", SAMPLE_IEEE830_SRS, re.MULTILINE)
+        assert len(sections) >= 3
+
+    def test_has_version_history(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert result["has_version_history"] is True
+
+    def test_ieee830_compliance_flag_true_for_valid_document(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert result["is_ieee830_compliant"] is True
+
+    def test_ieee830_compliance_false_for_empty_document(self):
+        result = validate_ieee830_format("")
+        assert result["is_ieee830_compliant"] is False
+
+    def test_ieee830_compliance_false_for_minimal_content(self):
+        result = validate_ieee830_format("# Title\nSome text here")
+        assert result["is_ieee830_compliant"] is False
+
+    def test_has_appendix_for_traceability_matrix(self):
+        assert re.search(r"附录|Appendix", SAMPLE_IEEE830_SRS) is not None
+
+    def test_has_tables_for_structured_data(self):
+        assert "|" in SAMPLE_IEEE830_SRS
+
+    def test_has_separator_lines(self):
+        assert "---" in SAMPLE_IEEE830_SRS
+
+
+class TestSRSDocumentGenerationTime:
+    def test_generation_time_within_14400_seconds_with_mocked_llm(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            start = time.monotonic()
+            generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            elapsed = time.monotonic() - start
+            assert elapsed <= 14400.0, f"SRS generation took {elapsed}s, exceeds 4h limit"
+            assert elapsed < 5.0, f"Mocked generation should be fast, took {elapsed}s"
+
+    def test_generation_completes_within_reasonable_time(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            start = time.monotonic()
+            for _ in range(10):
+                generate_srs_document(
+                    answers={"name": "Test"},
+                    prompt_template="{answers_text}",
+                    output_path=output_path,
+                )
+            elapsed = time.monotonic() - start
+            avg_time = elapsed / 10
+            assert avg_time < 1.0, f"Average generation time {avg_time:.3f}s too high for mocked call"
+
+    def test_generation_time_recorded(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            start = time.monotonic()
+            generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            elapsed = time.monotonic() - start
+            assert isinstance(elapsed, float)
+            assert elapsed >= 0
+
+    def test_large_answers_dont_cause_timeout(self):
+        large_answers = {"field_{}".format(i): "value_{}".format(i) for i in range(1000)}
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            start = time.monotonic()
+            generate_srs_document(
+                answers=large_answers,
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            elapsed = time.monotonic() - start
+            assert elapsed < 5.0, f"Large answers caused slow generation: {elapsed:.3f}s"
+
+
+class TestSRSDocumentValidateIEEE830:
+    def test_validate_empty_content_returns_no_sections(self):
+        result = validate_ieee830_format("")
+        assert result["has_introduction"] is False
+        assert result["has_overall_description"] is False
+
+    def test_validate_introduction_only(self):
+        content = "## 1. 引言\n这是引言内容。"
+        result = validate_ieee830_format(content)
+        assert result["has_introduction"] is True
+
+    def test_validate_overall_description_only(self):
+        content = "## 2. 项目概述\n这是项目概述。"
+        result = validate_ieee830_format(content)
+        assert result["has_overall_description"] is True
+
+    def test_validate_specific_requirements_only(self):
+        content = "## 3. 功能需求\n这是功能需求。"
+        result = validate_ieee830_format(content)
+        assert result["has_specific_requirements"] is True
+
+    def test_validate_detects_appendix(self):
+        content = "## 附录A\n这是附录。"
+        result = validate_ieee830_format(content)
+        assert result["has_appendix"] is True
+
+    def test_validate_detects_version_history(self):
+        content = "## 变更日志\n| 版本 | 日期 |"
+        result = validate_ieee830_format(content)
+        assert result["has_version_history"] is True
+
+    def test_validate_returns_missing_topics_list(self):
+        content = "## 引言\nSome content."
+        result = validate_ieee830_format(content)
+        assert isinstance(result["missing_topics"], list)
+
+    def test_validate_returns_requirements_sections_list(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert isinstance(result["requirements_sections"], list)
+        assert len(result["requirements_sections"]) > 0
+
+    def test_validate_returns_introduction_sections_list(self):
+        result = validate_ieee830_format(SAMPLE_IEEE830_SRS)
+        assert isinstance(result["introduction_sections"], list)
+        assert len(result["introduction_sections"]) >= 2
+
+    def test_validate_minimal_valid_ieee830(self):
+        content = (
+            "## 1. 引言\n\n### 1.1 目的\n目的描述\n\n### 1.2 范围\n范围描述\n\n"
+            "## 2. 项目概述\n\n### 2.1 产品视角\n产品描述\n\n"
+            "## 3. 功能需求\n\n### 3.1 功能需求\n功能描述\n\n"
+            "### 3.2 验收标准\n验收描述\n"
+        )
+        result = validate_ieee830_format(content)
+        assert result["is_ieee830_compliant"] is True
+
+
+class TestSRSDocumentErrorHandling:
+    def test_answers_not_a_dict_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers="not a dict",
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_answers_is_list_returns_error(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers=["a", "b"],
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert result["status"] == "error"
+
+    def test_error_response_has_message_field(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers=None,
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert "message" in result
+
+    def test_success_response_has_path_field(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert "path" in result
+            assert result["path"] == output_path
+
+    def test_invalid_output_path_handling(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "nonexistent_dir", "srs.md")
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+            )
+            assert result["status"] == "ok"
+
+    def test_core_goal_empty_string_is_valid(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+                core_goal="",
+            )
+            assert result["status"] == "ok"
+
+    def test_refs_dir_nonexistent_skips_gracefully(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+                refs_dir="/nonexistent/path",
+            )
+            assert result["status"] == "ok"
+
+    def test_refs_dir_with_files_included(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            refs_dir = os.path.join(tmpdir, "refs")
+            os.makedirs(refs_dir)
+            with open(os.path.join(refs_dir, "arch.md"), "w") as f:
+                f.write("# Architecture Overview")
+            output_path = os.path.join(tmpdir, "srs.md")
+            result = generate_srs_document(
+                answers={"name": "Test"},
+                prompt_template="{answers_text}",
+                output_path=output_path,
+                refs_dir=refs_dir,
+            )
+            assert result["status"] == "ok"

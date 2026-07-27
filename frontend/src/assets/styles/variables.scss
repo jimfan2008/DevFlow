@@ -1,101 +1,153 @@
 /* ============================================================
-   Apple-Inspired Design Tokens (from DESIGN.md)
+   AI-Native Design Tokens — Cybernetic Dark Theme
    ============================================================ */
 
-/* ── Colors: Brand & Accent ──────────────────────────────── */
-$primary: #0066cc;
-$primary-focus: #0071e3;
-$primary-on-dark: #2997ff;
-$ink: #1d1d1f;
-$body: #1d1d1f;
-$body-on-dark: #ffffff;
-$body-muted: #cccccc;
-$ink-muted-80: #333333;
-$ink-muted-48: #7a7a7a;
-$divider-soft: #f0f0f0;
-$hairline: #e0e0e0;
-$canvas: #ffffff;
-$canvas-parchment: #f5f5f7;
-$surface-pearl: #fafafc;
-$surface-tile-1: #272729;
-$surface-tile-2: #2a2a2c;
-$surface-tile-3: #252527;
-$surface-black: #000000;
-$surface-chip-translucent: #d2d2d7;
-$on-primary: #ffffff;
-$on-dark: #ffffff;
+/* ── Background Layers (darkest → lightest) ─────────────── */
+$bg-deep: #0a0a0f;
+$bg-dark: #0d0d1a;
+$bg-base: #12121a;
+$bg-surface: #1a1a2e;
+$bg-card: #1e1e32;
+$bg-elevated: #252540;
+
+/* ── Glass Surfaces ─────────────────────────────────────── */
+$glass-bg: rgba(30, 30, 50, 0.75);
+$glass-bg-light: rgba(37, 37, 64, 0.6);
+$glass-border: rgba(0, 212, 255, 0.15);
+$glass-border-hover: rgba(0, 212, 255, 0.35);
+
+/* ── Colors: Brand & Accent ─────────────────────────────── */
+$primary: #00d4ff;
+$primary-focus: #0ea5e9;
+$primary-dim: rgba(0, 212, 255, 0.12);
+$primary-on-dark: #00d4ff;
+$primary-glow-sm: 0 0 10px rgba(0, 212, 255, 0.3);
+$primary-glow-md: 0 0 20px rgba(0, 212, 255, 0.4);
+$primary-glow-lg: 0 0 40px rgba(0, 212, 255, 0.5);
+
+/* ── Secondary & Tertiary ───────────────────────────────── */
+$secondary: #34d399;
+$secondary-dim: rgba(52, 211, 153, 0.12);
+$tertiary: #8b5cf6;
+$tertiary-dim: rgba(139, 92, 246, 0.12);
+$warning: #f59e0b;
+$warning-dim: rgba(245, 158, 11, 0.12);
+$danger: #ef4444;
+$danger-dim: rgba(239, 68, 68, 0.12);
+
+/* ── Gradients ──────────────────────────────────────────── */
+$gradient-primary: linear-gradient(135deg, #00d4ff 0%, #0ea5e9 100%);
+$gradient-secondary: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+$gradient-warm: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+$gradient-accent: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+$gradient-cyber: linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%);
+$gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+/* ── Text Colors ────────────────────────────────────────── */
+$text-primary: #ffffff;
+$text-secondary: rgba(255, 255, 255, 0.72);
+$text-muted: rgba(255, 255, 255, 0.50);
+$text-disabled: rgba(255, 255, 255, 0.30);
+$text-inverse: #0a0a0f;
+
+/* ── Borders ────────────────────────────────────────────── */
+$border-subtle: rgba(255, 255, 255, 0.06);
+$border-default: rgba(255, 255, 255, 0.10);
+$border-hover: rgba(255, 255, 255, 0.18);
+$border-cyan: rgba(0, 212, 255, 0.4);
+
+/* ── Legacy Aliases (backward compat — map to new values) ── */
+$ink: $text-primary;
+$ink-muted-80: $text-secondary;
+$ink-muted-48: $text-muted;
+$body: $text-primary;
+$body-on-dark: $text-primary;
+$on-primary: $text-inverse;
+$on-dark: $text-primary;
+$canvas: $bg-card;
+$canvas-parchment: $bg-surface;
+$surface-pearl: $bg-elevated;
+$surface-tile-1: $bg-deep;
+$surface-tile-2: $bg-dark;
+$surface-tile-3: $bg-base;
+$surface-black: $bg-deep;
+$surface-chip-translucent: rgba(255, 255, 255, 0.08);
+$divider-soft: $border-subtle;
+$hairline: $border-default;
 
 /* ── Priority Colors ────────────────────────────────────── */
 $priority-high: #f59e0b;
 $priority-urgent: #ef4444;
-$priority-normal: #6b7280;
-$priority-low: #10b981;
+$priority-normal: rgba(255, 255, 255, 0.35);
+$priority-low: #34d399;
 
 /* ── Status Colors ──────────────────────────────────────── */
-$status-todo: #6b7280;
-$status-in-progress: #3b82f6;
+$status-todo: rgba(255, 255, 255, 0.30);
+$status-in-progress: #00d4ff;
 $status-review: #f59e0b;
-$status-done: #10b981;
+$status-done: #34d399;
 $status-blocked: #ef4444;
 $status-feedback: #8b5cf6;
 
 /* ── Workload Colors ────────────────────────────────────── */
-$workload-idle: #10b981;
+$workload-idle: #34d399;
 $workload-normal: #f59e0b;
 $workload-busy: #ef4444;
 
-/* ── Semantic Aliases ────────────────────────────────────── */
+/* ── Semantic Aliases ───────────────────────────────────── */
 $primary-color: $primary;
-$text-color-primary: $ink;
-$text-color-secondary: $ink-muted-48;
-$text-color-placeholder: $ink-muted-48;
-$text-color-disabled: $ink-muted-48;
-$text-color-inverse: $on-primary;
-$bg-color-body: $canvas-parchment;
-$bg-color-light: $canvas;
-$bg-color-card: $canvas;
-$bg-color-dark: $surface-black;
-$border-color-light: $hairline;
-$border-color-dark: $ink-muted-48;
-$border-color-focus: $primary;
+$text-color-primary: $text-primary;
+$text-color-secondary: $text-muted;
+$text-color-placeholder: $text-disabled;
+$text-color-disabled: $text-disabled;
+$text-color-inverse: $text-inverse;
+$bg-color-body: $bg-base;
+$bg-color-light: $bg-surface;
+$bg-color-card: $bg-card;
+$bg-color-dark: $bg-deep;
+$border-color-light: $border-default;
+$border-color-dark: $border-subtle;
+$border-color-focus: $border-cyan;
 
-/* ── Elevation ───────────────────────────────────────────── */
-/* Apple uses exactly one product shadow — none on UI chrome */
-$product-shadow: 0 3px 5px 30px rgba(0, 0, 0, 0.22);
-$shadow-sm: none;
-$shadow-base: none;
-$shadow-md: none;
-$shadow-lg: none;
-$shadow-xl: none;
+/* ── Elevation / Glow Shadows ───────────────────────────── */
+$shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 15px rgba(0, 212, 255, 0.04);
+$shadow-base: 0 4px 6px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 212, 255, 0.06);
+$shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35), 0 0 30px rgba(0, 212, 255, 0.08);
+$shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 40px rgba(0, 212, 255, 0.1);
+$shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.5), 0 0 60px rgba(0, 212, 255, 0.12);
 
-/* ── Border Radius ────────────────────────────────────────── */
+/* ── Legacy Product Shadow ──────────────────────────────── */
+$product-shadow: $shadow-lg;
+
+/* ── Border Radius ──────────────────────────────────────── */
 $radius-none: 0px;
-$radius-xs: 5px;
+$radius-xs: 6px;
 $radius-sm: 8px;
-$radius-md: 11px;
-$radius-lg: 18px;
+$radius-md: 12px;
+$radius-lg: 16px;
 $radius-pill: 9999px;
 $radius-full: 9999px;
 
-/* ── Typography: Font Family ──────────────────────────────── */
-$font-display: 'SF Pro Display', 'Inter', system-ui, -apple-system, sans-serif;
-$font-text: 'SF Pro Text', 'Inter', system-ui, -apple-system, sans-serif;
+/* ── Typography: Font Family ────────────────────────────── */
+$font-display: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+$font-text: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+$font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 
-/* ── Typography: Size / Weight / Leading / Tracking ──────── */
-$hero-display-size: 56px;
-$hero-display-weight: 600;
-$hero-display-leading: 1.07;
-$hero-display-tracking: -0.28px;
+/* ── Typography: Size / Weight / Leading / Tracking ─────── */
+$hero-display-size: 48px;
+$hero-display-weight: 700;
+$hero-display-leading: 1.0;
+$hero-display-tracking: -0.5px;
 
-$display-lg-size: 40px;
+$display-lg-size: 32px;
 $display-lg-weight: 600;
-$display-lg-leading: 1.10;
-$display-lg-tracking: 0;
+$display-lg-leading: 1.1;
+$display-lg-tracking: -0.3px;
 
-$display-md-size: 34px;
+$display-md-size: 24px;
 $display-md-weight: 600;
-$display-md-leading: 1.47;
-$display-md-tracking: -0.374px;
+$display-md-leading: 1.2;
+$display-md-tracking: -0.2px;
 
 $lead-size: 28px;
 $lead-weight: 400;
@@ -153,7 +205,7 @@ $nav-link-weight: 400;
 $nav-link-leading: 1.0;
 $nav-link-tracking: -0.12px;
 
-/* ── Legacy Font Aliases ──────────────────────────────────── */
+/* ── Legacy Font Aliases ────────────────────────────────── */
 $font-size-xs: $caption-size;
 $font-size-sm: $caption-size;
 $font-size-base: $body-size;
@@ -167,7 +219,7 @@ $font-weight-medium: 500;
 $font-weight-semibold: 600;
 $font-weight-bold: 700;
 
-/* ── Spacing (8px base unit) ──────────────────────────────── */
+/* ── Spacing (8px base unit) ────────────────────────────── */
 $spacing-xxs: 4px;
 $spacing-xs: 8px;
 $spacing-sm: 12px;
@@ -189,18 +241,23 @@ $spacing-10: 40px;
 $spacing-12: $spacing-xxl;
 $spacing-16: $spacing-section;
 
-/* ── Layout ───────────────────────────────────────────────── */
+/* ── Layout ─────────────────────────────────────────────── */
 $global-nav-height: 44px;
 $sub-nav-height: 52px;
-$sidebar-width: 160px;
+$sidebar-width: 220px;
 $sidebar-collapsed-width: 64px;
 $header-height: $global-nav-height;
 $content-max-width: 980px;
 $grid-max-width: 1440px;
 
-/* ── Kanban ───────────────────────────────────────────────── */
+/* ── Kanban ─────────────────────────────────────────────── */
 $kanban-column-min-width: 280px;
 $kanban-column-max-width: 360px;
 
-/* ── Backdrop Blur ────────────────────────────────────────── */
-$frosted-blur: saturate(180%) blur(20px);
+/* ── Backdrop Blur ──────────────────────────────────────── */
+$frosted-blur: saturate(150%) blur(16px);
+
+/* ── Animation ──────────────────────────────────────────── */
+$transition-fast: 0.15s ease;
+$transition-base: 0.25s ease;
+$transition-slow: 0.4s ease;

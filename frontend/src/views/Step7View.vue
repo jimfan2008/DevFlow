@@ -992,41 +992,46 @@ onUnmounted(() => {
     display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px;
     &-left { display: flex; align-items: flex-start; gap: 16px; h1 { margin: 0; font-size: 24px; font-weight: 600; } }
   }
-  &__subtitle { margin: 4px 0 0; color: #909399; font-size: 14px; }
+  &__subtitle { margin: 4px 0 0; color: $text-muted; font-size: 14px; }
   &__alert { margin-bottom: 16px; }
 
   &__card {
-    text-align: center; padding: 32px 24px; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px;
-    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; }
-    p { color: #909399; margin: 0 0 24px; }
+    text-align: center; padding: 32px 24px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 12px;
+    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; color: $text-primary; }
+    p { color: $text-muted; margin: 0 0 24px; }
     &-icon { font-size: 48px; line-height: 1; }
   }
 
   // ── loading: 自动启动 ──
   &__loading-start {
-    text-align: center; padding: 60px 24px; background: #fff; border: 1px solid #e4e7ed; border-radius: 8px;
-    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; }
-    p { color: #909399; margin: 0 0 12px; }
+    text-align: center; padding: 60px 24px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 12px;
+    h2 { margin: 16px 0 8px; font-size: 20px; font-weight: 600; color: $text-primary; }
+    p { color: $text-muted; margin: 0 0 12px; }
     &-icon { font-size: 48px; line-height: 1; }
   }
 
   // ── executing ──
   &__executing {
-    background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 20px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 12px; padding: 20px;
     &-header { display: flex; align-items: center; gap: 16px; margin-bottom: 16px;
       .step7-view__card-icon { font-size: 36px; }
-      h2 { margin: 0; font-size: 18px; font-weight: 600; }
+      h2 { margin: 0; font-size: 18px; font-weight: 600; color: $text-primary; }
     }
-    &-status { font-size: 14px; color: #e6a23c; font-weight: 500; margin: 4px 0 0 !important; }
+    &-status { font-size: 14px; color: $primary; font-weight: 500; margin: 4px 0 0 !important; }
   }
 
   &__tdd-plan {
     margin-bottom: 16px;
-    .el-collapse { border-radius: 8px; border: 1px solid #e4e7ed; }
+    .el-collapse { border-radius: 8px; border: 1px solid $border-subtle; }
     &-content {
       font-size: 13px; line-height: 1.6; max-height: 400px; overflow-y: auto;
-      white-space: pre-wrap; word-break: break-all; background: #fafafa;
-      padding: 12px; border-radius: 4px; margin: 0;
+      white-space: pre-wrap; word-break: break-all; background: rgba(0, 0, 0, 0.2);
+      padding: 12px; border-radius: 4px; margin: 0; color: $text-secondary;
     }
   }
 
@@ -1038,22 +1043,23 @@ onUnmounted(() => {
   &__main { flex: 1; min-width: 0; }
 
   &__empty-agents {
-    text-align: center; padding: 40px 20px; color: #909399;
+    text-align: center; padding: 40px 20px; color: $text-muted;
     p { font-size: 15px; margin: 0; }
   }
 
   &__connected-agents {
-    margin-bottom: 12px; padding: 10px 12px; background: #f5f7fa; border-radius: 8px;
-    h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+    margin-bottom: 12px; padding: 10px 12px; background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+    h4 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: $text-primary; }
   }
   &__agent-chips { display: flex; flex-wrap: wrap; gap: 6px; }
   &__agent-chip {
     display: flex; align-items: center; gap: 4px; padding: 4px 10px;
-    border-radius: 16px; font-size: 12px; border: 1px solid #e4e7ed; background: #fff;
-    &.role-writer { border-color: #e6a23c; background: #fffbe6; }
-    &.role-tester { border-color: #409eff; background: #ecf5ff; }
+    border-radius: 16px; font-size: 12px;
+    border: 1px solid $glass-border; background: $glass-bg; backdrop-filter: $frosted-blur;
+    &.role-writer { border-color: $warning; background: $warning-dim; }
+    &.role-tester { border-color: $primary; background: $primary-dim; }
     &-icon { font-size: 14px; }
-    &-name { font-weight: 500; }
+    &-name { font-weight: 500; color: $text-primary; }
   }
 
   &__agents {
@@ -1063,48 +1069,50 @@ onUnmounted(() => {
   }
 
   &__agent-panel {
-    background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 10px 12px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 10px; padding: 10px 12px;
     transition: all 0.3s ease;
-    &.status-writing { border-color: #e6a23c; background: #fffbe6; }
-    &.status-testing { border-color: #409eff; background: #ecf5ff; }
-    &.status-passed { border-color: #67c23a; background: #f0f9eb; }
-    &.status-failed { border-color: #f56c6c; background: #fef0f0; }
-    &.status-pending { border-color: #dcdfe6; background: #fafafa; }
+    &.status-writing { border-color: $warning; background: $warning-dim; }
+    &.status-testing { border-color: $primary; background: $primary-dim; }
+    &.status-passed { border-color: $secondary; background: $secondary-dim; }
+    &.status-failed { border-color: $danger; background: $danger-dim; }
+    &.status-pending { border-color: $border-default; background: rgba(255, 255, 255, 0.03); }
   }
 
   &__agent-header {
     display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
   }
-  &__agent-index { font-size: 11px; color: #909399; background: #f5f7fa; padding: 1px 5px; border-radius: 3px; min-width: 22px; text-align: center; }
-  &__agent-name { font-weight: 600; font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__agent-index { font-size: 11px; color: $text-muted; background: rgba(255, 255, 255, 0.06); padding: 1px 5px; border-radius: 3px; min-width: 22px; text-align: center; }
+  &__agent-name { font-weight: 600; font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $text-primary; }
 
   &__agent-body { margin-bottom: 4px; }
   &__agent-line { display: flex; align-items: center; gap: 4px; font-size: 12px; margin-bottom: 2px; }
-  &__agent-label { color: #909399; min-width: 48px; font-size: 11px; }
-  &__agent-value { color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  &__agent-label { color: $text-muted; min-width: 48px; font-size: 11px; }
+  &__agent-value { color: $text-primary; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  &__agent-msg { font-size: 11px; color: #606266; line-height: 1.3; margin-bottom: 4px; }
+  &__agent-msg { font-size: 11px; color: $text-secondary; line-height: 1.3; margin-bottom: 4px; }
   &__agent-bar { margin-top: 4px; }
 
   // ── Right: TODO sidebar ──
   &__sidebar { width: 280px; flex-shrink: 0; }
   &__sidebar-card {
-    background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 16px;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
+    border: 1px solid $glass-border; border-radius: 12px; padding: 16px;
     position: sticky; top: 16px;
-    h3 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+    h3 { margin: 0 0 12px; font-size: 16px; font-weight: 600; color: $text-primary; }
   }
 
   &__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
   &__stat {
-    padding: 8px 10px; border-radius: 6px; border: 1px solid #ebeef5;
+    padding: 8px 10px; border-radius: 6px; border: 1px solid $border-subtle;
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 13px;
-    &--total { background: #f5f7fa; grid-column: 1 / -1; }
-    &--passed { background: #f0f9eb; border-color: #b3e19d; }
-    &--failed { background: #fef0f0; border-color: #fbc4c4; }
-    &--active { background: #ecf5ff; border-color: #a6c8ff; }
-    &--pending { background: #fafafa; border-color: #dcdfe6; }
-    &-value { font-weight: 700; font-size: 16px; }
+    font-size: 13px; color: $text-secondary;
+    &--total { background: rgba(255, 255, 255, 0.03); grid-column: 1 / -1; }
+    &--passed { background: $secondary-dim; border-color: rgba(52, 211, 153, 0.3); }
+    &--failed { background: $danger-dim; border-color: rgba(239, 68, 68, 0.3); }
+    &--active { background: $primary-dim; border-color: rgba(0, 212, 255, 0.3); }
+    &--pending { background: rgba(255, 255, 255, 0.03); border-color: $border-default; }
+    &-value { font-weight: 700; font-size: 16px; color: $text-primary; }
   }
 
   &__progress-bar { margin-bottom: 12px; }
@@ -1113,16 +1121,16 @@ onUnmounted(() => {
   &__task-item {
     display: flex; align-items: center; gap: 6px; padding: 6px 8px;
     border-radius: 4px; font-size: 12px; margin-bottom: 3px;
-    border-left: 3px solid transparent;
-    &.status-passed { background: #f0f9eb; border-color: #67c23a; }
-    &.status-failed { background: #fef0f0; border-color: #f56c6c; }
-    &.status-writing, &.status-testing { background: #fdf6ec; border-color: #e6a23c; }
-    &.status-pending { border-color: #dcdfe6; }
+    border-left: 3px solid transparent; color: $text-secondary;
+    &.status-passed { background: $secondary-dim; border-color: $secondary; }
+    &.status-failed { background: $danger-dim; border-color: $danger; }
+    &.status-writing, &.status-testing { background: $warning-dim; border-color: $warning; }
+    &.status-pending { border-color: $border-default; }
   }
   &__task-icon { font-size: 14px; }
   &__task-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  &__task-attempt { font-size: 10px; color: #909399; }
-  &__task-empty { text-align: center; color: #c0c4cc; padding: 20px 0; font-size: 13px; }
+  &__task-attempt { font-size: 10px; color: $text-muted; }
+  &__task-empty { text-align: center; color: $text-disabled; padding: 20px 0; font-size: 13px; }
 
   &__prompt-toggle { font-size: 11px; color: #409eff; padding: 0 4px; }
   &__sep { color: #dcdfe6; font-size: 12px; margin: 0 2px; }
@@ -1148,10 +1156,10 @@ onUnmounted(() => {
   &__stage-log { max-height: 200px; overflow-y: auto; }
   &__progress-msg {
     padding: 4px 10px; margin-bottom: 3px; border-radius: 4px; font-size: 12px;
-    line-height: 1.4; background: #fff; border: 1px solid #ebeef5;
-    &.stage { border-left: 3px solid #e6a23c; }
-    &.done { border-left: 3px solid #67c23a; background: #f0f9eb; }
-    &.error { border-left: 3px solid #f56c6c; background: #fef0f0; }
+    line-height: 1.4; background: rgba(255, 255, 255, 0.03); border: 1px solid $border-subtle; color: $text-secondary;
+    &.stage { border-left: 3px solid $warning; }
+    &.done { border-left: 3px solid $secondary; background: $secondary-dim; }
+    &.error { border-left: 3px solid $danger; background: $danger-dim; }
   }
 
   // ── result panel (qa_review / completed / error) ──
@@ -1162,29 +1170,30 @@ onUnmounted(() => {
   }
   &__summary-card {
     display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-    border-radius: 8px; border: 1px solid #e4e7ed; background: #fff;
+    border-radius: 8px; border: 1px solid $glass-border;
+    background: $glass-bg; backdrop-filter: $frosted-blur;
     flex: 1; min-width: 160px;
-    &.status-passed { border-color: #67c23a; background: #f0f9eb; }
-    &.status-failed { border-color: #f56c6c; background: #fef0f0; }
+    &.status-passed { border-color: $secondary; background: $secondary-dim; }
+    &.status-failed { border-color: $danger; background: $danger-dim; }
   }
   &__summary-icon { font-size: 20px; }
   &__summary-body { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   &__summary-label { font-weight: 500; font-size: 13px; }
-  &__summary-rounds { font-size: 11px; color: #909399; }
+  &__summary-rounds { font-size: 11px; color: $text-muted; }
 
   &__resume-action { margin-top: 8px; width: 100%; text-align: center; }
 
-  &__tabs { background: #fff; border: 1px solid #e4e7ed; border-radius: 8px; padding: 16px; margin-top: 12px; }
+  &__tabs { background: $glass-bg; backdrop-filter: $frosted-blur; border: 1px solid $glass-border; border-radius: 10px; padding: 16px; margin-top: 12px; }
   &__doc-content { max-height: 600px; overflow-y: auto;
     pre { white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6; margin: 0; }
   }
   &__stats-detail { padding: 8px 0; }
   &__stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   &__stats-item {
-    padding: 12px 16px; background: #f5f7fa; border-radius: 6px;
+    padding: 12px 16px; background: rgba(255, 255, 255, 0.04); border-radius: 6px;
     display: flex; justify-content: space-between; align-items: center;
-    font-size: 14px;
-    strong { font-size: 18px; }
+    font-size: 14px; color: $text-secondary;
+    strong { font-size: 18px; color: $text-primary; }
   }
 
   &__resume-section { margin-top: 24px; }

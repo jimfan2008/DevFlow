@@ -10,6 +10,9 @@ from typing import List, Optional, Dict, Any, Set
 from datetime import datetime, timezone
 import json
 import uuid
+import logging
+
+logger = logging.getLogger("devflow.engine")
 
 
 @dataclass
@@ -83,7 +86,8 @@ class WorkflowEngine:
         if auto_supervise and self.db:
             try:
                 self.haimei_auto_advance()
-            except Exception:
+            except Exception as e:
+                logger.error(f"[HAIMEI_DEBUG] __init__ haimei_auto_advance failed: {e}")
                 pass
 
     def _load_from_db(self):
@@ -103,16 +107,9 @@ class WorkflowEngine:
                 pass
             return
 
-        def _step_is_active_or_done(r) -> bool:
-            if r.status in ("in_progress", "completed"):
-                return True
-            if r.status == "qa_review" and (r.output_artifacts or {}).get("qa_passed"):
-                return True
-            return False
-
         max_step = 1
         for r in rows:
-            if _step_is_active_or_done(r):
+            if r.status == "in_progress" or r.status == "completed":
                 max_step = max(max_step, r.step_number)
             if r.step_number == 2 and r.output_artifacts:
                 self._cached_step2_artifacts = r.output_artifacts
@@ -131,7 +128,8 @@ class WorkflowEngine:
         # 海梅：加载后自动检查Agent状态并推进
         try:
             self.haimei_auto_advance()
-        except Exception:
+        except Exception as e:
+            logger.error(f"[HAIMEI_DEBUG] _load_from_db haimei_auto_advance failed: {e}")
             pass
 
     def _init_default_steps(self):
@@ -139,13 +137,6 @@ class WorkflowEngine:
         from app.models.project import Project
 
         for s in self.steps:
-            # 使用 merge/upsert 模式：先查是否存在，存在则跳过，不存在再插入
-            existing = self.db.query(WorkflowStep).filter(
-                WorkflowStep.project_id == self.project_id,
-                WorkflowStep.step_number == s.step_number,
-            ).first()
-            if existing:
-                continue
             row = WorkflowStep(
                 project_id=self.project_id,
                 step_number=s.step_number,
@@ -175,56 +166,89 @@ class WorkflowEngine:
         ).first()
 
     def _generate_step_handover(self, step_number: int):
-        """生成步骤 N → N+1 交接文档并存入 DB（跳过已存在 handover_doc 的步骤）"""
+        """生成步骤 N → N+1 交接文档并存入 DB（跳过已存在 handover_doc 的步骤）
+        同时提取并保存 handover_doc_path 到 output_artifacts。
+        """
         row = self._get_step_row(step_number)
         if not row:
             return
         existing = row.output_artifacts or {}
-        if existing.get("handover_doc"):
-            return
 
-        next_step = step_number + 1
-        step_defs = {s.step_number: s for s in self.steps}
-        step_name = step_defs[step_number].name if step_number in step_defs else f"步骤{step_number}"
-        next_name = step_defs[next_step].name if next_step in step_defs else f"步骤{next_step}"
+        if not existing.get("handover_doc"):
+            next_step = step_number + 1
+            step_defs = {s.step_number: s for s in self.steps}
+            step_name = step_defs[step_number].name if step_number in step_defs else f"步骤{step_number}"
+            next_name = step_defs[next_step].name if next_step in step_defs else f"步骤{next_step}"
 
-        include_keys = [k for k in existing.keys()
-                        if k not in ("status", "message", "saved_at",
-                                     "qa_passed", "qa_checked", "qa_inspections",
-                                     "handover_path", "handover_doc")]
-        lines = [
-            f"# 步骤 {step_number} → 步骤 {next_step} 交接文档",
-            "",
-            f"## 完成步骤",
-            f"{step_name}",
-            "",
-            f"## 下一步",
-            f"{next_name}",
-            "",
-            f"## 完成时间",
-            f"{datetime.now(timezone.utc).isoformat()}",
-            "",
-            "## 关键产物",
-        ]
-        for k in include_keys:
-            v = existing[k]
-            if isinstance(v, str) and len(v) > 200:
-                lines.append(f"- {k}: {v[:200]}...")
-            elif isinstance(v, str):
-                lines.append(f"- {k}: {v}")
-            elif isinstance(v, (dict, list)):
-                import json as _j
-                short = _j.dumps(v, ensure_ascii=False)[:200]
-                lines.append(f"- {k}: {short}")
-            else:
-                lines.append(f"- {k}: {v}")
-        lines += [
-            "",
-            "## 交接说明",
-            f"{step_name} 已完成并通过检验。{next_name} 请基于以上产出成果推进下一步。",
-        ]
-        handover = "\n".join(lines)
-        row.output_artifacts = {**existing, "handover_doc": handover}
+            include_keys = [k for k in existing.keys()
+                            if k not in ("status", "message", "saved_at",
+                                         "qa_passed", "qa_checked", "qa_inspections",
+                                         "handover_path", "handover_doc", "handover_doc_path")]
+            lines = [
+                f"# 步骤 {step_number} → 步骤 {next_step} 交接文档",
+                "",
+                f"## 完成步骤",
+                f"{step_name}",
+                "",
+                f"## 下一步",
+                f"{next_name}",
+                "",
+                f"## 完成时间",
+                f"{datetime.now(timezone.utc).isoformat()}",
+                "",
+                "## 关键产物",
+            ]
+            for k in include_keys:
+                v = existing[k]
+                if isinstance(v, str) and len(v) > 200:
+                    lines.append(f"- {k}: {v[:200]}...")
+                elif isinstance(v, str):
+                    lines.append(f"- {k}: {v}")
+                elif isinstance(v, (dict, list)):
+                    import json as _j
+                    short = _j.dumps(v, ensure_ascii=False)[:200]
+                    lines.append(f"- {k}: {short}")
+                else:
+                    lines.append(f"- {k}: {v}")
+            lines += [
+                "",
+                "## 交接说明",
+                f"{step_name} 已完成并通过检验。{next_name} 请基于以上产出成果推进下一步。",
+            ]
+            handover = "\n".join(lines)
+            existing["handover_doc"] = handover
+
+        # ── 提取 handover_doc_path ──
+        if not existing.get("handover_doc_path"):
+            handover_doc_path = ""
+            if existing.get("doc_path") and isinstance(existing["doc_path"], str):
+                # 步骤3/5_1: 单个文档路径
+                handover_doc_path = existing["doc_path"]
+            elif existing.get("doc_paths") and isinstance(existing["doc_paths"], dict):
+                # 步骤4: 多文档路径字典 → 取第一个
+                paths = [v for v in existing["doc_paths"].values() if v]
+                if paths:
+                    handover_doc_path = paths[0]
+            elif existing.get("docs_dir"):
+                # 步骤4: docs_dir 作为文档目录
+                handover_doc_path = existing["docs_dir"]
+            # 对于步骤6-14 (dispatch_step_n 通用模式)，content 保存到 output_artifacts
+            # 没有物理文件路径，用逻辑路径 step{N}://{artifact_key}
+            elif existing.get("status") == "done":
+                artifact_key_candidates = [
+                    "tdd_plan", "tdd_cases", "code_plan", "code",
+                    "deployment_log", "test_report", "security_report",
+                    "production_log", "project_docs", "env_info",
+                ]
+                for ak in artifact_key_candidates:
+                    if existing.get(ak):
+                        handover_doc_path = f"step{step_number}://{ak}"
+                        break
+
+            if handover_doc_path:
+                existing["handover_doc_path"] = handover_doc_path
+
+        row.output_artifacts = existing
         self.db.commit()
 
     def advance_step(self, target_step: int):
@@ -253,7 +277,7 @@ class WorkflowEngine:
         if row:
             row.status = "in_progress"
             row.started_at = datetime.now(timezone.utc)
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing["haimei_supervision"] = supervision
             row.output_artifacts = existing
             self.db.commit()
@@ -275,24 +299,26 @@ class WorkflowEngine:
             "haimei_supervisor": "haimei",
         }
 
-        # If internal hourong QA already passed (qa_passed=True), skip qa_review
-        existing_arts = (artifacts or row.output_artifacts or {})
-        if existing_arts.get("qa_passed"):
-            row.status = "completed"
-            row.completed_at = datetime.now(timezone.utc)
-            self._generate_step_handover(step_number)
-        elif step_number in QA_REQUIRED_STEPS:
-            row.status = "qa_review"
+        # 如果步骤内部已通过 hourong QA（如步骤6-14的收敛循环），直接标记完成
+        existing_artifacts = artifacts or row.output_artifacts or {}
+        if step_number in QA_REQUIRED_STEPS:
+            if existing_artifacts.get("qa_passed"):
+                row.status = "completed"
+                row.completed_at = datetime.now(timezone.utc)
+            else:
+                row.status = "qa_review"
         else:
             row.status = "completed"
             row.completed_at = datetime.now(timezone.utc)
-            self._generate_step_handover(step_number)
+
+        # 所有步骤都生成交接文档（含 handover_doc_path），QA步骤在 pass_qa 时也会生成一次
+        self._generate_step_handover(step_number)
 
         if artifacts:
             artifacts.update(haimei_review)
             row.output_artifacts = artifacts
         else:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(haimei_review)
             row.output_artifacts = existing
 
@@ -314,7 +340,7 @@ class WorkflowEngine:
         row = self._get_step_row(step_number)
         if row:
             # 海梅记录重置原因
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing["haimei_reset"] = {
                 "action": "海梅重置该步骤",
                 "previous_status": row.status,
@@ -330,18 +356,6 @@ class WorkflowEngine:
         row = self._get_step_row(step_number)
         if not row:
             raise ValueError(f"步骤 {step_number} 不存在")
-        if row.status == "completed":
-            self.current_step = max(self.current_step, step_number + 1)
-            existing = dict(row.output_artifacts or {})
-            existing["haimei_qa_approval"] = {
-                "action": "海梅确认QA检验通过",
-                "qa_agent": qa_agent_id,
-                "approved_at": datetime.now(timezone.utc).isoformat(),
-                "message": f"海梅已确认第{step_number}步QA检验通过，准予进入下一步",
-            }
-            row.output_artifacts = existing
-            self.db.commit()
-            return row.to_dict() if hasattr(row, 'to_dict') else {}
         if row.status != "qa_review":
             raise ValueError(f"第{step_number}步必须先完成步骤再进行QA检验")
 
@@ -351,7 +365,7 @@ class WorkflowEngine:
         self._generate_step_handover(step_number)
 
         # 海梅记录QA通过
-        existing = dict(row.output_artifacts or {})
+        existing = row.output_artifacts or {}
         existing["haimei_qa_approval"] = {
             "action": "海梅确认QA检验通过",
             "qa_agent": qa_agent_id,
@@ -387,7 +401,7 @@ class WorkflowEngine:
         row.status = "rejected"
 
         # 海梅记录QA失败，标记异常
-        existing = dict(row.output_artifacts or {})
+        existing = row.output_artifacts or {}
         existing["haimei_qa_rejection"] = {
             "action": "海梅记录QA检验未通过",
             "qa_agent": qa_agent_id,
@@ -437,7 +451,7 @@ class WorkflowEngine:
         for step_num in range(4, 17):
             row = self._get_step_row(step_num)
             if row:
-                existing = dict(row.output_artifacts or {})
+                existing = row.output_artifacts or {}
                 existing["haimei_iteration_reset"] = {
                     "action": "海梅因用户不满意重置该步骤",
                     "reset_at": datetime.now(timezone.utc).isoformat(),
@@ -456,7 +470,7 @@ class WorkflowEngine:
         if row:
             row.status = "in_progress"
             row.started_at = datetime.now(timezone.utc)
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(haimei_iteration_note)
             row.output_artifacts = existing
 
@@ -486,7 +500,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(2)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -501,18 +515,14 @@ class WorkflowEngine:
         return {}
 
     def save_step3_artifacts(self, artifacts: dict):
-        if hasattr(self, '_cached_step3_artifacts') and self._cached_step3_artifacts:
-            self._cached_step3_artifacts.update(artifacts)
-        else:
-            self._cached_step3_artifacts = artifacts
+        self._cached_step3_artifacts = artifacts
         self._ensure_steps()
         row = self._get_step_row(3)
-        if not row:
-            raise ValueError(f"项目{self.project_id}不存在第3步，无法保存产物")
-        existing = dict(row.output_artifacts or {})
-        existing.update(artifacts)
-        row.output_artifacts = existing
-        self.db.commit()
+        if row:
+            existing = row.output_artifacts or {}
+            existing.update(artifacts)
+            row.output_artifacts = existing
+            self.db.commit()
 
     def get_step3_artifacts(self) -> dict:
         if hasattr(self, '_cached_step3_artifacts') and self._cached_step3_artifacts:
@@ -524,18 +534,15 @@ class WorkflowEngine:
         return {}
 
     def save_step4_artifacts(self, artifacts: dict):
-        self._cached_step4_artifacts = artifacts
         self._ensure_steps()
         row = self._get_step_row(4)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
 
     def get_step4_artifacts(self) -> dict:
-        if hasattr(self, '_cached_step4_artifacts') and self._cached_step4_artifacts:
-            return self._cached_step4_artifacts
         self._ensure_steps()
         row = self._get_step_row(4)
         if row and row.output_artifacts:
@@ -547,7 +554,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(5)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -564,7 +571,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(6)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -581,7 +588,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(7)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -598,7 +605,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(8)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -614,7 +621,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(9)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -630,7 +637,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(10)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -646,7 +653,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(11)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -662,7 +669,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(12)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -678,7 +685,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(13)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -694,7 +701,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(14)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -710,7 +717,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(15)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -726,7 +733,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(16)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -747,7 +754,7 @@ class WorkflowEngine:
         self._ensure_steps()
         row = self._get_step_row(step_number)
         if row:
-            existing = dict(row.output_artifacts or {})
+            existing = row.output_artifacts or {}
             existing.update(artifacts)
             row.output_artifacts = existing
             self.db.commit()
@@ -811,7 +818,7 @@ class WorkflowEngine:
                 WorkflowStep.status == "in_progress",
             ).all()
             for r in rows:
-                existing = dict(r.output_artifacts or {})
+                existing = r.output_artifacts or {}
                 existing["haimei_error"] = error_info
                 existing["haimei_error_at"] = datetime.now(timezone.utc).isoformat()
                 existing["haimei_action"] = "海梅已标记该Agent异常，准备恢复"
@@ -831,7 +838,7 @@ class WorkflowEngine:
                 WorkflowStep.status == "in_progress",
             ).all()
             for r in rows:
-                existing = dict(r.output_artifacts or {})
+                existing = r.output_artifacts or {}
                 existing["haimei_restored_at"] = datetime.now(timezone.utc).isoformat()
                 existing["haimei_message"] = f"海梅已恢复{agent_role}到正常工作状态"
                 r.output_artifacts = existing
@@ -870,16 +877,6 @@ class WorkflowEngine:
             "mobilized_at": datetime.now(timezone.utc).isoformat(),
         }
 
-    def _is_step_effectively_completed(self, row) -> bool:
-        """检查步骤是否有效完成（状态为completed，或qa_review但产物标记了qa_passed）"""
-        if row.status == "completed":
-            return True
-        if row.status == "qa_review":
-            artifacts = row.output_artifacts or {}
-            if artifacts.get("qa_passed"):
-                return True
-        return False
-
     def haimei_supervise_step(self, step_number: int) -> dict:
         """海梅对即将执行的步骤进行全面监督审查"""
         step_defs = {s.step_number: s for s in self.steps}
@@ -892,10 +889,10 @@ class WorkflowEngine:
             if not row:
                 return {"approved": False, "message": f"步骤{step_number}未初始化"}
 
-            # 1. 检查前一步是否完成（支持 qa_review + qa_passed 视为已完成）
+            # 1. 检查前一步是否完成
             if step_number > 1:
                 prev_row = self._get_step_row(step_number - 1)
-                if prev_row and not self._is_step_effectively_completed(prev_row):
+                if prev_row and prev_row.status not in ("completed",):
                     return {
                         "approved": False,
                         "message": f"第{step_number-1}步尚未完成，海梅不允许执行第{step_number}步",
@@ -967,22 +964,15 @@ class WorkflowEngine:
                         action_needed = f"Agent {r.executor_agent_id} 忙碌中"
                 step_info["action_needed"] = action_needed
 
-            if r.status == "qa_review" and not (r.output_artifacts or {}).get("qa_passed"):
+            if r.status == "qa_review":
                 blocked_steps.append(r.step_number)
 
             steps_status[str(r.step_number)] = step_info
 
         agent_statuses = self.haimei_get_all_agent_statuses()
 
-        # 计算整体完成百分比（包含 qa_review + qa_passed 视为已完成）
-        def _is_completed(row) -> bool:
-            if row.status == "completed":
-                return True
-            if row.status == "qa_review" and (row.output_artifacts or {}).get("qa_passed"):
-                return True
-            return False
-
-        completed = sum(1 for r in rows if _is_completed(r))
+        # 计算整体完成百分比
+        completed = sum(1 for r in rows if r.status == "completed")
         total = len(rows) if rows else 16
         progress_pct = round(completed / total * 100, 1) if total > 0 else 0
 
@@ -1086,11 +1076,7 @@ class WorkflowEngine:
             if s.step_number == 1:
                 continue
             row = step_map.get(s.step_number)
-            raw_status = row.status if row else "pending"
-            if raw_status == "qa_review" and row and (row.output_artifacts or {}).get("qa_passed"):
-                step_status = "completed"
-            else:
-                step_status = raw_status
+            step_status = row.status if row else "pending"
             mapping = step_status_map.get(step_status, step_status_map["pending"])
             executor = s.executor_role or "user"
 
@@ -1120,8 +1106,7 @@ class WorkflowEngine:
                 }
                 existing.context = ctx
             else:
-                from sqlalchemy import insert
-                stmt = insert(Task).values(
+                task = Task(
                     id=str(uuid.uuid4()),
                     project_id=self.project_id,
                     name=task_name,
@@ -1141,10 +1126,12 @@ class WorkflowEngine:
                     },
                     created_at=now,
                     updated_at=now,
-                    started_at=now if step_status == "in_progress" else None,
-                    completed_at=now if step_status == "completed" else None,
                 )
-                self.db.execute(stmt)
+                if step_status == "in_progress":
+                    task.started_at = now
+                if step_status == "completed":
+                    task.completed_at = now
+                self.db.add(task)
             synced_count += 1
 
         if synced_count:
@@ -1230,12 +1217,8 @@ class WorkflowEngine:
                         actions.append(f"海梅发现Agent {r.executor_agent_id}离线，等待上线")
                 haimei_phase_msg = haimei_phase_msg or f"阶段2: 第{r.step_number}步正在执行中，海梅持续监控"
 
-        # Phase 3: 检查qa_review阻塞步骤（排除已标记 qa_passed 的步骤）
-        qa_blocked = [
-            r for r in rows
-            if r.status == "qa_review"
-            and not (r.output_artifacts or {}).get("qa_passed")
-        ]
+        # Phase 3: 检查qa_review阻塞步骤
+        qa_blocked = [r for r in rows if r.status == "qa_review"]
         if qa_blocked:
             blocked_nums = [r.step_number for r in qa_blocked]
             actions.append(f"海梅等待步骤 {blocked_nums} 的QA检验通过")
@@ -1264,8 +1247,11 @@ class WorkflowEngine:
             if not r:
                 continue
             if r.status == "pending":
+                # 步骤4-14由前端触发执行，海梅不自动推进
+                if 4 <= s.step_number <= 14:
+                    continue
                 prev_row = step_map.get(s.step_number - 1)
-                if prev_row and self._is_step_effectively_completed(prev_row):
+                if prev_row and prev_row.status == "completed":
                     try:
                         # 检查执行Agent是否可用
                         agent_role = s.executor_role
@@ -1292,17 +1278,63 @@ class WorkflowEngine:
                         actions.append(f"海梅尝试推进第{s.step_number}步但条件不满足: {e}")
                         break
             elif r.status == "in_progress":
-                pass
-            elif r.status == "completed" or (r.status == "qa_review" and (r.output_artifacts or {}).get("qa_passed")):
+                # 检查是否有后台任务在运行（防止僵尸状态）
+                from app.services.haimei_executor import HaimeiStepExecutor
+                has_task = HaimeiStepExecutor.is_running(self.project_id, s.step_number)
+                task_key = f"{self.project_id}:step{s.step_number}"
+                logger.info(f"[ZOMBIE_DEBUG] step{s.step_number} in_progress, has_task={has_task}, _tasks_keys={list(HaimeiStepExecutor._tasks.keys())}")
+                if not has_task:
+                    # 无后台任务 = 僵尸状态，尝试重启
+                    artifacts = self.get_step_artifacts(s.step_number) or {}
+                    logger.info(f"[ZOMBIE_DEBUG] step{s.step_number} in_progress no task, artifacts={str(artifacts)[:100]}, has_status={bool(artifacts.get('status'))}, status_val={artifacts.get('status','')}")
+                    # 只有完全无产物（status 为空 且 无文档 且 无环境配置）才视为僵尸
+                    # status="generating" 表示正在执行，不应重启
+                    if (not artifacts.get("status") and
+                        not artifacts.get("design_doc") and
+                        not artifacts.get("env_info")):
+                        agent_role = s.executor_role
+                        if agent_role:
+                            self.haimei_restore_agent(agent_role)
+                        # 重启后台任务（使用自动执行模块）
+                        if 4 <= s.step_number <= 14:
+                            actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，重置后等待前端触发执行")
+                            self.reset_step(s.step_number)
+                        else:
+                            actions.append(f"海梅检测到第{s.step_number}步处于僵尸状态，等待前端触发执行")
+                    elif artifacts.get("status") in ("generating",):
+                        # status="generating" 但无后台任务
+                        # 给新生任务 120 秒宽限期，让后台任务有时间注册
+                        is_fresh = False
+                        if r.started_at:
+                            from datetime import datetime, timezone
+                            _start = r.started_at
+                            # 兼容 started_at 可能是 ISO 字符串或 naive datetime
+                            if isinstance(_start, str):
+                                try:
+                                    _start = datetime.fromisoformat(_start)
+                                except Exception:
+                                    _start = datetime.now(timezone.utc)
+                            if _start.tzinfo is None:
+                                _start = _start.replace(tzinfo=timezone.utc)
+                            elapsed = (datetime.now(timezone.utc) - _start).total_seconds()
+                            if elapsed < 120:
+                                is_fresh = True
+                        if not has_task and not is_fresh:
+                            logger.info(f"[ZOMBIE] step{s.step_number} status=generating but no task, resetting")
+                            if 4 <= s.step_number <= 14:
+                                self.reset_step(s.step_number)
+                                actions.append(f"海梅检测到第{s.step_number}步任务已完成但状态未更新，已重置")
+                            else:
+                                actions.append(f"海梅检测到第{s.step_number}步任务已完成但状态未更新，等待前端触发执行")
+                        else:
+                            actions.append(f"海梅检测到第{s.step_number}步正在执行中（status={artifacts.get('status')}），跳过")
+                    break
+            elif r.status == "completed":
                 continue
 
-        # Phase 6: 检查项目是否全部完成（包含 qa_review + qa_passed 视为已完成）
+        # Phase 6: 检查项目是否全部完成
         all_done = all(
-            step_map.get(s.step_number) and (
-                step_map[s.step_number].status == "completed"
-                or (step_map[s.step_number].status == "qa_review"
-                    and (step_map[s.step_number].output_artifacts or {}).get("qa_passed"))
-            )
+            step_map.get(s.step_number) and step_map[s.step_number].status == "completed"
             for s in self.steps
         )
         if all_done:
@@ -1438,143 +1470,3 @@ class WorkflowEngine:
                 for s in agent_statuses.values()
             ) else "海梅正在处理异常Agent",
         }
-
-    def step6(self, project_id: str, step_number: int) -> dict:
-        """第六步：海梅制订TDD测试用例计划"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}
-
-    def step9(self, project_id: str, step_number: int) -> dict:
-        """第九步：后发蜂群编写功能代码"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}
-
-    def step10(self, project_id: str, step_number: int) -> dict:
-        """第十步：后富部署到测试环境"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}
-
-    def step11(self, project_id: str, step_number: int) -> dict:
-        """第十一步：后达蜂群全面测试"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}
-
-    def step12(self, project_id: str, step_number: int) -> dict:
-        """第十二步：后华安全审计"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}
-
-    def step13(self, project_id: str, step_number: int) -> dict:
-        """第十三步：后富部署到生产环境"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}
-
-    def step14(self, project_id: str, step_number: int) -> dict:
-        """第十四步：后贵完善项目文档"""
-        from app.models.workflow_step import WorkflowStep
-        step = self.db.query(WorkflowStep).filter(
-            WorkflowStep.project_id == project_id,
-            WorkflowStep.step_number == step_number
-        ).first()
-        if step and step.status == 'in_progress':
-            return {"status": "in_progress"}
-        self.advance_step(step_number)
-        import time
-        time.sleep(1)
-        self.complete_step(step_number)
-        self.pass_qa(step_number)
-        try:
-            self.haimei_auto_advance()
-        except Exception:
-            pass
-        return {"status": "completed"}

@@ -1,0 +1,1141 @@
+[
+  {
+    "name": ".codegraph",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".gitignore",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-shm",
+        "type": "file"
+      },
+      {
+        "name": "codegraph.db-wal",
+        "type": "file"
+      },
+      {
+        "name": "daemon.log",
+        "type": "file"
+      },
+      {
+        "name": "daemon.pid",
+        "type": "file"
+      },
+      {
+        "name": "daemon.sock",
+        "type": "file"
+      },
+      {
+        "name": "errors.log",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": ".coverage",
+    "type": "file"
+  },
+  {
+    "name": ".env",
+    "type": "file"
+  },
+  {
+    "name": ".env.example",
+    "type": "file"
+  },
+  {
+    "name": ".env.production",
+    "type": "file"
+  },
+  {
+    "name": ".git",
+    "type": "directory",
+    "children": [
+      {
+        "name": ".COMMIT_EDITMSG.swn",
+        "type": "file"
+      },
+      {
+        "name": ".COMMIT_EDITMSG.swo",
+        "type": "file"
+      },
+      {
+        "name": ".COMMIT_EDITMSG.swp",
+        "type": "file"
+      },
+      {
+        "name": "COMMIT_EDITMSG",
+        "type": "file"
+      },
+      {
+        "name": "FETCH_HEAD",
+        "type": "file"
+      },
+      {
+        "name": "HEAD",
+        "type": "file"
+      },
+      {
+        "name": "ORIG_HEAD",
+        "type": "file"
+      },
+      {
+        "name": "branches",
+        "type": "directory",
+        "children": []
+      },
+      {
+        "name": "config",
+        "type": "file"
+      },
+      {
+        "name": "description",
+        "type": "file"
+      },
+      {
+        "name": "hooks",
+        "type": "directory",
+        "children": [
+          {
+            "name": "applypatch-msg.sample",
+            "type": "file"
+          },
+          {
+            "name": "commit-msg.sample",
+            "type": "file"
+          },
+          {
+            "name": "fsmonitor-watchman.sample",
+            "type": "file"
+          },
+          {
+            "name": "post-update.sample",
+            "type": "file"
+          },
+          {
+            "name": "pre-applypatch.sample",
+            "type": "file"
+          },
+          {
+            "name": "pre-commit.sample",
+            "type": "file"
+          },
+          {
+            "name": "pre-merge-commit.sample",
+            "type": "file"
+          },
+          {
+            "name": "pre-push.sample",
+            "type": "file"
+          },
+          {
+            "name": "pre-rebase.sample",
+            "type": "file"
+          },
+          {
+            "name": "pre-receive.sample",
+            "type": "file"
+          },
+          {
+            "name": "prepare-commit-msg.sample",
+            "type": "file"
+          },
+          {
+            "name": "push-to-checkout.sample",
+            "type": "file"
+          },
+          {
+            "name": "sendemail-validate.sample",
+            "type": "file"
+          },
+          {
+            "name": "update.sample",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "index",
+        "type": "file"
+      },
+      {
+        "name": "info",
+        "type": "directory",
+        "children": [
+          {
+            "name": "exclude",
+            "type": "file"
+          },
+          {
+            "name": "refs",
+            "type": "file"
+          }
+        ]
+      },
+      {
+        "name": "logs",
+        "type": "directory",
+        "children": [
+          {
+            "name": "HEAD",
+            "type": "file"
+          },
+          {
+            "name": "refs",
+            "type": "directory",
+            "children": [
+              {
+                "name": "heads",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "main",
+                    "type": "file"
+                  }
+                ]
+              },
+              {
+                "name": "remotes",
+                "type": "directory",
+                "children": [
+                  {
+                    "name": "origin",
+                    "type": "directory",
+                    "children": [
+                      {
+                        "name": "HEAD",
+                        "type": "file"
+                      },
+                      {
+                        "name": "main",
+                        "type": "file"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "stash",
+                "type": "file"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "objects",
+        "type": "directory",
+        "children": [
+          {
+            "name": "00",
+            "type": "directory",
+            "children": [
+              {
+                "name": "04987c7ddc1014e1c9c35905f4ee2d9a7f967c",
+                "type": "file"
+              },
+              {
+                "name": "10a7c6110180a7628760ea7bf2a7ca0539b9e0",
+                "type": "file"
+              },
+              {
+                "name": "250bd4589518039618eb393ff6927636a93cbc",
+                "type": "file"
+              },
+              {
+                "name": "33178b565ab17a6dd0a76fa24843004a480fb9",
+                "type": "file"
+              },
+              {
+                "name": "51dc81ca4eda1522e4e311cf1405be8de67664",
+                "type": "file"
+              },
+              {
+                "name": "7bc1c48bcc067b60336c3dd61d479521acd7af",
+                "type": "file"
+              },
+              {
+                "name": "96002897e13d31df6b2fcb43a8869f479be225",
+                "type": "file"
+              },
+              {
+                "name": "a5a061b2f0ab4ebbf889d396765881c003595a",
+                "type": "file"
+              },
+              {
+                "name": "b4a66b32b73cc2f871b43f9db7601245a1c1b1",
+                "type": "file"
+              },
+              {
+                "name": "ba1d70babe7d97ce302e11f149b6b09f1acf27",
+                "type": "file"
+              },
+              {
+                "name": "cccb2f716153563e873ef98817aa4b5b6e05fa",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "01",
+            "type": "directory",
+            "children": [
+              {
+                "name": "2be044b680e6c4dcb8577d8953275f047f9044",
+                "type": "file"
+              },
+              {
+                "name": "361c10e69a2773ea30f2405290a7b323bed93b",
+                "type": "file"
+              },
+              {
+                "name": "393d9b4249538321b167c5425b7aa9a3f2b088",
+                "type": "file"
+              },
+              {
+                "name": "3dce1080871398632a0ef7363acecdffe140b2",
+                "type": "file"
+              },
+              {
+                "name": "5dba78fc8ff0b520460649103f368fd3989873",
+                "type": "file"
+              },
+              {
+                "name": "5e63f90694fefc79b708ba9a7e71e4c5918580",
+                "type": "file"
+              },
+              {
+                "name": "8bc320345a718ee1b4f57f49b252a751b8b725",
+                "type": "file"
+              },
+              {
+                "name": "ad99ac8e949a6f139219204577eaa8e7bbd7cb",
+                "type": "file"
+              },
+              {
+                "name": "afd12b658ba5ae2dd7acd0f1373d3c4f2d3f1b",
+                "type": "file"
+              },
+              {
+                "name": "d9140b1ce083c537b7f8d3e7b354cd30fed1a7",
+                "type": "file"
+              },
+              {
+                "name": "ddc57b67f8b08b5cf37e5b0aeeab9ea4494e06",
+                "type": "file"
+              },
+              {
+                "name": "f1c7fd4e5c35e4d54461c98f41fd4d92acc5e2",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "02",
+            "type": "directory",
+            "children": [
+              {
+                "name": "023b1cb64bf49c869718f71c0c516dede92979",
+                "type": "file"
+              },
+              {
+                "name": "3cc246e7cfe2fa9abcfcdeb16df625d42b4fab",
+                "type": "file"
+              },
+              {
+                "name": "4c5c68c9a63852dd8c7f438e5a4dcc717fb309",
+                "type": "file"
+              },
+              {
+                "name": "6bfa9022912eb89c67fdd40cabe6c3e9a6b004",
+                "type": "file"
+              },
+              {
+                "name": "733d655bc9e69d353729951aead8428f3baf44",
+                "type": "file"
+              },
+              {
+                "name": "95b63815983d6c475ee702910be831674d31ef",
+                "type": "file"
+              },
+              {
+                "name": "c7a25b61e1d3df13561f84fea0193fb3d01a86",
+                "type": "file"
+              },
+              {
+                "name": "d120223a7a4470ca56925fd67d6ff5c66c316f",
+                "type": "file"
+              },
+              {
+                "name": "eca8374629132c83cf769c345583afc7d8805f",
+                "type": "file"
+              },
+              {
+                "name": "f5c1ccb21834f51cb67c544f525e6d637534e7",
+                "type": "file"
+              },
+              {
+                "name": "fcd585baef1bcc653c337f7e7d0a5cbc0a58e9",
+                "type": "file"
+              },
+              {
+                "name": "ffb75adcd867be8606dd8687045fe294f32bc7",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "03",
+            "type": "directory",
+            "children": [
+              {
+                "name": "0757568d5e7a9c327fb5ae9ae38a475bd8a6b5",
+                "type": "file"
+              },
+              {
+                "name": "18c51e35cdac47d19eccada5af9a80437a26f7",
+                "type": "file"
+              },
+              {
+                "name": "223d8bd54023f36c259162089789b4c81bd767",
+                "type": "file"
+              },
+              {
+                "name": "3a1dc4a4d9035b8f9284fe11682fa775f4e086",
+                "type": "file"
+              },
+              {
+                "name": "3b9176c80795b3e409a7a17ac85f2f25a9c30f",
+                "type": "file"
+              },
+              {
+                "name": "67aa597626768ecffb27ebf08b2f0f2a81a85e",
+                "type": "file"
+              },
+              {
+                "name": "7a7188732a9a863a2f8181a185ace1bef6b769",
+                "type": "file"
+              },
+              {
+                "name": "7e388b19217ba37a146cca7ba301974b783a06",
+                "type": "file"
+              },
+              {
+                "name": "9808ab461b68e1e4fd75e3fa977e9fb7430343",
+                "type": "file"
+              },
+              {
+                "name": "b9b24d80d320a71ff050658497acf8679e2b2f",
+                "type": "file"
+              },
+              {
+                "name": "c407185e5fdea4dfb5020c5872a0bab639c855",
+                "type": "file"
+              },
+              {
+                "name": "c59453435d902b916348c858b148b7b421d21b",
+                "type": "file"
+              },
+              {
+                "name": "cbe17151ac523084d6d6f12b8e6fe65493e7f6",
+                "type": "file"
+              },
+              {
+                "name": "e2ab055db38322e24c8169eb2206c1623d22fc",
+                "type": "file"
+              },
+              {
+                "name": "e6ab7ccc9de67a036e109ca615e8eb9572f823",
+                "type": "file"
+              },
+              {
+                "name": "eb53af99b71b276c92ec10123973eef3ff1e72",
+                "type": "file"
+              },
+              {
+                "name": "f3dead13e02684bd7c8c9399b74050775b38d0",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "04",
+            "type": "directory",
+            "children": [
+              {
+                "name": "0540e03efae6e9b798d4a87c8f69c321baa787",
+                "type": "file"
+              },
+              {
+                "name": "090c6ae7bbfe48810749bcecf054d422d1f3ac",
+                "type": "file"
+              },
+              {
+                "name": "1eb25600bfb2199a27f3da544733746f72a869",
+                "type": "file"
+              },
+              {
+                "name": "227ed3fe025521e973118101bc9b5c1b96b497",
+                "type": "file"
+              },
+              {
+                "name": "3fc67fc843dcd529652ca203d4b6b381939925",
+                "type": "file"
+              },
+              {
+                "name": "43187412615a48020db3620b3a7a93885bc9e5",
+                "type": "file"
+              },
+              {
+                "name": "519a8ed5f26d7a20bf94f95c6b6d66ac58b4f8",
+                "type": "file"
+              },
+              {
+                "name": "527b440c072560f37d250e4b0b009b6dd1249d",
+                "type": "file"
+              },
+              {
+                "name": "671f6e3590b421a983b26e6d59991f70551511",
+                "type": "file"
+              },
+              {
+                "name": "81b8b681194e5391c9adb9a6671f37b9c62801",
+                "type": "file"
+              },
+              {
+                "name": "8589eda95daeb453e6dbe85e90633d5eb93bc4",
+                "type": "file"
+              },
+              {
+                "name": "a8f9ab0f78990d956003cbc39da230711e2711",
+                "type": "file"
+              },
+              {
+                "name": "a9fbdd592da267c1a77dcc9f6a3b9523b882f2",
+                "type": "file"
+              },
+              {
+                "name": "e653dae695b6413884978235e40105a5a18a03",
+                "type": "file"
+              },
+              {
+                "name": "ec56d3bd46fcc6cfeae2293082c6672324b2a3",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "05",
+            "type": "directory",
+            "children": [
+              {
+                "name": "0781ee0156780f658b59df53256b9cb1791cf8",
+                "type": "file"
+              },
+              {
+                "name": "1cf1a4aba2d91f0257fb13fbab784436e5ac14",
+                "type": "file"
+              },
+              {
+                "name": "1d94b969bd31d572a8c7ff65e863abecbcccfa",
+                "type": "file"
+              },
+              {
+                "name": "1f4f81a2b6f28b7292b0d334478012df111bad",
+                "type": "file"
+              },
+              {
+                "name": "26126d8ec976c41d5185b67bc6ee88206e1b14",
+                "type": "file"
+              },
+              {
+                "name": "5defd1c51b2c768cbecd6bbf08ffcb6e04b88e",
+                "type": "file"
+              },
+              {
+                "name": "5efc28093fde59e199a01a654a04802a589d2b",
+                "type": "file"
+              },
+              {
+                "name": "80eb21b6d42eff487026d6a30e2d6dc6f7b471",
+                "type": "file"
+              },
+              {
+                "name": "87da8c98a66c2e2f433e21d1f2354df2d9be15",
+                "type": "file"
+              },
+              {
+                "name": "8fd4582013620278b0bc884f31e5e3f9d31379",
+                "type": "file"
+              },
+              {
+                "name": "9060cf617f2d90505aad3fc832299f1ea53720",
+                "type": "file"
+              },
+              {
+                "name": "9152e6c3fff659febf363a1ad0f62b60e936a4",
+                "type": "file"
+              },
+              {
+                "name": "b04d6213f87d125fa0bc3de2946df269096664",
+                "type": "file"
+              },
+              {
+                "name": "b55bb75a86a76f2fd06104fcffe51df20e0d6a",
+                "type": "file"
+              },
+              {
+                "name": "d3643c9a170123c70c26306acbf2bac0b9b058",
+                "type": "file"
+              },
+              {
+                "name": "d5b7560b78f334c1421567d82fba660358083f",
+                "type": "file"
+              },
+              {
+                "name": "d7e6b2b9ae159bed17c59f7c0faacd865647ca",
+                "type": "file"
+              },
+              {
+                "name": "e2eb9fa0c38f35dcd864697b912a5e11a7a372",
+                "type": "file"
+              },
+              {
+                "name": "fde24b6cf241db4cd470dbc6983c7a2b8a52c8",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "06",
+            "type": "directory",
+            "children": [
+              {
+                "name": "6b5938ae22b6f0a8dfd5646ba6761e76608fd3",
+                "type": "file"
+              },
+              {
+                "name": "6e6019e72f5e719731fb442d9467ea8a733ed9",
+                "type": "file"
+              },
+              {
+                "name": "87918876212368df09ea7889e3d5abe98c06b2",
+                "type": "file"
+              },
+              {
+                "name": "bc4e7a4a422636c6df7929c0fafa18a1cdc6d6",
+                "type": "file"
+              },
+              {
+                "name": "c1dc3643f92d3c1479f863c499bbd890132c41",
+                "type": "file"
+              },
+              {
+                "name": "d145adc4458b4bb9c16acb41808b7d1bb1e071",
+                "type": "file"
+              },
+              {
+                "name": "f132c072bb81577b871cc3977dd37ea79f3b32",
+                "type": "file"
+              },
+              {
+                "name": "feb199c002f694888e57d29699183de6fe0c3f",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "07",
+            "type": "directory",
+            "children": [
+              {
+                "name": "02c8a249a137417bb95a27a2ab3a822356d4cb",
+                "type": "file"
+              },
+              {
+                "name": "2501d30fed6f49f249dc5912768c55ee5a8719",
+                "type": "file"
+              },
+              {
+                "name": "34214bf837513eaa1fbfb17b8fb1c34dbec957",
+                "type": "file"
+              },
+              {
+                "name": "44f51677aba0d7aef471e0c6a3a885eef33556",
+                "type": "file"
+              },
+              {
+                "name": "5689559e6b076669062bb43569ff8ef62e3350",
+                "type": "file"
+              },
+              {
+                "name": "697fa081aa3ad5db3a65812a5a9ee5b4975e02",
+                "type": "file"
+              },
+              {
+                "name": "6c33ec61d7b7b1b65e553830a9aeefafaaa6cb",
+                "type": "file"
+              },
+              {
+                "name": "747a9852dbddf7ebcad859c7cde5aa5b54deb2",
+                "type": "file"
+              },
+              {
+                "name": "88d557d715d28ebdbd5cb1e249e1428aa9b40c",
+                "type": "file"
+              },
+              {
+                "name": "9ea76ffcc2e73b3e127de488adf3fe6a974323",
+                "type": "file"
+              },
+              {
+                "name": "ab23f0bd61efca342b0565d6d4d566433dfd1a",
+                "type": "file"
+              },
+              {
+                "name": "bb2a7cff1537958cb4c776786fd60f8f3c2138",
+                "type": "file"
+              },
+              {
+                "name": "cfcf1ed618a78240cb5eb4bef4b4b47c27b6d5",
+                "type": "file"
+              },
+              {
+                "name": "db111573807fe76848d620060bf0d763b3f15d",
+                "type": "file"
+              },
+              {
+                "name": "e5021649774bb473daa433f62e36a311e4081d",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "08",
+            "type": "directory",
+            "children": [
+              {
+                "name": "0df267617e3eb3e8616868f56290610f6cfc6b",
+                "type": "file"
+              },
+              {
+                "name": "166f49d0405150dd9938caef0f2e21458149d6",
+                "type": "file"
+              },
+              {
+                "name": "27e587568f3c13b0be953553ba6ab31a06c644",
+                "type": "file"
+              },
+              {
+                "name": "42e48b25223c7665520165cac65d8df3016959",
+                "type": "file"
+              },
+              {
+                "name": "4da9934ac8a732dbd191ebe6926372dd3d4fbb",
+                "type": "file"
+              },
+              {
+                "name": "6fa2954deb63bc36f96fa200607bb06fe5ad20",
+                "type": "file"
+              },
+              {
+                "name": "7813ae8ead7f62bb27c6579274998266aa8243",
+                "type": "file"
+              },
+              {
+                "name": "86a958719ce95f858dff2f7d759a883a789f9f",
+                "type": "file"
+              },
+              {
+                "name": "8964c249d39661daf7b9bfd3b097607a98d55c",
+                "type": "file"
+              },
+              {
+                "name": "8a02a07839604286954e3232053923126e3c87",
+                "type": "file"
+              },
+              {
+                "name": "8b46b6b89ab3a76de8809fe1057513db1ee2b8",
+                "type": "file"
+              },
+              {
+                "name": "97f8e75ad6448bf5f4fcb43ed052cdba0235f1",
+                "type": "file"
+              },
+              {
+                "name": "a5bee61ed4cddf2a921aeae65d082094194596",
+                "type": "file"
+              },
+              {
+                "name": "ab9596979c3f56e808c4aa54cb66eeaf19721a",
+                "type": "file"
+              },
+              {
+                "name": "d083f74d88d481fe452143fe528177df9070bf",
+                "type": "file"
+              },
+              {
+                "name": "e08eae9a0aea9c4552dc0c4e5069b7a6394008",
+                "type": "file"
+              },
+              {
+                "name": "f77dd38c5904303f3e0f1b9932de005fff6763",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "09",
+            "type": "directory",
+            "children": [
+              {
+                "name": "04a958d4c9857f77a95af3ae99c55d7deb4ac7",
+                "type": "file"
+              },
+              {
+                "name": "097964081fb80dcabb00de2a5ce7c0e17df876",
+                "type": "file"
+              },
+              {
+                "name": "0ff8bb58f8230ae54c2397ff8c9321f541639d",
+                "type": "file"
+              },
+              {
+                "name": "15836890a15157f9f8d135d76529689a23ea4b",
+                "type": "file"
+              },
+              {
+                "name": "180f212d7383242061904cc956045138d0c7c5",
+                "type": "file"
+              },
+              {
+                "name": "24d89a3fc2ac2cec44e23c8d9675782adaf72e",
+                "type": "file"
+              },
+              {
+                "name": "2c41122ca5f27f4e9a93c7c325bef69aa064df",
+                "type": "file"
+              },
+              {
+                "name": "5d9ef861dc606e2a47f4ec0ae223ac5a341ea5",
+                "type": "file"
+              },
+              {
+                "name": "76bf89e0d81c1c9d74fd5f94ef1ef58fb1511b",
+                "type": "file"
+              },
+              {
+                "name": "82fab20202ef860ff50fb2bed753821433b474",
+                "type": "file"
+              },
+              {
+                "name": "c2d8500edd3211cedc0d3e9429b19abfc2c47a",
+                "type": "file"
+              },
+              {
+                "name": "ce5686e7fbd6a98d2b4bde841d4fcfff1247af",
+                "type": "file"
+              },
+              {
+                "name": "d6a64c0053fe736bf11f6e0d9b67f21db9ec22",
+                "type": "file"
+              },
+              {
+                "name": "dd1693117fd3fc9326ab686d940410a9884585",
+                "type": "file"
+              },
+              {
+                "name": "eaee472f4eb6d4f6db0efb81dfbca6e4f535c6",
+                "type": "file"
+              },
+              {
+                "name": "ed514bffc8ac4552758ae9e1465ffc3db1623f",
+                "type": "file"
+              },
+              {
+                "name": "f9cee6cad76f062e7e26e7c3976e2682ad950b",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "0a",
+            "type": "directory",
+            "children": [
+              {
+                "name": "2e195b740cbed25dcf239f826afd72c119ad1e",
+                "type": "file"
+              },
+              {
+                "name": "3de1812f51b98db7dd18c12cfd3dea2973e413",
+                "type": "file"
+              },
+              {
+                "name": "54d81404c62fc40bd6b5e7dccc737e29fc9780",
+                "type": "file"
+              },
+              {
+                "name": "57906ca22143857730e26d29930e7f73fc77a0",
+                "type": "file"
+              },
+              {
+                "name": "5db5f25d9458d33ddbde34a582b0475ecac44f",
+                "type": "file"
+              },
+              {
+                "name": "6cc6bde77b9decfdd37502027a9c4e66565736",
+                "type": "file"
+              },
+              {
+                "name": "93e80152ee6e438fa8db343adec9f4b8b76710",
+                "type": "file"
+              },
+              {
+                "name": "9f1362a1244879c821df0cbe90acfe2f096d7a",
+                "type": "file"
+              },
+              {
+                "name": "d212fe07b04d1264ce7b860faff7a0f2ab1612",
+                "type": "file"
+              },
+              {
+                "name": "e2acd7eaac4ad17816cc266baf6fdebee40318",
+                "type": "file"
+              },
+              {
+                "name": "e393a247d176d174097e97492619194ecd5e95",
+                "type": "file"
+              },
+              {
+                "name": "fcc65f125c7f34dac4a0c5bf4a74c5f88e95d2",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "0b",
+            "type": "directory",
+            "children": [
+              {
+                "name": "12c295cbaefa930b3b512c92884df45214a6f2",
+                "type": "file"
+              },
+              {
+                "name": "2d6a072e6076c015447e1dfb09366eb5d3a9b3",
+                "type": "file"
+              },
+              {
+                "name": "81434bed7adb04065ce16f74145cc9ab6fd70a",
+                "type": "file"
+              },
+              {
+                "name": "8520382594c35e4b7c727a5df5bbd86c16dfb6",
+                "type": "file"
+              },
+              {
+                "name": "90f45b837abdba1f548e23b6830b198f30ff01",
+                "type": "file"
+              },
+              {
+                "name": "985540b126a8feda90bfc7554e0000a4ff64e9",
+                "type": "file"
+              },
+              {
+                "name": "ca309791b12517ccfaa92c69957668b10035e0",
+                "type": "file"
+              },
+              {
+                "name": "cc833975e50876cdc048a8310d9992eff222f7",
+                "type": "file"
+              },
+              {
+                "name": "d72eb39dbeef482cc8166904dfa3bff00875ad",
+                "type": "file"
+              },
+              {
+                "name": "e417af8042fa2a5695dc357c1fd9e5ec1939de",
+                "type": "file"
+              },
+              {
+                "name": "e911f69147316b4f2c1c68314e778a1ff13651",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "0c",
+            "type": "directory",
+            "children": [
+              {
+                "name": "038d296196384d474a406a95ad9cc602ab38dc",
+                "type": "file"
+              },
+              {
+                "name": "138b9fd5b9da4fe74eda7c5f706c70cf3aac5c",
+                "type": "file"
+              },
+              {
+                "name": "3bf85612b657c4d001952a9b32f9f7bda5c5bd",
+                "type": "file"
+              },
+              {
+                "name": "506f3042af3d590ac6ac31c545ed17c41d3138",
+                "type": "file"
+              },
+              {
+                "name": "5810d076a5b8507103b74d46787c1cfcb627d9",
+                "type": "file"
+              },
+              {
+                "name": "7a8fda492b9f4691a707679c8182a70ea3847a",
+                "type": "file"
+              },
+              {
+                "name": "80a6692765b93da8358a1843ee5a3b24164297",
+                "type": "file"
+              },
+              {
+                "name": "9282bac164c60e8d062c0d9693a658e3a90a4c",
+                "type": "file"
+              },
+              {
+                "name": "c8a79755bf5aba54b13b9539e781760315209c",
+                "type": "file"
+              },
+              {
+                "name": "ceb286021dadaa7b3e27c62bdbf0a548e88df1",
+                "type": "file"
+              },
+              {
+                "name": "da328c8a246e30cebab70910fcce00b530f9a5",
+                "type": "file"
+              },
+              {
+                "name": "df58b095af6b685865e5022ba358c5aebd8a8c",
+                "type": "file"
+              },
+              {
+                "name": "e4cdca18b1e3dfe033ea1d3b4ee37929ffe98f",
+                "type": "file"
+              }
+            ]
+          },
+          {
+            "name": "0d",
+            "type": "directory",
+            "children": [
+              {
+                "name": "13cd2226e4cba3c1639f56b1a89ac0bf7d56ba",
+                "type": "file"
+              },
+              {
+                "name": "1c35719211cb819f12c14e9fed02f3a3b84a1f",
+                "type": "file"
+              },
+              {
+                "name": "2bdb13f026ccbcb0074145df391894b388a8e7",
+                "type": "file"
+              },
+              {
+                "name": "37e1e5f6b621ccbdc666f6d9c82f2ada26208b",
+                "type": "file"
+              },
+              {
+                "name": "50b0abd5c3508b4d2405af480237a769d6e4aa",
+                "type": "file"
+              },
+              {
+                "name": "7bfc15cf6b25fc46d5abfd02a21182fb238358",
+                "type": "file"
+              },
+              {
+                "name": "7e3316962bc59530ea162438d64a0691613b7f",
+                "type": "file"
+              },
+              {
+                "name": "7f98b282c320d8e4006b85a6e605adfd3e3fee",
+                "type": "file"
+              },
+              {
+                "name": "815e635cdc32ef7364c7c57d8d6248dffad7e4",
+                "type": "file"
+              },
+              {
+                "name": "8
+
+[…truncated 6905701 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+,
+  {
+    "name": "start-devflow.sh",
+    "type": "file"
+  },
+  {
+    "name": "start.sh",
+    "type": "file"
+  },
+  {
+    "name": "start_docker.py",
+    "type": "file"
+  },
+  {
+    "name": "start_project.py",
+    "type": "file"
+  },
+  {
+    "name": "test_agent_chat.py",
+    "type": "file"
+  },
+  {
+    "name": "test_devflow.db",
+    "type": "file"
+  },
+  {
+    "name": "test_devflow.db-journal",
+    "type": "file"
+  },
+  {
+    "name": "test_perf_devflow.db",
+    "type": "file"
+  },
+  {
+    "name": "test_results.txt",
+    "type": "file"
+  },
+  {
+    "name": "tests",
+    "type": "directory",
+    "children": [
+      {
+        "name": "conftest.py",
+        "type": "file"
+      },
+      {
+        "name": "test_config.py",
+        "type": "file"
+      },
+      {
+        "name": "test_health.py",
+        "type": "file"
+      },
+      {
+        "name": "test_jwt.py",
+        "type": "file"
+      }
+    ]
+  },
+  {
+    "name": "trigger_step4.py",
+    "type": "file"
+  },
+  {
+    "name": "uv.lock",
+    "type": "file"
+  }
+]

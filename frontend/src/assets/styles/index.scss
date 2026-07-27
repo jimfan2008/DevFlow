@@ -1,4 +1,5 @@
 @use 'sass:color';
+@use 'sass:math';
 @use './reset';
 @use './mixins';
 
@@ -11,58 +12,440 @@ html, body {
   font-weight: $body-weight;
   line-height: $body-leading;
   letter-spacing: $body-tracking;
-  color: $ink;
-  background-color: $canvas-parchment;
+  color: $text-primary;
+  background-color: $bg-base;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Animated Gradient Background ──────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(52, 211, 153, 0.02) 0%, transparent 50%);
+  animation: bg-drift 20s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes bg-drift {
+  0%   { transform: translate(0%, 0%) rotate(0deg); }
+  25%  { transform: translate(2%, -3%) rotate(1deg); }
+  50%  { transform: translate(-1%, 2%) rotate(-0.5deg); }
+  75%  { transform: translate(3%, 1%) rotate(1.5deg); }
+  100% { transform: translate(-2%, -1%) rotate(-1deg); }
+}
+
+/* ── Tech Grid Overlay ─────────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 #app {
   width: 100%;
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
-/* ── Apple's Ink Headlines ──────────────────────────────── */
+/* ── Headlines ─────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 { color: $text-primary; }
 h1 { font-family: $font-display; font-size: $hero-display-size; font-weight: $hero-display-weight; line-height: $hero-display-leading; letter-spacing: $hero-display-tracking; }
 h2 { font-family: $font-display; font-size: $display-lg-size; font-weight: $display-lg-weight; line-height: $display-lg-leading; letter-spacing: $display-lg-tracking; }
-h3 { font-family: $font-text; font-size: $display-md-size; font-weight: $display-md-weight; line-height: $display-md-leading; letter-spacing: $display-md-tracking; }
+h3 { font-family: $font-display; font-size: $display-md-size; font-weight: $display-md-weight; line-height: $display-md-leading; letter-spacing: $display-md-tracking; }
 
-/* ── Element Plus Theme Overrides (Apple palette) ──────── */
+/* ── Element Plus Dark Theme Overrides ─────────────────── */
 :root {
+  /* Background */
+  --el-bg-color: #{$bg-surface};
+  --el-bg-color-overlay: #{$bg-card};
+  --el-bg-color-page: #{$bg-base};
+
+  /* Text */
+  --el-text-color-primary: #{$text-primary};
+  --el-text-color-regular: #{$text-secondary};
+  --el-text-color-secondary: #{$text-muted};
+  --el-text-color-placeholder: #{$text-disabled};
+  --el-text-color-disabled: #{$text-disabled};
+
+  /* Border */
+  --el-border-color: #{$border-default};
+  --el-border-color-light: #{$border-subtle};
+  --el-border-color-lighter: #{$border-subtle};
+  --el-border-color-extra-light: #{$border-subtle};
+  --el-border-color-dark: #{$border-hover};
+
+  /* Primary */
   --el-color-primary: #{$primary};
-  --el-color-primary-light-3: #{color.mix($primary, #fff, 60%)};
-  --el-color-primary-light-5: #{color.mix($primary, #fff, 40%)};
-  --el-color-primary-light-7: #{color.mix($primary, #fff, 20%)};
-  --el-color-primary-light-9: #{color.mix($primary, #fff, 10%)};
-  --el-border-radius-base: #{$radius-sm};
-  --el-border-radius-small: #{$radius-xs};
-  --el-border-radius-round: #{$radius-pill};
-  --el-border-radius-circle: #{$radius-full};
+  --el-color-primary-light-3: #{rgba(0, 212, 255, 0.7)};
+  --el-color-primary-light-5: #{rgba(0, 212, 255, 0.5)};
+  --el-color-primary-light-7: #{rgba(0, 212, 255, 0.3)};
+  --el-color-primary-light-9: #{rgba(0, 212, 255, 0.12)};
+  --el-color-primary-dark-2: #0ea5e9;
+
+  /* Success / Warning / Danger / Info */
+  --el-color-success: #{$secondary};
+  --el-color-warning: #{$warning};
+  --el-color-danger: #{$danger};
+  --el-color-error: #{$danger};
+  --el-color-info: #{$text-muted};
+
+  /* Border Radius */
+  --el-border-radius-base: 8px;
+  --el-border-radius-small: 6px;
+  --el-border-radius-round: 12px;
+  --el-border-radius-circle: 50%;
+
+  /* Font */
   --el-font-size-base: #{$body-size};
   --el-font-size-small: #{$caption-size};
   --el-font-size-large: #{$body-strong-size};
-  --el-font-weight-primary: 400;
+  --el-font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+  --el-font-weight-primary: 500;
+
+  /* Fill */
+  --el-fill-color: #{rgba(255, 255, 255, 0.05)};
+  --el-fill-color-light: #{rgba(255, 255, 255, 0.08)};
+  --el-fill-color-lighter: #{rgba(255, 255, 255, 0.03)};
+  --el-fill-color-blank: #{$bg-card};
+  --el-fill-color-dark: #{rgba(255, 255, 255, 0.12)};
+
+  /* Disabled */
+  --el-disabled-bg-color: #{rgba(255, 255, 255, 0.04)};
+  --el-disabled-text-color: #{$text-disabled};
+  --el-disabled-border-color: #{$border-subtle};
+
+  /* Table */
+  --el-table-bg-color: #{$bg-card};
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: #{rgba(255, 255, 255, 0.03)};
+  --el-table-row-hover-bg-color: #{rgba(0, 212, 255, 0.06)};
+  --el-table-border-color: #{$border-subtle};
+  --el-table-text-color: #{$text-secondary};
+  --el-table-header-text-color: #{$text-primary};
+
+  /* Menu */
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: #{$text-muted};
+  --el-menu-hover-bg-color: #{rgba(255, 255, 255, 0.05)};
+  --el-menu-active-color: #{$primary};
+
+  /* Dialog */
+  --el-dialog-bg-color: #{$bg-card};
+  --el-dialog-border-radius: 16px;
+  --el-dialog-title-font-size: 18px;
+  --el-dialog-content-font-size: 14px;
+
+  /* Card */
+  --el-card-bg-color: #{$glass-bg};
+  --el-card-border-radius: 12px;
+  --el-card-padding: 20px;
+  --el-card-border-color: #{$glass-border};
+
+  /* Tag */
+  --el-tag-border-radius: 6px;
+  --el-tag-bg-color: #{rgba(255, 255, 255, 0.06)};
+  --el-tag-text-color: #{$text-secondary};
+  --el-tag-border-color: #{rgba(255, 255, 255, 0.1)};
+
+  /* Pagination */
+  --el-pagination-text-color: #{$text-secondary};
+  --el-pagination-hover-color: #{$primary};
+
+  /* Descriptions */
+  --el-descriptions-table-border-color: #{$border-subtle};
+
+  /* Dropdown */
+  --el-dropdown-menuItem-hover-fill: #{rgba(0, 212, 255, 0.1)};
+  --el-dropdown-menuItem-hover-color: #{$primary};
 }
 
-/* ── Element Plus Component Overrides ───────────────────── */
+/* ── Element Plus Component Overrides ──────────────────── */
 .el-button {
-  --el-button-border-radius: #{$radius-pill};
-}
-.el-button--small {
-  --el-button-border-radius: #{$radius-pill};
-}
-.el-card {
-  --el-card-border-radius: #{$radius-lg};
-  border: 1px solid rgba(0, 0, 0, 0.08);
-}
-.el-tag {
-  --el-tag-border-radius: #{$radius-sm};
-}
-.el-input__wrapper {
-  border-radius: $radius-pill !important;
+  --el-button-border-radius: 8px;
+  --el-button-bg-color: transparent;
+  --el-button-text-color: #{$text-primary};
+  --el-button-hover-bg-color: #{rgba(0, 212, 255, 0.1)};
+  --el-button-hover-border-color: #{$border-cyan};
+  border: 1px solid $border-default;
+  transition: all $transition-fast;
+
+  &.el-button--primary {
+    --el-button-bg-color: #{$primary};
+    --el-button-text-color: #{$text-inverse};
+    --el-button-hover-bg-color: #{$primary-focus};
+    --el-button-hover-border-color: #{$primary};
+    border-color: transparent;
+    box-shadow: 0 0 12px rgba(0, 212, 255, 0.25);
+    &:hover {
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+    }
+  }
+
+  &.el-button--success {
+    --el-button-bg-color: #{$secondary};
+    --el-button-text-color: #{$text-inverse};
+    border-color: transparent;
+  }
+
+  &.el-button--warning {
+    --el-button-bg-color: #{$warning};
+    --el-button-text-color: #{$text-inverse};
+    border-color: transparent;
+  }
+
+  &.el-button--danger {
+    --el-button-bg-color: #{$danger};
+    --el-button-text-color: #{$text-inverse};
+    border-color: transparent;
+  }
+
+  &.is-plain {
+    --el-button-bg-color: transparent;
+    --el-button-text-color: #{$text-secondary};
+    --el-button-hover-text-color: #{$primary};
+  }
 }
 
-/* ── Scrollbar ──────────────────────────────────────────── */
+.el-card {
+  background: $glass-bg;
+  backdrop-filter: $frosted-blur;
+  -webkit-backdrop-filter: $frosted-blur;
+  border: 1px solid $glass-border;
+  transition: border-color $transition-base, box-shadow $transition-base;
+
+  &:hover {
+    border-color: $glass-border-hover;
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.08);
+  }
+}
+
+.el-input__wrapper {
+  background: $glass-bg !important;
+  border: 1px solid $border-default !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+
+  &:focus-within {
+    border-color: $border-cyan !important;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15) !important;
+  }
+}
+
+.el-input__inner {
+  color: $text-primary !important;
+  &::placeholder { color: $text-muted !important; }
+}
+
+.el-textarea__inner {
+  background: $glass-bg !important;
+  border: 1px solid $border-default !important;
+  color: $text-primary !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  transition: border-color $transition-fast, box-shadow $transition-fast;
+
+  &:focus {
+    border-color: $border-cyan !important;
+    box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.15) !important;
+  }
+}
+
+.el-tabs {
+  &__header {
+    border-bottom: 1px solid $border-subtle;
+  }
+
+  &__item {
+    color: $text-muted;
+    font-weight: 500;
+    transition: color $transition-fast;
+
+    &:hover { color: $text-secondary; }
+    &.is-active { color: $primary; }
+
+    &.is-active::after {
+      background: $primary;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    }
+  }
+}
+
+.el-table {
+  th.el-table__cell {
+    background: rgba(255, 255, 255, 0.03) !important;
+    color: $text-primary !important;
+  }
+
+  td.el-table__cell {
+    color: $text-secondary;
+  }
+}
+
+.el-dialog {
+  border: 1px solid $glass-border;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.el-alert {
+  border-radius: 8px;
+
+  &.el-alert--info {
+    background: $glass-bg;
+    border: 1px solid $border-default;
+  }
+}
+
+.el-progress-bar__outer {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.el-progress-bar__inner {
+  transition: width 0.4s ease, background 0.4s ease;
+}
+
+.el-result__title {
+  color: $text-primary;
+}
+
+.el-empty__description {
+  color: $text-muted;
+}
+
+.el-divider {
+  --el-border-color: #{$border-subtle};
+}
+
+.el-descriptions {
+  &__title { color: $text-primary; }
+  &__label {
+    color: $text-muted !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+  &__content {
+    color: $text-secondary !important;
+    background: transparent !important;
+  }
+}
+
+.el-dropdown-menu {
+  background: $bg-elevated;
+  border: 1px solid $glass-border;
+}
+
+.el-dropdown-item {
+  color: $text-secondary;
+  transition: color $transition-fast, background $transition-fast;
+  &:hover {
+    background: rgba(0, 212, 255, 0.1);
+    color: $primary;
+  }
+}
+
+.el-select-dropdown {
+  background: $bg-elevated;
+  border: 1px solid $glass-border;
+  .el-select-dropdown__item {
+    color: $text-secondary;
+    &.hover, &:hover { background: rgba(0, 212, 255, 0.1); color: $text-primary; }
+    &.selected { color: $primary; }
+  }
+}
+
+.el-pagination {
+  button { color: $text-secondary; &:disabled { color: $text-disabled; } }
+  .el-pager li {
+    color: $text-secondary;
+    &.is-active { color: $primary; }
+  }
+}
+
+.el-steps {
+  .el-step__title {
+    color: $text-muted;
+    &.is-process { color: $primary; }
+    &.is-wait { color: $text-muted; }
+    &.is-finish { color: $secondary; }
+  }
+
+  .el-step__icon {
+    background: transparent;
+    border-color: $border-default;
+    &.is-text { border-color: $border-default; }
+  }
+
+  .el-step__line {
+    background: $border-subtle;
+  }
+}
+
+.el-radio {
+  --el-radio-text-color: #{$text-secondary};
+  --el-radio-input-border-color: #{$border-default};
+  --el-radio-input-bg-color: transparent;
+}
+
+.el-checkbox {
+  --el-checkbox-text-color: #{$text-secondary};
+  --el-checkbox-input-border-color: #{$border-default};
+  --el-checkbox-input-bg-color: transparent;
+}
+
+.el-switch {
+  --el-switch-on-color: #{$primary};
+  --el-switch-off-color: #{$border-default};
+}
+
+.el-select {
+  --el-select-input-focus-border-color: #{$border-cyan};
+}
+
+.el-date-editor {
+  --el-date-editor-border-color: #{$border-default};
+}
+
+.el-collapse {
+  --el-collapse-header-bg-color: transparent;
+  --el-collapse-content-bg-color: transparent;
+  --el-collapse-border-color: #{$border-subtle};
+}
+
+.el-cascader {
+  --el-cascader-menu-border-color: #{$border-default};
+  --el-cascader-menu-bg-color: #{$bg-elevated};
+}
+
+.el-link {
+  --el-link-text-color: #{$primary};
+  --el-link-hover-text-color: #{rgba(0, 212, 255, 0.8)};
+}
+
+.el-badge {
+  --el-badge-bg-color: #{$danger};
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -71,14 +454,14 @@ h3 { font-family: $font-text; font-size: $display-md-size; font-weight: $display
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: $hairline;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 3px;
-  &:hover { background: $ink-muted-48; }
+  &:hover { background: rgba(255, 255, 255, 0.25); }
 }
 
-/* ── Transitions ────────────────────────────────────────── */
+/* ── Transitions ───────────────────────────────────────── */
 .fade-enter-active,
-.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from,
 .fade-leave-to { opacity: 0; }
 

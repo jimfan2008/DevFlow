@@ -6,17 +6,23 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
-// 从 .env 读取后端端口，不写死任何默认值
+// 从 .env 读取端口配置，不写死任何默认值
 const envPath = path.resolve(__dirname, '..', '.env')
 let backendPort = ''
+let frontendPort = ''
 try {
   const envContent = fs.readFileSync(envPath, 'utf-8')
-  const match = envContent.match(/^BACKEND_PORT=(\S+)/m)
-  if (match) backendPort = match[1]
+  const backendMatch = envContent.match(/^BACKEND_PORT=(\S+)/m)
+  if (backendMatch) backendPort = backendMatch[1]
+  const frontendMatch = envContent.match(/^FRONTEND_PORT=(\S+)/m)
+  if (frontendMatch) frontendPort = frontendMatch[1]
 } catch {}
 
 if (!backendPort) {
   throw new Error(`BACKEND_PORT 未在 ${envPath} 中配置。请在 .env 中设置 BACKEND_PORT=端口号`)
+}
+if (!frontendPort) {
+  throw new Error(`FRONTEND_PORT 未在 ${envPath} 中配置。请在 .env 中设置 FRONTEND_PORT=端口号`)
 }
 
 export default defineConfig({
@@ -39,28 +45,13 @@ export default defineConfig({
       }
     }
   },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    exclude: ['tests/e2e/**', 'node_modules/**'],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, 'src'),
-      }
-    },
-    server: {
-      deps: {
-        inline: ['element-plus'],
-      },
-    },
-  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src')
     }
   },
   server: {
-    port: 5173,
+    port: parseInt(frontendPort),
     proxy: {
       '/api': {
         target: `http://localhost:${backendPort}`,

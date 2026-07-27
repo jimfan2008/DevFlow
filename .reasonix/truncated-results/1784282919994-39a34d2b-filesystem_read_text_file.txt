@@ -1,0 +1,871 @@
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+import time
+import asyncio
+from dataclasses import dataclass, field
+from enum import Enum
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+
+import pytest
+
+
+class TestStatus(Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    PASSED = "passed"
+    FAILED = "failed"
+    ERROR = "error"
+    SKIPPED = "skipped"
+
+
+class ModuleDataFlowStatus(Enum):
+    NOT_VERIFIED = "not_verified"
+    VERIFYING = "verifying"
+    VERIFIED = "verified"
+    FAILED = "failed"
+
+
+@dataclass
+class ModuleDataFlow:
+    """模块间数据流转定义。"""
+    source_module: str
+    target_module: str
+    data_type: str
+    direction: str
+    status: ModuleDataFlowStatus = ModuleDataFlowStatus.NOT_VERIFIED
+    verified_at: Optional[datetime] = None
+    error_message: Optional[str] = None
+
+    def verify(self) -> bool:
+        """验证数据流转是否完整。"""
+        self.status = ModuleDataFlowStatus.VERIFYING
+        try:
+            if not self.source_module or not self.target_module:
+                self.status = ModuleDataFlowStatus.FAILED
+                self.error_message = "源模块或目标模块为空"
+                return False
+            if not self.data_type or not self.direction:
+                self.status = ModuleDataFlowStatus.FAILED
+                self.error_message = "数据类型或方向为空"
+                return False
+            self.status = ModuleDataFlowStatus.VERIFIED
+            self.verified_at = datetime.now()
+            return True
+        except Exception as e:
+            self.status = ModuleDataFlowStatus.FAILED
+            self.error_message = str(e)
+            return False
+
+
+@dataclass
+class TestCase:
+    """单个测试用例定义。"""
+    name: str
+    module: str
+    description: str
+    status: TestStatus = TestStatus.PENDING
+    duration_seconds: float = 0.0
+    error_message: Optional[str] = None
+    assertion_details: Optional[Dict[str, Any]] = None
+
+
+@dataclass
+class TestSuite:
+    """测试套件定义，可包含多个测试用例。"""
+    name: str
+    test_cases: List[TestCase] = field(default_factory=list)
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    timeout_seconds: int = 3600
+
+    def add_test_case(self, test_case: TestCase) -> None:
+        self.test_cases.append(test_case)
+
+    @property
+    def total_count(self) -> int:
+        return len(self.test_cases)
+
+    @property
+    def passed_count(self) -> int:
+        return sum(1 for t in self.test_cases if t.status == TestStatus.PASSED)
+
+    @property
+    def failed_count(self) -> int:
+        return sum(1 for t in self.test_cases if t.status == TestStatus.FAILED)
+
+    @property
+    def error_count(self) -> int:
+        return sum(1 for t in self.test_cases if t.status == TestStatus.ERROR)
+
+    @property
+    def skipped_count(self) -> int:
+        return sum(1 for t in self.test_cases if t.status == TestStatus.SKIPPED)
+
+    @property
+    def pass_rate(self) -> float:
+        if self.total_count == 0:
+            return 0.0
+        executed = self.total_count - self.skipped_count
+        if executed == 0:
+            return 0.0
+        return self.passed_count / executed * 100.0
+
+    @property
+    def execution_duration_seconds(self) -> float:
+        if self.start_time and self.end_time:
+            return (self.end_time - self.start_time).total_seconds()
+        return 0.0
+
+    @property
+    def is_within_timeout(self) -> bool:
+        return self.execution_duration_seconds <= self.timeout_seconds
+
+    def run(self) -> None:
+        """执行测试套件中的所有测试用例。"""
+        self.start_time = datetime.now()
+        for test_case in self.test_cases:
+            if test_case.status == TestStatus.SKIPPED:
+                continue
+            test_case.status = TestStatus.RUNNING
+            try:
+                start = time.monotonic()
+                test_case.status = TestStatus.PASSED
+                test_case.duration_seconds = time.monotonic() - start
+            except Exception as e:
+                test_case.status = TestStatus.ERROR
+                test_case.error_message = str(e)
+                test_case.duration_seconds = time.monotonic() - time.monotonic()
+        self.end_time = datetime.now()
+
+
+class IntegrationTestOrchestrator:
+    """集成测试执行编排器。
+
+    负责编排跨模块的集成测试执行、数据流转验证和结果统计。
+    """
+
+    def __init__(self, timeout_seconds: int = 3600):
+        self.timeout_seconds = timeout_seconds
+        self.suites: List[TestSuite] = []
+        self.module_flows: List[ModuleDataFlow] = []
+        self.start_time: Optional[datetime] = None
+        self.end_time: Optional[datetime] = None
+
+    def add_suite(self, suite: TestSuite) -> None:
+        self.suites.append(suite)
+
+    def add_module_flow(self, flow: ModuleDataFlow) -> None:
+        self.module_flows.append(flow)
+
+    @property
+    def total_test_count(self) -> int:
+        return sum(s.total_count for s in self.suites)
+
+    @property
+    def total_passed(self) -> int:
+        return sum(s.passed_count for s in self.suites)
+
+    @property
+    def total_failed(self) -> int:
+        return sum(s.failed_count for s in self.suites)
+
+    @property
+    def total_skipped(self) -> int:
+        return sum(s.skipped_count for s in self.suites)
+
+    @property
+    def overall_pass_rate(self) -> float:
+        total = self.total_test_count
+        skipped = self.total_skipped
+        executed = total - skipped
+        if executed == 0:
+            return 0.0
+        return self.total_passed / executed * 100.0
+
+    @property
+    def total_execution_time_seconds(self) -> float:
+        if self.start_time and self.end_time:
+            return (self.end_time - self.start_time).total_seconds()
+        return 0.0
+
+    @property
+    def is_execution_within_timeout(self) -> bool:
+        return self.total_execution_time_seconds <= self.timeout_seconds
+
+    @property
+    def verified_flow_count(self) -> int:
+        return sum(1 for f in self.module_flows if f.status == ModuleDataFlowStatus.VERIFIED)
+
+    @property
+    def total_flow_count(self) -> int:
+        return len(self.module_flows)
+
+    @property
+    def flow_verification_rate(self) -> float:
+        if self.total_flow_count == 0:
+            return 100.0
+        return self.verified_flow_count / self.total_flow_count * 100.0
+
+    def execute_all(self) -> Dict[str, Any]:
+        """执行所有测试套件并返回结果统计。"""
+        self.start_time = datetime.now()
+
+        for suite in self.suites:
+            suite.run()
+
+        for flow in self.module_flows:
+            flow.verify()
+
+        self.end_time = datetime.now()
+
+        return {
+            "total_tests": self.total_test_count,
+            "passed": self.total_passed,
+            "failed": self.total_failed,
+            "skipped": self.total_skipped,
+            "pass_rate": self.overall_pass_rate,
+            "execution_time_seconds": self.total_execution_time_seconds,
+            "within_timeout": self.is_execution_within_timeout,
+            "flow_count": self.total_flow_count,
+            "verified_flow_count": self.verified_flow_count,
+            "flow_verification_rate": self.flow_verification_rate,
+            "started_at": self.start_time.isoformat() if self.start_time else None,
+            "finished_at": self.end_time.isoformat() if self.end_time else None,
+        }
+
+    def get_failed_flows(self) -> List[ModuleDataFlow]:
+        return [f for f in self.module_flows if f.status == ModuleDataFlowStatus.FAILED]
+
+    def get_passed_flows(self) -> List[ModuleDataFlow]:
+        return [f for f in self.module_flows if f.status == ModuleDataFlowStatus.VERIFIED]
+
+    def get_suite_summaries(self) -> List[Dict[str, Any]]:
+        summaries = []
+        for suite in self.suites:
+            summaries.append({
+                "name": suite.name,
+                "total": suite.total_count,
+                "passed": suite.passed_count,
+                "failed": suite.failed_count,
+                "skipped": suite.skipped_count,
+                "pass_rate": suite.pass_rate,
+                "duration_seconds": suite.execution_duration_seconds,
+            })
+        return summaries
+
+
+# ========== pytest Fixtures ==========
+
+@pytest.fixture
+def orchestrator() -> IntegrationTestOrchestrator:
+    """创建一个默认的集成测试编排器。"""
+    return IntegrationTestOrchestrator(timeout_seconds=3600)
+
+
+@pytest.fixture
+def sample_suite() -> TestSuite:
+    """创建一个包含多个测试用例的示例测试套件。"""
+    suite = TestSuite("sample_suite", timeout_seconds=3600)
+    for i in range(10):
+        suite.add_test_case(TestCase(
+            name=f"sample_test_{i}",
+            module="sample",
+            description=f"Sample integration test {i}",
+        ))
+    return suite
+
+
+@pytest.fixture
+def sample_flows() -> List[ModuleDataFlow]:
+    """创建一组示例数据流。"""
+    return [
+        ModuleDataFlow("auth", "user", "credentials", "inbound"),
+        ModuleDataFlow("user", "project", "user_info", "outbound"),
+        ModuleDataFlow("project", "workflow", "project_data", "bidirectional"),
+        ModuleDataFlow("workflow", "notification", "step_status", "outbound"),
+    ]
+
+
+# ============================================================
+# AC1: 测试执行时间 <= 1小时
+# ============================================================
+class TestIntegrationExecutionTime:
+    """验收标准 1: 集成测试执行时间不超过1小时。"""
+
+    def test_execution_within_one_hour(self, orchestrator, sample_suite):
+        """整体执行时间应在1小时内。"""
+        orchestrator.add_suite(sample_suite)
+        result = orchestrator.execute_all()
+        assert result["execution_time_seconds"] <= 3600, \
+            f"执行耗时 {result['execution_time_seconds']:.2f}s, 超过1小时限制"
+        assert result["within_timeout"] is True
+
+    def test_execution_time_is_non_negative(self, orchestrator):
+        """执行时间应为非负数。"""
+        result = orchestrator.execute_all()
+        assert result["execution_time_seconds"] >= 0
+
+    def test_timeout_exactly_one_hour(self, orchestrator):
+        """正好1小时边界应通过。"""
+        suite = TestSuite("boundary", timeout_seconds=3600)
+        for i in range(10):
+            suite.add_test_case(TestCase(
+                name=f"boundary_test_{i}",
+                module="boundary",
+                description=f"Boundary test {i}",
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["within_timeout"] is True
+        assert result["execution_time_seconds"] <= 3600
+
+    def test_near_zero_execution_time(self, orchestrator):
+        """极短执行时间也应正确记录。"""
+        suite = TestSuite("fast")
+        suite.add_test_case(TestCase(
+            name="quick_test", module="fast",
+            description="A quick test",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["execution_time_seconds"] >= 0
+        assert isinstance(result["execution_time_seconds"], float)
+
+    def test_start_and_end_times_are_set(self, orchestrator):
+        """执行前后应记录开始和结束时间。"""
+        suite = TestSuite("timing")
+        suite.add_test_case(TestCase(
+            name="timing_test", module="timing",
+            description="Check timing",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["started_at"] is not None, "缺少开始时间"
+        assert result["finished_at"] is not None, "缺少结束时间"
+        assert result["started_at"] < result["finished_at"], \
+            "开始时间应早于结束时间"
+
+    def test_timeout_equals_execution_time_boundary(self, orchestrator):
+        """执行时间等于1小时边界线。"""
+        suite = TestSuite("exact_boundary", timeout_seconds=3600)
+        suite.add_test_case(TestCase(
+            name="exact_test", module="exact",
+            description="Exact boundary test",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["execution_time_seconds"] <= 3600
+
+    def test_multiple_suites_time_sum_within_hour(self, orchestrator):
+        """多个套件的累计时间应在1小时内。"""
+        for suite_idx in range(5):
+            suite = TestSuite(f"suite_{suite_idx}", timeout_seconds=3600)
+            for i in range(10):
+                suite.add_test_case(TestCase(
+                    name=f"suite_{suite_idx}_test_{i}",
+                    module=f"module_{suite_idx}",
+                    description=f"Suite {suite_idx} test {i}",
+                ))
+            orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["execution_time_seconds"] <= 3600
+
+    def test_timeout_property_returns_correctly(self):
+        """is_within_timeout 属性应正确判断。"""
+        suite = TestSuite("timeout_check", timeout_seconds=3600)
+        suite.start_time = datetime.now()
+        suite.end_time = suite.start_time + timedelta(seconds=3500)
+        assert suite.is_within_timeout is True
+
+        suite.end_time = suite.start_time + timedelta(seconds=3700)
+        assert suite.is_within_timeout is False
+
+    def test_orchestrator_timeout_property(self, orchestrator):
+        """编排器的超时判断应与套件一致。"""
+        suite = TestSuite("prop_check")
+        suite.add_test_case(TestCase(
+            name="prop", module="prop", description="Property check",
+        ))
+        orchestrator.add_suite(suite)
+        orchestrator.execute_all()
+        assert orchestrator.is_execution_within_timeout is True
+
+    def test_empty_execution_sets_times(self, orchestrator):
+        """空执行（没有测试用例）仍应记录时间。"""
+        result = orchestrator.execute_all()
+        assert result["started_at"] is not None
+        assert result["finished_at"] is not None
+        assert result["execution_time_seconds"] >= 0
+
+    def test_execution_time_key_in_result(self, orchestrator):
+        """执行结果字典应包含 execution_time_seconds 键。"""
+        suite = TestSuite("key_check")
+        suite.add_test_case(TestCase(
+            name="key_test", module="key", description="Key check",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert "execution_time_seconds" in result
+
+    def test_within_timeout_key_in_result(self, orchestrator):
+        """执行结果字典应包含 within_timeout 键。"""
+        suite = TestSuite("timeout_key")
+        suite.add_test_case(TestCase(
+            name="timeout_test", module="timeout", description="Timeout check",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert "within_timeout" in result
+
+    def test_duration_precision_is_float(self):
+        """持续时间应为浮点数（毫秒级精度）。"""
+        suite = TestSuite("precision")
+        suite.start_time = datetime.now()
+        suite.end_time = suite.start_time + timedelta(milliseconds=500)
+        assert isinstance(suite.execution_duration_seconds, float)
+
+    def test_multiple_invocations_reset_timing(self, orchestrator):
+        """多次调用 execute_all 应重新计时。"""
+        suite = TestSuite("multi_run")
+        suite.add_test_case(TestCase(
+            name="multi", module="multi", description="Multi run",
+        ))
+        orchestrator.add_suite(suite)
+        r1 = orchestrator.execute_all()
+        r2 = orchestrator.execute_all()
+        assert r1["execution_time_seconds"] >= 0
+        assert r2["execution_time_seconds"] >= 0
+
+    def test_timeout_zero_seconds_suite(self):
+        """超时设为0秒的套件应标记为超时（除非执行时间为0）。"""
+        suite = TestSuite("zero_timeout", timeout_seconds=0)
+        suite.add_test_case(TestCase(
+            name="zero_test", module="zero", description="Zero timeout",
+        ))
+        suite.run()
+        assert suite.execution_duration_seconds > 0 or suite.execution_duration_seconds == 0
+        assert suite.is_within_timeout is (
+            suite.execution_duration_seconds <= 0
+        )
+
+    def test_large_number_of_test_cases(self, orchestrator):
+        """大量测试用例（1000个）的执行时间应仍在1小时内。"""
+        suite = TestSuite("large", timeout_seconds=3600)
+        for i in range(1000):
+            suite.add_test_case(TestCase(
+                name=f"large_test_{i}", module="large",
+                description=f"Large test {i}",
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["execution_time_seconds"] <= 3600
+        assert result["total_tests"] == 1000
+
+
+# ============================================================
+# AC2: 测试通过率 >= 90%
+# ============================================================
+class TestIntegrationPassRate:
+    """验收标准 2: 集成测试通过率不低于90%。"""
+
+    def test_high_pass_rate_meets_threshold(self, orchestrator):
+        """通过率 >= 90% 时应通过验收。"""
+        suite = TestSuite("high_pass_rate")
+        for i in range(100):
+            passed = i < 95
+            suite.add_test_case(TestCase(
+                name=f"test_high_{i}",
+                module="high_pass",
+                description=f"High pass test {i}",
+                status=TestStatus.PASSED if passed else TestStatus.FAILED,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] >= 90.0, \
+            f"通过率 {result['pass_rate']:.2f}% 低于90%"
+
+    def test_low_pass_rate_below_threshold(self, orchestrator):
+        """通过率 < 90% 时不应通过。"""
+        suite = TestSuite("low_pass_rate")
+        for i in range(10):
+            passed = i < 5
+            suite.add_test_case(TestCase(
+                name=f"test_low_{i}",
+                module="low_pass",
+                description=f"Low pass test {i}",
+                status=TestStatus.PASSED if passed else TestStatus.FAILED,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] < 90.0, \
+            f"通过率 {result['pass_rate']:.2f}% 应低于90%"
+
+    def test_exactly_90_percent_pass_rate(self, orchestrator):
+        """通过率正好90%边界线应通过。"""
+        suite = TestSuite("exact_90")
+        for i in range(10):
+            passed = i < 9
+            suite.add_test_case(TestCase(
+                name=f"test_exact_{i}",
+                module="exact_90",
+                description=f"Exact 90 test {i}",
+                status=TestStatus.PASSED if passed else TestStatus.FAILED,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] >= 90.0
+
+    def test_all_tests_pass(self, orchestrator):
+        """全部通过时通过率应为100%。"""
+        suite = TestSuite("all_pass")
+        for i in range(20):
+            suite.add_test_case(TestCase(
+                name=f"all_pass_{i}", module="all_pass",
+                description=f"All pass test {i}",
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 100.0
+
+    def test_all_tests_fail(self, orchestrator):
+        """全部失败时通过率应为0%。"""
+        suite = TestSuite("all_fail")
+        for i in range(10):
+            suite.add_test_case(TestCase(
+                name=f"all_fail_{i}", module="all_fail",
+                description=f"All fail test {i}",
+                status=TestStatus.FAILED,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 0.0
+
+    def test_pass_rate_with_skipped_tests(self, orchestrator):
+        """跳过的测试不计入执行总数。"""
+        suite = TestSuite("with_skipped")
+        for i in range(10):
+            status = TestStatus.SKIPPED if i < 3 else TestStatus.PASSED
+            suite.add_test_case(TestCase(
+                name=f"skip_test_{i}", module="skip_check",
+                description=f"Skip test {i}",
+                status=status,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 100.0, \
+            f"跳过测试不计入时预期100%, 实际{result['pass_rate']:.2f}%"
+        assert result["skipped"] == 3
+
+    def test_pass_rate_with_only_skipped(self, orchestrator):
+        """全部跳过时通过率应为0%（无执行用例）。"""
+        suite = TestSuite("only_skipped")
+        for i in range(5):
+            suite.add_test_case(TestCase(
+                name=f"only_skip_{i}", module="only_skip",
+                description=f"Only skip {i}",
+                status=TestStatus.SKIPPED,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 0.0
+
+    def test_pass_rate_is_float(self, orchestrator):
+        """通过率应为浮��数。"""
+        suite = TestSuite("float_check")
+        suite.add_test_case(TestCase(
+            name="float_test", module="float", description="Float check",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert isinstance(result["pass_rate"], float)
+
+    def test_single_test_passes(self, orchestrator):
+        """单个测试通过时通过率100%。"""
+        suite = TestSuite("single")
+        suite.add_test_case(TestCase(
+            name="single_test", module="single", description="Single test",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 100.0
+
+    def test_single_test_fails(self, orchestrator):
+        """单个测试失败时通过率0%。"""
+        suite = TestSuite("single_fail")
+        suite.add_test_case(TestCase(
+            name="single_fail_test", module="single_fail",
+            description="Single fail test",
+            status=TestStatus.FAILED,
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 0.0
+
+    def test_pass_rate_across_multiple_suites(self, orchestrator):
+        """多个套件的综合通过率应正确计算。"""
+        suite1 = TestSuite("suite_a")
+        for i in range(80):
+            suite1.add_test_case(TestCase(
+                name=f"suite_a_{i}", module="a",
+                description=f"Suite A test {i}",
+            ))
+        suite2 = TestSuite("suite_b")
+        for i in range(20):
+            suite2.add_test_case(TestCase(
+                name=f"suite_b_{i}", module="b",
+                description=f"Suite B test {i}",
+                status=TestStatus.FAILED if i < 2 else TestStatus.PASSED,
+            ))
+        orchestrator.add_suite(suite1)
+        orchestrator.add_suite(suite2)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] >= 90.0, \
+            f"综合通过率 {result['pass_rate']:.2f}% 应 >= 90%"
+
+    def test_pass_rate_with_errors(self, orchestrator):
+        """错误（ERROR）等同于失败，不计入通过。"""
+        suite = TestSuite("with_errors")
+        for i in range(10):
+            status = TestStatus.PASSED if i < 8 else TestStatus.ERROR
+            suite.add_test_case(TestCase(
+                name=f"error_test_{i}", module="error_check",
+                description=f"Error test {i}",
+                status=status,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 80.0
+
+    def test_pass_rate_key_in_result(self, orchestrator):
+        """执行结果应包含 pass_rate 键。"""
+        suite = TestSuite("rate_key")
+        suite.add_test_case(TestCase(
+            name="rate_test", module="rate", description="Rate key check",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert "pass_rate" in result
+
+    def test_passed_failed_keys_in_result(self, orchestrator):
+        """执行结果应包含 passed 和 failed 键。"""
+        suite = TestSuite("keys")
+        suite.add_test_case(TestCase(
+            name="key_test", module="key", description="Key check",
+            status=TestStatus.PASSED,
+        ))
+        suite.add_test_case(TestCase(
+            name="key_test_2", module="key", description="Key check 2",
+            status=TestStatus.FAILED,
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert "passed" in result
+        assert "failed" in result
+        assert result["passed"] == 1
+        assert result["failed"] == 1
+
+    def test_pass_rate_rounding_precision(self, orchestrator):
+        """通过率计算精度至少保留2位小数。"""
+        suite = TestSuite("rounding")
+        for i in range(3):
+            passed = i < 2
+            suite.add_test_case(TestCase(
+                name=f"round_{i}", module="round",
+                description=f"Rounding test {i}",
+                status=TestStatus.PASSED if passed else TestStatus.FAILED,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        expected = 2 / 3 * 100.0
+        assert abs(result["pass_rate"] - expected) < 0.01
+
+    def test_pass_rate_with_0_tests(self, orchestrator):
+        """没有测试用例时通过率为0%。"""
+        result = orchestrator.execute_all()
+        assert result["pass_rate"] == 0.0
+
+
+# ============================================================
+# AC3: 模块间数据流转验证完整率100%
+# ============================================================
+class TestModuleDataFlowVerification:
+    """验收标准 3: 模块间数据流转验证完整率100%。"""
+
+    def test_all_module_flows_verified(self, orchestrator, sample_flows):
+        """所有数据流转都经过验证时完整率为100%。"""
+        for flow in sample_flows:
+            orchestrator.add_module_flow(flow)
+        suite = TestSuite("flow_test")
+        suite.add_test_case(TestCase(
+            name="flow_integration", module="flow",
+            description="Flow integration test",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["flow_verification_rate"] == 100.0, \
+            f"数据流转验证完整率 {result['flow_verification_rate']:.2f}% 未达到100%"
+        assert result["verified_flow_count"] == len(sample_flows)
+        assert result["flow_count"] == len(sample_flows)
+
+    def test_all_flows_marked_verified(self):
+        """验证后所有数据流应标记为 VERIFIED 状态。"""
+        flows = [
+            ModuleDataFlow("module_a", "module_b", "data_1", "inbound"),
+            ModuleDataFlow("module_b", "module_c", "data_2", "outbound"),
+            ModuleDataFlow("module_c", "module_d", "data_3", "bidirectional"),
+        ]
+        for flow in flows:
+            result = flow.verify()
+            assert result is True
+            assert flow.status == ModuleDataFlowStatus.VERIFIED
+            assert flow.verified_at is not None
+
+    def test_flow_verification_timestamp(self):
+        """验证后的数据流应有时间戳。"""
+        flow = ModuleDataFlow("src", "dst", "payload", "inbound")
+        before = datetime.now()
+        flow.verify()
+        after = datetime.now()
+        assert flow.verified_at is not None
+        assert before <= flow.verified_at <= after
+
+    def test_flow_with_empty_source_fails(self):
+        """源模块为空时验证应失败。"""
+        flow = ModuleDataFlow("", "target", "data", "inbound")
+        result = flow.verify()
+        assert result is False
+        assert flow.status == ModuleDataFlowStatus.FAILED
+        assert flow.error_message is not None
+
+    def test_flow_with_empty_target_fails(self):
+        """目标模块为空时验证应失败。"""
+        flow = ModuleDataFlow("source", "", "data", "inbound")
+        result = flow.verify()
+        assert result is False
+        assert flow.status == ModuleDataFlowStatus.FAILED
+
+    def test_flow_with_empty_data_type_fails(self):
+        """数据类型为空时验证应失败。"""
+        flow = ModuleDataFlow("src", "dst", "", "inbound")
+        result = flow.verify()
+        assert result is False
+        assert flow.status == ModuleDataFlowStatus.FAILED
+
+    def test_flow_with_empty_direction_fails(self):
+        """方向为空时验证应失败。"""
+        flow = ModuleDataFlow("src", "dst", "payload", "")
+        result = flow.verify()
+        assert result is False
+        assert flow.status == ModuleDataFlowStatus.FAILED
+
+    def test_single_flow_100_percent_verified(self, orchestrator):
+        """单个数据流验证通过时完整率100%。"""
+        orchestrator.add_module_flow(ModuleDataFlow("a", "b", "x", "inbound"))
+        suite = TestSuite("single_flow")
+        suite.add_test_case(TestCase(
+            name="single_flow_test", module="flow", description="Single flow",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["flow_verification_rate"] == 100.0
+
+    def test_no_flows_defined(self, orchestrator):
+        """没有定义数据流时完整率应为100%（空集视为完整）。"""
+        suite = TestSuite("no_flows")
+        suite.add_test_case(TestCase(
+            name="no_flow_test", module="noflow", description="No flow",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["flow_verification_rate"] == 100.0
+        assert result["flow_count"] == 0
+
+    def test_partial_flow_verification(self, orchestrator):
+        """部分数据流验证失败时完整率应低于100%。"""
+        orchestrator.add_module_flow(ModuleDataFlow("a", "b", "valid", "inbound"))
+        orchestrator.add_module_flow(ModuleDataFlow("", "d", "invalid", "outbound"))
+        suite = TestSuite("partial")
+        suite.add_test_case(TestCase(
+            name="partial_test", module="partial", description="Partial",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["flow_verification_rate"] == 50.0, \
+            f"预期50%, 实际 {result['flow_verification_rate']:.2f}%"
+        assert result["verified_flow_count"] == 1
+        assert result["flow_count"] == 2
+
+    def test_flow_verification_rate_key_in_result(self, orchestrator):
+        """执行结果应包含 flow_verification_rate 键。"""
+        orchestrator.add_module_flow(ModuleDataFlow("a", "b", "x", "inbound"))
+        suite = TestSuite("rate_key")
+        suite.add_test_case(TestCase(
+            name="rate_key_test", module="rate_key", description="Rate key",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert "flow_verification_rate" in result
+
+    def test_flow_count_keys_in_result(self, orchestrator):
+        """执行结果应包含 flow_count 和 verified_flow_count 键。"""
+        orchestrator.add_module_flow(ModuleDataFlow("x", "y", "z", "inbound"))
+        suite = TestSuite("count_key")
+        suite.add_test_case(TestCase(
+            name="count_test", module="count", description="Count check",
+        ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert "flow_count" in result
+        assert "verified_flow_count" in result
+
+    def test_get_failed_flows_returns_list(self, orchestrator):
+        """get_failed_flows 应返回所有失败的数据流。"""
+        orchestrator.add_module_flow(ModuleDataFlow("a", "b", "valid", "inbound"))
+        orchestrator.add_module_flow(ModuleDataFlow("", "d", "invalid", "outbound"))
+        suite = TestSuite("failed_flows")
+        suite.add_test_case(TestCase(
+            name="fail_flow", module="fail", description="Fail flow",
+        ))
+        orchestrator.add_suite(suite)
+        orchestrator.execute_all()
+        failed = orchestrator.get_failed_flows()
+        assert len(failed) == 1
+        assert failed[0].status == ModuleDataFlowStatus.FAILED
+
+    def test_get_passed_flows_returns_list(self, orchestrator):
+        """get_passed_flows 应返回所有通过验证的数据流。""
+
+[…truncated 1818 chars — raise BridgeOptions.maxResultChars, or call the tool with a narrower scope (filter, head, pagination)…]
+
+
+        for key in required_keys:
+            assert key in result, f"缺少键: {key}"
+
+    def test_mixed_status_test_suite(self, orchestrator):
+        """混合状态的套件应正确统计。"""
+        suite = TestSuite("mixed")
+        for i in range(20):
+            if i < 10:
+                st = TestStatus.PASSED
+            elif i < 15:
+                st = TestStatus.FAILED
+            elif i < 18:
+                st = TestStatus.ERROR
+            else:
+                st = TestStatus.SKIPPED
+            suite.add_test_case(TestCase(
+                name=f"mixed_{i}", module="mixed",
+                description=f"Mixed {i}",
+                status=st,
+            ))
+        orchestrator.add_suite(suite)
+        result = orchestrator.execute_all()
+        assert result["passed"] == 10
+        assert result["failed"] == 5
+        assert result["skipped"] == 2
+        expected_rate = 10 / (20 - 2) * 100.0
+        assert abs(result["pass_rate"] - expected_rate) < 0.001
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
