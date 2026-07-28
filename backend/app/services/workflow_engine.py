@@ -46,7 +46,10 @@ def get_default_steps() -> List[StepDefinition]:
     ]
 
 
-QA_REQUIRED_STEPS = {2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 14}
+# 注意：步骤 9（后发蜂群编写功能代码）不做外部 QA 检验，
+# 因为其内部已自带 writer→tester→hourong 抽检的完整验证链。
+# 步骤 9 要么 in_progress，要么 completed 或 error，永远不会进入 qa_review 状态。
+QA_REQUIRED_STEPS = {2, 3, 4, 5, 6, 7, 8, 11, 12, 14}
 
 # Agent健康状态枚举
 AGENT_HEALTHY = "healthy"

@@ -1,6 +1,7 @@
 """v4.0 - Agent 蜂群管理服务"""
 import ast
 import logging
+import os
 import warnings
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
@@ -16,14 +17,15 @@ SUPPORTED_SWARM_AGENTS = [
 ]
 
 WRITER_AGENT_TYPES = [
-    "pi_coding_agent", "opencode", "hermes", "claude_code",
-    "codearts", "trae", "codebuddy", "reasonix",
-    "goose",
+    "claude_code", "codebuddy", "opencode", "hermes",
+    "pi_coding_agent", "goose", "reasonix",
+    "aider-chat", "qoder_cli",
 ]
 
 TESTER_AGENT_TYPES = [
-    "reasonix", "claude_code", "hermes",
-    "goose",
+    "claude_code", "codebuddy", "opencode", "hermes",
+    "pi_coding_agent", "goose", "reasonix",
+    "aider-chat", "qoder_cli",
 ]
 
 WRITER_PREFERENCE = ["pi_coding_agent", "opencode"]
@@ -242,6 +244,46 @@ class SwarmService:
                         break
                     except SyntaxError:
                         continue
+        # Step 5: 如果仍然语法错误，强制从原始文本提取后兜底
+        if result.strip():
+            try:
+                _parse_py(result)
+            except SyntaxError:
+                # 尝试提取 ```python ... ``` 块
+                py_block = _re.search(r'```python\s*\n(.*?)\n```', raw, _re.DOTALL)
+                if py_block:
+                    result = py_block.group(1).strip()
+                else:
+                    any_block = _re.search(r'```\w*\n(.*?)\n```', raw, _re.DOTALL)
+                    if any_block:
+                        result = any_block.group(1).strip()
+        # Step 6: 终极清洗 — 剔除非 Python 内容
+        if result.strip():
+            try:
+                _parse_py(result)
+            except SyntaxError:
+                lines = result.split('\n')
+                py_lines = []
+                for line in lines:
+                    stripped = line.strip()
+                    # 扔掉纯中文/全角/unicode标点行（如 em dash —、全角空格等）
+                    if _re.search(r'[一-鿿　-〿＀-￯‐-―‘-”…]', stripped):
+                        # 除非这一行同时有 Python 关键字
+                        if not _re.search(
+                            r'^(import |from |def |class |@|assert |self\.|return |print |pass |if |elif |else:|try:|except |finally:|with |for |while |async |await |raise |yield |lambda |del |global |nonlocal |# )',
+                            stripped,
+                        ):
+                            continue
+                    # 扔掉纯符号/纯标点行（无字母数字）
+                    if stripped and not _re.search(r'[a-zA-Z0-9_]', stripped):
+                        # 除非是注释、字符串或装饰器
+                        if not stripped.startswith(('#', '"', "'", '@', '"""', "'''")):
+                            continue
+                    py_lines.append(line)
+                result = '\n'.join(py_lines).strip()
+        # Step 7: 检查结果是否太短（<20字符）— 说明清洗后无有效代码
+        if result.strip() and len(result.strip()) < 20:
+            return ""
         return result.strip()
 
     @staticmethod
@@ -296,6 +338,70 @@ class SwarmService:
         return agents
 
     @staticmethod
+    def _detect_language(file_path: str) -> str:
+        """根据文件扩展名返回语言/类型"""
+        # 去掉路径中的括号注释（如 app/main.py(test config) → app/main.py）
+        import re as _re_lang
+        clean_path = _re_lang.sub(r'\(.*?\)', '', file_path).strip()
+        ext = os.path.splitext(clean_path)[1].lower()
+        base = os.path.basename(clean_path).lower()
+        if ext in ('.py', '.pyw'):
+            return 'python'
+        if ext == '.js':
+            return 'javascript'
+        if ext in ('.ts', '.tsx'):
+            return 'typescript'
+        if ext in ('.jsx',):
+            return 'jsx'
+        if ext == '.vue':
+            return 'vue'
+        if ext == '.html':
+            return 'html'
+        if ext == '.css':
+            return 'css'
+        if ext == '.scss':
+            return 'scss'
+        if ext == '.java':
+            return 'java'
+        if ext == '.go':
+            return 'go'
+        if ext == '.rs':
+            return 'rust'
+        if ext == '.rb':
+            return 'ruby'
+        if ext == '.php':
+            return 'php'
+        if ext == '.sh':
+            return 'shell_script'
+        if ext == '.bat':
+            return 'batch'
+        if ext in ('.yaml', '.yml'):
+            return 'yaml'
+        if ext == '.json':
+            return 'json'
+        if ext == '.xml':
+            return 'xml'
+        if ext == '.sql':
+            return 'sql'
+        if ext == '.md':
+            return 'markdown'
+        if ext == '.dockerfile' or base == 'dockerfile':
+            return 'dockerfile'
+        if ext in ('.toml',):
+            return 'toml'
+        if ext in ('.cfg', '.ini', '.conf'):
+            return 'config'
+        if ext == '.env':
+            return 'env'
+        if ext in ('.gradle',):
+            return 'gradle'
+        if ext == '.properties':
+            return 'properties'
+        if base in ('makefile',):
+            return 'makefile'
+        return 'code'
+
+    @staticmethod
     def build_code_writer_prompt(
         file_path: str,
         file_description: str,
@@ -309,55 +415,51 @@ class SwarmService:
         dependency_codes: list = None,
         dep_graph: dict = None,
         code_plan: str = "",
+        abs_file_path: str = "",
+        docs_dir: str = "",
     ) -> str:
-        """为单个源文件构建代码编写 prompt"""
+        """构建代码编写提示词"""
+        lang = SwarmService._detect_language(file_path)
+
         parts = [
-            f"你是{writer_name}，资深程序员，负责编写功能代码中的一个文件。",
+            "【输出格式要求】只输出纯代码内容。不要有任何对话、解释、思考过程、问候语、markdown标记。",
+            "第一行直接是有效的代码。禁止输出```、<think>等标记。",
+            "",
+            "【任务】",
+            f"文件: {file_path}",
+            f"功能: {file_description}",
         ]
-        parts.append(f"\n=== 项目上下文 ===\n核心目标：{core_goal}\n")
-        if requirement:
-            parts.append(f"\n=== 需求文档 ===\n{requirement[:8000]}")
-        if design_doc:
-            parts.append(f"\n=== 架构设计 ===\n{design_doc[:6000]}")
+        if abs_file_path:
+            parts.append(f"保存路径: {abs_file_path}")
+        if core_goal:
+            parts.append(f"核心目标: {core_goal}")
+        if docs_dir:
+            parts.append(f"文档目录: {docs_dir}")
+
         if tdd_cases:
-            parts.append(f"\n=== TDD测试用例 ===\n{tdd_cases[:6000]}")
+            parts.append(f"")
+            parts.append(f"【TDD测试（必须通过）】")
+            parts.append(tdd_cases[:4000])
+
         if code_plan:
-            parts.append(f"\n=== 代码编写计划 ===\n{str(code_plan)[:4000]}")
-        if dep_graph:
-            parts.append(f"\n=== 依赖图 ===\n{str(dep_graph)[:2000]}")
+            parts.append(f"")
+            parts.append(f"【编码计划】")
+            parts.append(str(code_plan)[:3000])
 
         if dependency_codes:
-            dep_section = "\n=== 已生成的相关文件代码（依赖前置） ===\n"
+            parts.append(f"")
+            parts.append(f"【已有依赖代码】")
             for dep_path, dep_code in dependency_codes:
-                dep_section += f"--- {dep_path} ---\n{dep_code[:3000]}\n\n"
-            parts.append(dep_section)
-
-        parts.append(
-            f"\n=== 当前文件 ===\n"
-            f"文件路径：{file_path}\n"
-            f"功能描述：{file_description}\n"
-        )
-        parts.append("")
-        parts.append("═══════════【输出铁律】═══════════")
-        parts.append("1. 第一行必须是 Python 代码（import/def/class 开头），不得有任何非代码内容")
-        parts.append("2. 禁止在代码前后输出任何文字——包括自我介绍、签名、版本号、路径、分隔线等")
-        parts.append("3. 禁止 Markdown 代码块标记（```）。只输出纯文本代码")
-        parts.append("4. 禁止使用 todo()、pass（作为占位符）或任何无法执行的伪代码")
-        parts.append("5. ⛔ 禁止使用任何文件读写工具！只输出代码文本")
-        parts.append("【代码质量要求】")
-        parts.append("1. 输出的代码必须能通过 Python 编译——包含所有必要的 import 语句")
-        parts.append("2. 必须包含完整的类/函数定义，所有方法必须有实现体")
-        parts.append("3. 注释清晰，类型标注完整")
-        parts.append("4. 代码符合架构设计的技术选型")
-        parts.append("═══════════════════════════════════")
+                parts.append(f"-- {dep_path} --")
+                parts.append(dep_code[:2000])
 
         if last_feedback and attempt > 1:
-            parts.append(
-                f"\n【⚠️ 上一轮检验未通过】\n"
-                f"请根据以下反馈修改当前文件：\n{last_feedback}\n"
-            )
-        else:
-            parts.append("\n按功能描述从零开始生成完整代码。")
+            parts.append(f"")
+            parts.append(f"【上一轮修复要求】")
+            parts.append(last_feedback)
+
+        parts.append(f"")
+        parts.append("再次强调：只输出代码。不要对话。不要思考过程。不要markdown。")
 
         return "\n".join(parts)
 
@@ -372,45 +474,44 @@ class SwarmService:
         tester_name: str,
         attempt: int = 1,
         last_feedback: str = "",
+        abs_file_path: str = "",
+        docs_dir: str = "",
     ) -> str:
-        """为单个源文件构建代码检验 prompt"""
-        parts = [
-            f"你是{tester_name}，资深代码审查员，负责检验功能代码的质量。",
-        ]
-        parts.append(
-            f"\n=== 检验的文件 ===\n"
-            f"文件路径：{file_path}\n"
-            f"功能描述：{file_description}\n"
-        )
-        if requirement:
-            parts.append(f"\n=== 需求文档 ===\n{requirement[:3000]}")
-        if design_doc:
-            parts.append(f"\n=== 架构设计 ===\n{design_doc[:3000]}")
-        if tdd_cases:
-            parts.append(f"\n=== 相关TDD测试用例 ===\n{tdd_cases[:3000]}")
-        parts.append("")
-        parts.append("═══════════【检验要求】═══════════")
-        parts.append("请逐项检验以下代码：")
-        parts.append("1. 代码逻辑是否正确，是否满足功能描述")
-        parts.append("2. 代码是否符合架构设计的技术选型")
-        parts.append("3. 代码是否能编译通过（检查 import、语法）")
-        parts.append("4. 代码是否能通过对应的 TDD 测试用例")
-        parts.append("5. 代码是否有安全漏洞或性能问题")
-        parts.append("")
-        parts.append("═══════════【输出格式】═══════════")
-        parts.append("你必须输出 JSON 格式的检验结果：")
-        parts.append('{"passed": true/false, "score": 0-100, "detail": "具体检验意见...", "issues": ["问题1", "问题2", ...]}')
-        parts.append("passed=true 表示全部通过，score<90 视为未通过")
-        parts.append("═════════════════════════════════")
-        parts.append("")
-        parts.append(f"=== 待检验代码 ===\n{code_content[:6000]}")
+        """构建代码检验提示词"""
+        import json as _j
+        dims_json = _j.dumps([
+            {"维度": "代码正确性", "key": "code_correctness"},
+            {"维度": "需求匹配度", "key": "requirement_match"},
+            {"维度": "代码规范", "key": "code_standard"},
+            {"维度": "测试通过率", "key": "test_pass_rate"},
+        ], ensure_ascii=False)
 
-        if last_feedback and attempt > 1:
-            parts.append(
-                f"\n【⚠️ 上一轮检验未通过】\n"
-                f"请重点检查以下问题是否已修复：\n{last_feedback}\n"
-            )
-        else:
-            parts.append("\n请从零开始全面检验。")
+        code_blob = code_content[:6000] if code_content.strip() else ""
+        if not code_blob and abs_file_path:
+            code_blob = "(文件存在于 " + abs_file_path + ")"
+        elif not code_blob:
+            code_blob = file_description
+
+        # 极简提示词 — Agent 没有上下文可以发挥
+        lines = [
+            'SCORE 0-100',
+            'JSON: [{"key":"","label":"","passed":bool,"detail":""}]',
+            '直接输出。不要对话。',
+            '',
+            file_path,
+        ]
+        if abs_file_path:
+            lines.append('文件: ' + abs_file_path)
+        lines.append('维度: ' + dims_json)
+        if tdd_cases:
+            lines.append('TDD: ' + tdd_cases[:2000])
+        if last_feedback:
+            lines.append('修复: ' + last_feedback)
+        lines.append('')
+        lines.append('---CODE---')
+        lines.append(code_blob)
+        lines.append('---END---')
+        lines.append('SCORE + JSON. 不要其它内容。')
+        return '\n'.join(lines)
 
         return "\n".join(parts)

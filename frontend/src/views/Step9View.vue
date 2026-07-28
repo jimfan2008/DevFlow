@@ -52,7 +52,7 @@
             <h4>🐝 已连接Agent</h4>
             <div class="step9-view__agent-chips">
               <div v-for="a in connectedAgents" :key="a.name" class="step9-view__agent-chip" :class="'role-' + a.role">
-                <span class="step9-view__agent-chip-icon">✍️</span>
+                <span class="step9-view__agent-chip-icon">{{ a.smokePassed === undefined ? '⏳' : a.smokePassed ? '✅' : '❌' }}</span>
                 <span class="step9-view__agent-chip-name">{{ a.name }}</span>
                 <el-tag size="small" :type="a.role === 'writer' ? 'warning' : 'primary'">{{ a.agentType }}</el-tag>
               </div>
@@ -74,27 +74,41 @@
                   size="small"
                   effect="dark"
                 >{{ agentStatusLabel[task.status] }}</el-tag>
+                <el-button text size="small" class="step9-view__toggle-detail"
+                  @click="task.showDetail = !task.showDetail">
+                  {{ task.showDetail ? '▲' : '▼' }}
+                </el-button>
               </div>
 
               <div class="step9-view__agent-body">
-                <div class="step9-view__agent-line">
-                  <span class="step9-view__agent-label">✍️ 编写Agent</span>
-                  <span class="step9-view__agent-value">{{ task.writerAgent || '等待分配...' }}</span>
+                <!-- 统计行 -->
+                <div class="step9-view__agent-stats">
+                  <div class="step9-view__agent-stat">
+                    <div class="step9-view__stat-header"><span class="step9-view__stat-icon">✍️</span><span class="step9-view__stat-label">编写Agent</span></div>
+                    <div class="step9-view__stat-val" :title="task.writerAgent">{{ task.writerAgent || '—' }}</div>
+                  </div>
+                  <div class="step9-view__agent-stat">
+                    <div class="step9-view__stat-header"><span class="step9-view__stat-icon">🔍</span><span class="step9-view__stat-label">测试Agent</span></div>
+                    <div class="step9-view__stat-val" :title="task.testerAgent">{{ task.testerAgent || '—' }}</div>
+                  </div>
+                  <div class="step9-view__agent-stat">
+                    <div class="step9-view__stat-header"><span class="step9-view__stat-icon">🔄</span><span class="step9-view__stat-label">重试轮次</span></div>
+                    <div class="step9-view__stat-val">{{ task.attempts }}/{{ MAX_ATTEMPTS }}</div>
+                  </div>
                 </div>
-                <div class="step9-view__agent-line" v-if="task.writerResponse">
-                  <el-button text size="small" @click="task.showWriterResponse = !task.showWriterResponse">
-                    {{ task.showWriterResponse ? '收起' : '📄 编写响应' }}
-                  </el-button>
-                </div>
-                <div v-if="task.showWriterResponse && task.writerResponse" class="step9-view__response-box">
-                  <pre>{{ task.writerResponse }}</pre>
-                </div>
-                <div class="step9-view__agent-line" v-if="task.attempts > 0">
-                  <span class="step9-view__agent-label">🔄 轮次</span>
-                  <span class="step9-view__agent-value">{{ task.attempts }}/{{ MAX_ATTEMPTS }}</span>
-                </div>
+
+                <!-- 折叠详情：提示词 + 检验报告 -->
+                <el-collapse v-if="task.showDetail" class="step9-view__agent-detail-collapse">
+                  <el-collapse-item title="📝 编写提示词 (Writer Prompt)" name="prompt">
+                    <pre class="step9-view__code-block">{{ task.writerPrompt || '暂无提示词' }}</pre>
+                  </el-collapse-item>
+                  <el-collapse-item title="📋 检验报告 (Tester Report)" name="report">
+                    <pre class="step9-view__code-block">{{ task.testerReport || task.writerResponse || '暂无检验报告' }}</pre>
+                  </el-collapse-item>
+                </el-collapse>
+
+                <div v-if="task.message && !task.showDetail" class="step9-view__agent-msg">{{ task.message }}</div>
               </div>
-              <div v-if="task.message && !task.writerPrompt" class="step9-view__agent-msg">{{ task.message }}</div>
               <div class="step9-view__agent-bar">
                 <el-progress
                   v-if="task.status === 'writing' || task.status === 'testing'"
@@ -246,7 +260,7 @@ const projectName = ref((route.query.name as string) || '未命名项目')
 const loading = ref(false)
 const executing = ref(false)
 const error = ref('')
-const stepStatus = ref<'pending' | 'in_progress' | 'qa_review' | 'completed' | 'error'>('pending')
+const stepStatus = ref<'pending' | 'in_progress' | 'completed' | 'error'>('pending')
 const streamStatus = ref('')
 const stageLog = ref<{ type: string; message: string }[]>([])
 const stuckWarning = ref('')
@@ -261,13 +275,14 @@ interface TaskState {
   index: number
   name: string
   writerAgent: string
+  testerAgent: string
   status: TaskStatus
   attempts: number
   message: string
   writerPrompt: string
-  showWriterPrompt: boolean
   writerResponse: string
-  showWriterResponse: boolean
+  testerReport: string
+  showDetail: boolean
 }
 
 const taskStates = ref<Record<number, TaskState>>({})
@@ -275,7 +290,7 @@ const taskStatesArray = computed(() =>
   Object.values(taskStates.value).sort((a, b) => a.index - b.index)
 )
 
-const connectedAgents = ref<{name: string; role: string; agentType: string}[]>([])
+const connectedAgents = ref<{name: string; role: string; agentType: string; smokePassed?: boolean}[]>([])
 const writerAgentsList = computed(() => connectedAgents.value.filter(a => a.role === 'writer'))
 
 const totalTasks = computed(() => taskStatesArray.value.length)
@@ -312,11 +327,11 @@ const taskIcon: Record<string, string> = {
 }
 
 const statusTag = computed(() => {
-  const map: Record<string, string> = { pending: 'info', in_progress: 'warning', qa_review: 'warning', completed: 'success', error: 'danger' }
+  const map: Record<string, string> = { pending: 'info', in_progress: 'warning', completed: 'success', error: 'danger' }
   return map[stepStatus.value] || 'info'
 })
 const statusLabel = computed(() => {
-  const map: Record<string, string> = { pending: '待执行', in_progress: '执行中', qa_review: '待检验', completed: '已完成', error: '出错' }
+  const map: Record<string, string> = { pending: '待执行', in_progress: '执行中', completed: '已完成', error: '出错' }
   return map[stepStatus.value] || stepStatus.value
 })
 
@@ -367,10 +382,10 @@ function parseStep9Message(msg: { type: string; message?: string; content?: stri
       if (!taskStates.value[idx]) {
         taskStates.value[idx] = {
           index: idx, name,
-          writerAgent: '', status: 'pending',
+          writerAgent: '', testerAgent: '', status: 'pending',
           attempts: 0, message: '',
-          writerPrompt: '', showWriterPrompt: false,
-          writerResponse: '', showWriterResponse: false,
+          writerPrompt: '', writerResponse: '',
+          testerReport: '', showDetail: false,
         }
       }
     }
@@ -397,17 +412,30 @@ function parseStep9Message(msg: { type: string; message?: string; content?: stri
   }
 
   // ── 正在检验 ──
-  if (txt.includes('检验中')) {
+  const testerMatch = txt.match(/🔍.*?\] (.+?) 检验（第(\d+)轮）/)
+  if (testerMatch) {
     task.status = 'testing'
+    task.testerAgent = testerMatch[1].trim()
+    task.attempts = parseInt(testerMatch[2])
     scrollTaskList()
     return
   }
 
-  // ── 通过 ──
-  const passMatch = txt.match(/✅.*?通过（第(\d+)轮）/)
+  // ── 通过（带Tester名）──
+  const passMatch = txt.match(/✅.*?通过 (.+?) 检验（第(\d+)轮）/)
   if (passMatch) {
     task.status = 'passed'
-    task.attempts = parseInt(passMatch[1])
+    task.testerAgent = passMatch[1].trim()
+    task.attempts = parseInt(passMatch[2])
+    scrollTaskList()
+    return
+  }
+
+  // ── 通过（无Tester名，兜底）──
+  const simplePass = txt.match(/✅.*?通过（第(\d+)轮）/)
+  if (simplePass) {
+    task.status = 'passed'
+    task.attempts = parseInt(simplePass[1])
     scrollTaskList()
     return
   }
@@ -448,6 +476,43 @@ function connectWs() {
         const msg = JSON.parse(event.data)
         if (msg.type === 'step9' || msg.type === 'stage' || msg.type === 'progress') {
           if (msg.message || msg.subtask_names) parseStep9Message(msg)
+        } else if (msg.type === 'task_update') {
+          // 结构化任务状态更新：直接更新 TaskState 字段
+          const task = taskStates.value[msg.index]
+          if (!task && msg.name) {
+            taskStates.value[msg.index] = {
+              index: msg.index, name: msg.name,
+              writerAgent: '', testerAgent: '', status: 'pending',
+              attempts: 0, message: '',
+              writerPrompt: '', writerResponse: '',
+              testerReport: '', showDetail: false,
+            }
+          }
+          const t = taskStates.value[msg.index]
+          if (t) {
+            if (msg.writerAgent !== undefined) t.writerAgent = msg.writerAgent
+            if (msg.testerAgent !== undefined) t.testerAgent = msg.testerAgent
+            if (msg.writerPrompt !== undefined) t.writerPrompt = msg.writerPrompt
+            if (msg.testerReport !== undefined) t.testerReport = msg.testerReport
+            if (msg.attempts !== undefined) t.attempts = msg.attempts
+            if (msg.status) t.status = msg.status
+            if (msg.message) t.message = msg.message
+            scrollTaskList()
+          }
+        } else if (msg.type === 'smoke_test') {
+          // 烟雾测试结果：更新已连接Agent列表
+          if (msg.name) {
+            const existing = connectedAgents.value.find(a => a.name === msg.name)
+            if (existing) {
+              existing.smokePassed = msg.passed
+            } else if (msg.passed) {
+              connectedAgents.value.push({
+                name: msg.name, role: msg.role || '',
+                agentType: msg.agent_type || '',
+                smokePassed: true,
+              })
+            }
+          }
         } else if (msg.type === 'agent_online') {
           if (msg.name && !connectedAgents.value.find(a => a.name === msg.name)) {
             connectedAgents.value.push({name: msg.name, role: msg.role, agentType: msg.agent_type})
@@ -509,13 +574,14 @@ function startPolling() {
             task.status = resolvedStatus
             task.attempts = sr.attempts || 0
             if (sr.writer) task.writerAgent = sr.writer
+            if (sr.tester) task.testerAgent = sr.tester
           } else {
             taskStates.value[sr.index] = {
               index: sr.index, name: sr.name,
-              writerAgent: sr.writer || '', status: resolvedStatus,
+              writerAgent: sr.writer || '', testerAgent: sr.tester || '', status: resolvedStatus,
               attempts: sr.attempts || 0, message: '',
-              writerPrompt: '', showWriterPrompt: false,
-              writerResponse: '', showWriterResponse: false,
+              writerPrompt: '', writerResponse: '',
+              testerReport: '', showDetail: false,
             }
           }
         }
@@ -530,10 +596,10 @@ function startPolling() {
           if (!taskStates.value[idx]) {
             taskStates.value[idx] = {
               index: idx, name,
-              writerAgent: '', status: 'pending',
+              writerAgent: '', testerAgent: '', status: 'pending',
               attempts: 0, message: '',
-              writerPrompt: '', showWriterPrompt: false,
-              writerResponse: '', showWriterResponse: false,
+              writerPrompt: '', writerResponse: '',
+              testerReport: '', showDetail: false,
             }
           }
         }
@@ -548,10 +614,6 @@ function startPolling() {
         stepStatus.value = 'completed'
         executing.value = false
         streamStatus.value = '✅ 功能代码已生成'
-        clearAllTimers()
-      } else if (stepRow?.status === 'qa_review') {
-        stepStatus.value = 'qa_review'
-        executing.value = false
         clearAllTimers()
       } else if (s9.status === 'error') {
         backendError.value = s9.message || '后端任务执行失败'
@@ -609,10 +671,10 @@ async function loadStatus() {
         if (!taskStates.value[idx]) {
           taskStates.value[idx] = {
             index: idx, name,
-            writerAgent: '', status: 'pending',
+            writerAgent: '', testerAgent: '', status: 'pending',
             attempts: 0, message: '',
-            writerPrompt: '', showWriterPrompt: false,
-            writerResponse: '', showWriterResponse: false,
+            writerPrompt: '', writerResponse: '',
+            testerReport: '', showDetail: false,
           }
         }
       }
@@ -627,13 +689,14 @@ async function loadStatus() {
           existing.status = resolvedStatus
           existing.attempts = sr.attempts || 0
           if (sr.writer) existing.writerAgent = sr.writer
+          if (sr.tester) existing.testerAgent = sr.tester
         } else {
           taskStates.value[sr.index] = {
             index: sr.index, name: sr.name,
-            writerAgent: sr.writer || '', status: resolvedStatus,
+            writerAgent: sr.writer || '', testerAgent: sr.tester || '', status: resolvedStatus,
             attempts: sr.attempts || 0, message: '',
-            writerPrompt: '', showWriterPrompt: false,
-            writerResponse: '', showWriterResponse: false,
+            writerPrompt: '', writerResponse: '',
+            testerReport: '', showDetail: false,
           }
         }
       }
@@ -872,13 +935,31 @@ onUnmounted(() => {
   &__task-attempt { font-size: 10px; color: $text-muted; }
   &__task-empty { text-align: center; color: $text-disabled; padding: 20px 0; font-size: 13px; }
 
-  &__response-box {
-    grid-column: 1 / -1; margin: 4px 0 8px 0;
-    pre {
-      background: #f0f9eb; border: 1px solid #b3e19d; border-radius: 4px;
-      padding: 8px; font-size: 11px; line-height: 1.4; max-height: 300px;
-      overflow-y: auto; white-space: pre-wrap; word-break: break-all; margin: 0;
-    }
+  &__toggle-detail { font-size: 11px; color: $text-muted; margin-left: auto; }
+  &__agent-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-bottom: 8px; }
+  &__agent-stat {
+    display: flex; flex-direction: column; gap: 1px;
+    padding: 4px 6px; border-radius: 6px;
+    background: rgba(255,255,255,0.04); border: 1px solid $glass-border;
+    font-size: 11px; color: $text-secondary; min-width: 0;
+  }
+  &__stat-header { display: flex; align-items: center; gap: 2px; min-width: 0; }
+  &__stat-icon { font-size: 11px; flex-shrink: 0; }
+  &__stat-label { color: $text-muted; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  &__stat-val {
+    font-weight: 600; color: $text-primary; font-size: 12px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  &__agent-detail-collapse {
+    margin: 6px 0;
+    :deep(.el-collapse-item__header) { font-size: 12px; font-weight: 500; padding: 4px 0; }
+    :deep(.el-collapse-item__content) { padding-bottom: 4px; }
+  }
+  &__code-block {
+    background: #1e1e2e; border: 1px solid #313244; border-radius: 6px;
+    padding: 10px 12px; font-size: 11px; line-height: 1.5; max-height: 200px;
+    overflow-y: auto; white-space: pre-wrap; word-break: break-all;
+    margin: 0; color: #cdd6f4; font-family: 'Fira Code', 'Cascadia Code', monospace;
   }
 
   &__executing-actions { display: flex; justify-content: center; gap: 12px; margin-top: 16px; }

@@ -50,7 +50,7 @@ async def _inspect_code(project_id: str, doc_path: str, project_name: str = "", 
             await _asyncio.sleep(2)
             await broadcast(project_id, {"type": "progress", "message": f"🔄 hourong 第{attempt}次检验功能代码..."})
         focus_hint = f"\n⚠️ 本轮只检验以下项目（上一轮未通过）：{[d['label'] for d in active_dims]}" if focus_items else ""
-        insp_prompt = f"你是一个专业的代码QA检验员（后荣）。请严格检验以下功能代码。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n只输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + f"{focus_hint}\n"
+        insp_prompt = f"你是一个专业的代码QA检验员（后荣）。请严格检验以下功能代码。\n\n=== 检验项目与标准 ===\n{dims_json}\n\n=== 文档路径 ===\n{doc_path}\n\n请读取该文档文件，严格逐项检验。\n先输出一行 `SCORE: <0-100>` 给出总体评分，换行后再输出 JSON 数组:\n" + ",\n".join(f'  {{"key": "{d["key"]}", "passed": true/false, "detail": "具体检验意见..."}}' for d in active_dims) + f"{focus_hint}\n"
         qa_cli = GatewayClient(profile_name="hourong", timeout=180)
         qa_chunks = []
         async for chunk in qa_cli.chat_completions(messages=[{"role": "user", "content": insp_prompt}], stream=True, max_tokens=8192):
@@ -79,6 +79,119 @@ async def _inspect_code(project_id: str, doc_path: str, project_name: str = "", 
             continue
         return {"detail": "后荣未返回检验结果"}
     return {"detail": "后荣检验失败"}
+
+
+def _load_coding_tasks_from_db(db_session, project_id: str) -> list[dict]:
+    """从数据库 tasks 表读取待执行的编程任务（type='code_writing'）"""
+    from app.models.task import Task
+    tasks = (
+        db_session.query(Task)
+        .filter(Task.project_id == project_id, Task.type == "code_writing")
+        .order_by(Task.created_at)
+        .all()
+    )
+    if not tasks:
+        return []
+
+    # 构建 task_id_from_plan → file_path 映射，用于解析依赖
+    plan_id_to_path = {}
+    for t in tasks:
+        ctx = t.context or {}
+        pid = ctx.get("task_id_from_plan", "")
+        fp = ctx.get("file_path", "").split(",")[0].strip()
+        fp = _re.sub(r'\(.*?\)', '', fp).strip().rstrip('.')
+        if pid and fp:
+            plan_id_to_path[pid] = fp
+
+    subtasks = []
+    for t in tasks:
+        ctx = t.context or {}
+        raw_file_path = ctx.get("file_path", "").split(",")[0].strip()
+        # 去掉括号注释（如 app/main.py(test config) → app/main.py）
+        raw_file_path = _re.sub(r'\(.*?\)', '', raw_file_path).strip().rstrip('.')
+        if not raw_file_path:
+            raw_file_path = f"src/{t.name}.py"
+
+        # 解析依赖：将 task_id 引用映射为 file_path
+        raw_deps = ctx.get("dependencies", [])
+        resolved_deps = []
+        for dep in raw_deps if isinstance(raw_deps, list) else [raw_deps]:
+            dep_str = str(dep).strip()
+            if dep_str in plan_id_to_path:
+                resolved_deps.append(plan_id_to_path[dep_str])
+            elif dep_str.endswith(".py") or "/" in dep_str:
+                resolved_deps.append(dep_str)
+            # 其他（'已存在', '已有...'等）忽略
+        subtasks.append({
+            "name": t.name,
+            "file_path": raw_file_path,
+            "description": t.description or "",
+            "dependencies": resolved_deps,
+            "index": len(subtasks) + 1,
+            "task_id": t.id,  # 记录 DB 主键以便更新状态
+        })
+    return subtasks
+
+
+def _update_task_status(db_session, task_id: str, status: str, progress: int = 0, result_summary: str = ""):
+    """更新 tasks 表中单个编码任务的状态"""
+    if not task_id or not db_session:
+        return
+    from app.models.task import Task
+    from datetime import datetime, timezone
+    task = db_session.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        return
+    task.status = status
+    task.progress = progress
+    if result_summary:
+        task.result_summary = result_summary
+    task.updated_at = datetime.now(timezone.utc)
+    if status == "running" and not task.started_at:
+        task.started_at = datetime.now(timezone.utc)
+    if status == "accepted" and not task.completed_at:
+        task.completed_at = datetime.now(timezone.utc)
+    db_session.commit()
+
+
+def _log_agent_call(db_session, task_id: str, agent_name: str, agent_type: str,
+                    role: str, prompt: str, response: str, file_path: str = "",
+                    attempt: int = 1, passed: bool = False, duration: float = 0.0):
+    """记录 Agent 执行详细日志到 DB + logger"""
+    import uuid
+    from app.models.agent_execution_log import AgentExecutionLog
+    from app.models.agent import Agent as AgentModel
+    try:
+        agent = db_session.query(AgentModel).filter(
+            AgentModel.name == agent_name
+        ).first() if db_session else None
+        agent_id = agent.id if agent else agent_name
+
+        log_entry = AgentExecutionLog(
+            id=str(uuid.uuid4()),
+            task_id=task_id,
+            agent_id=agent_id,
+            execution_content=f"[{role}] 第{attempt}轮 | path={file_path}\n--- PROMPT ---\n{prompt[:5000]}\n--- RESPONSE ---\n{response[:5000]}" if prompt and response
+                            else f"[{role}] 第{attempt}轮 | path={file_path}\n{response[:5000] if response else '无响应'}",
+            result=f"passed={passed} | duration={duration:.1f}s" if duration else f"passed={passed}",
+        )
+        db_session.add(log_entry)
+        db_session.commit()
+    except Exception as e:
+        logger.warning(f"[Step9] 日志记录失败: {e}")
+        try:
+            db_session.rollback()
+        except Exception:
+            pass
+
+    # Python logger 详细日志
+    status_str = "✅" if passed else "❌"
+    logger.info(
+        f"[Step9] {status_str} {agent_name}({agent_type}) [{role}] "
+        f"第{attempt}轮 | path={file_path} | "
+        f"prompt_len={len(prompt) if prompt else 0} resp_len={len(response) if response else 0} "
+        f"duration={duration:.1f}s passed={passed}"
+    )
 
 
 def _parse_code_plan_to_subtasks(code_plan: str, dep_graph: dict = None) -> list[dict]:
@@ -117,6 +230,13 @@ def _parse_code_plan_to_subtasks(code_plan: str, dep_graph: dict = None) -> list
 
 
 def _topological_sort(subtasks: list[dict]) -> list[dict]:
+    """拓扑排序。
+    - 对 DB 加载的任务（多个任务共享 file_path），以 index 排序，不做 dedup
+    - 对旧文本解析的任务（一个 file_path 只出现一次），按文件依赖排序
+    """
+    unique_paths = {st["file_path"] for st in subtasks if st.get("file_path")}
+    if unique_paths and len(subtasks) > len(unique_paths):
+        return sorted(subtasks, key=lambda st: st.get("index", 0))
     by_path = {st["file_path"]: st for st in subtasks}
     visited, temp, order = set(), set(), []
     def _visit(path):
@@ -138,14 +258,15 @@ def _topological_sort(subtasks: list[dict]) -> list[dict]:
 async def _auto_configure_agent(agent, db_session=None):
     from app.models.agent import Agent as AgentModel
     CLI_AGENT_COMMANDS = {
-        "openhands": ["openhands", "python3 -m openhands", "python -m openhands"],
-        "aider-chat": ["aider --message {prompt} --yes"],
-        "goose": ["goose run --text {prompt} --no-session -q"],
-        "claude_code": ["claude"],
-        "pi_coding_agent": ["pi"],
-        "opencode": ["opencode run {prompt}"],
-        "codebuddy": ["codebuddy"], "reasonix": ["reasonix"],
-        "codearts": ["codearts"], "trae": ["trae"],
+        "claude_code": ["claude -p \"{prompt}\""],
+        "codebuddy": ["codebuddy \"{prompt}\""],
+        "opencode": ["opencode run \"{prompt}\""],
+        "hermes": ["hermes -p \"{prompt}\""],
+        "pi_coding_agent": ["pi -p \"{prompt}\""],
+        "goose": ["goose run --text \"{prompt}\" --no-session -q"],
+        "reasonix": ["reasonix \"{prompt}\""],
+        "aider-chat": ["aider --message \"{prompt}\" --yes"],
+        "qoder_cli": ["qoder \"{prompt}\""],
     }
     cfg = agent.config or {}
     existing_cli = cfg.get("cli_command", "")
@@ -153,15 +274,22 @@ async def _auto_configure_agent(agent, db_session=None):
         parts = existing_cli.split()
         ck = await asyncio.create_subprocess_exec("sh", "-c", f"which '{parts[0]}' 2>/dev/null", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
         out_bytes, _ = await ck.communicate()
-        if ck.returncode == 0 and out_bytes.strip(): return True
-        logger.warning(f"[Step9] 清除失效的 cli_command: {agent.name}")
-        cfg.pop("cli_command", None)
-        agent.config = cfg
-        if db_session:
-            try:
-                ag = db_session.query(AgentModel).filter(AgentModel.id == agent.id).first()
-                if ag: ag.config = cfg; db_session.commit()
-            except Exception: pass
+        if ck.returncode == 0 and out_bytes.strip():
+            # 命令存在但缺少 {prompt} 占位符 → 废弃旧格式，重新检测
+            if "{prompt}" not in existing_cli:
+                logger.info(f"[Step9] 刷新过期 cli_command: {agent.name} ({existing_cli})")
+                cfg.pop("cli_command", None)
+                agent.config = cfg
+                if db_session:
+                    try:
+                        ag = db_session.query(AgentModel).filter(AgentModel.id == agent.id).first()
+                        if ag: ag.config = cfg; db_session.commit()
+                    except Exception: pass
+            else:
+                return True
+        else:
+            logger.warning(f"[Step9] 清除失效的 cli_command: {agent.name}")
+            cfg.pop("cli_command", None)
     if agent.api_endpoint: return True
     if agent.agent_type in ("houfa", "hermes") or agent.name == "hourong": return True
     cmd_candidates = CLI_AGENT_COMMANDS.get(agent.agent_type, [])
@@ -230,8 +358,12 @@ async def _call_agent(agent, prompt: str, slug: str = "", docs_dir: str = "", pr
 
 def _assemble_combined_code(sorted_subtasks: list[dict], src_dir: str) -> str:
     parts = []
+    seen_files = set()
     for st in sorted_subtasks:
         fp = os.path.join(src_dir, st["file_path"])
+        if fp in seen_files:
+            continue
+        seen_files.add(fp)
         if os.path.exists(fp):
             with open(fp, "r", encoding="utf-8") as f: content = f.read()
             parts.append(f"### {st['file_path']}\n\n```python\n{content}\n```")
@@ -320,8 +452,13 @@ async def run_step9_swarm(
             bg_engine.save_step9_artifacts({**prev, "status": "done", "message": "♻️ 续跑：功能代码已通过"})
             await _force_complete_step9(project_id, bg_engine)
 
-        # ── 解析子任务 ──
-        subtasks = _parse_code_plan_to_subtasks(code_plan, dep_graph)
+        # ── 从数据库读取待执行的编程任务 ──
+        subtasks = _load_coding_tasks_from_db(bg_db, project_id)
+        if not subtasks:
+            await broadcast(project_id, {"type": "progress", "message": "⚠️ 数据库无编码任务，回退到从代码计划解析..."})
+            subtasks = _parse_code_plan_to_subtasks(code_plan, dep_graph)
+        else:
+            await broadcast(project_id, {"type": "progress", "message": f"📋 从任务数据库加载 {len(subtasks)} 个编码任务"})
         sorted_subtasks = _topological_sort(subtasks)
         all_results = []
 
@@ -355,34 +492,49 @@ async def run_step9_swarm(
             return
 
         # ══════════════════════════════════════
-        # Phase 1: Writer + Tester Agent 池
+        # Phase 1: Writer + Tester Agent 池 + 烟雾测试
         # ══════════════════════════════════════
+        await broadcast(project_id, {"type": "stage", "message": "🔍 正在对所有 Agent 执行烟雾测试..."})
+
         writer_agents = SwarmService.get_preferred_writer_agents(bg_db)
         configured_writers = []
         skipped_writers = []
         for a in writer_agents:
-            if await _auto_configure_agent(a, db_session=bg_db) and await _smoke_test_agent(a):
+            passed = await _auto_configure_agent(a, db_session=bg_db) and await _smoke_test_agent(a)
+            if passed:
                 configured_writers.append(a)
             else:
                 skipped_writers.append(a.name)
+            await broadcast(project_id, {
+                "type": "smoke_test", "name": a.name,
+                "agent_type": a.agent_type, "role": "writer",
+                "passed": passed,
+            })
         writer_agents = configured_writers
-        if skipped_writers: await broadcast(project_id, {"type": "progress", "message": f"⚠️ 跳过 {len(skipped_writers)} 个不可用的编写Agent: {skipped_writers}"})
+        if skipped_writers:
+            await broadcast(project_id, {"type": "progress", "message": f"⚠️ 跳过 {len(skipped_writers)} 个不可用的编写Agent: {skipped_writers}"})
 
         tester_agents = SwarmService.get_preferred_tester_agents(bg_db)
         configured_testers = []
         skipped_testers = []
         for a in tester_agents:
-            if await _auto_configure_agent(a, db_session=bg_db) and await _smoke_test_agent(a):
+            passed = await _auto_configure_agent(a, db_session=bg_db) and await _smoke_test_agent(a)
+            if passed:
                 configured_testers.append(a)
             else:
                 skipped_testers.append(a.name)
+            await broadcast(project_id, {
+                "type": "smoke_test", "name": a.name,
+                "agent_type": a.agent_type, "role": "tester",
+                "passed": passed,
+            })
         tester_agents = configured_testers
-        if skipped_testers: await broadcast(project_id, {"type": "progress", "message": f"⚠️ 跳过 {len(skipped_testers)} 个不可用的测试Agent: {skipped_testers}"})
+        if skipped_testers:
+            await broadcast(project_id, {"type": "progress", "message": f"⚠️ 跳过 {len(skipped_testers)} 个不可用的测试Agent: {skipped_testers}"})
 
         if not writer_agents:
             bg_engine.save_step9_artifacts({"status": "error", "message": "❌ 没有可用的编写Agent"})
             await broadcast(project_id, {"type": "error", "message": "❌ 没有可用的编写Agent"})
-            # 重置 step9 为 pending，避免 stuck 在 in_progress
             try:
                 bg_engine.reset_step(9)
             except Exception: pass
@@ -390,96 +542,367 @@ async def run_step9_swarm(
 
         await broadcast(project_id, {"type": "progress", "message": f"🐝 蜂群就绪：{len(writer_agents)}个编写Agent, {len(tester_agents)}个测试Agent, {len(sorted_subtasks)}个文件"})
 
-        # ══════════════════════════════════════════════
-        # Phase 2: 逐个子任务 Writer → Tester → 收敛
-        # ══════════════════════════════════════════════
+        # ════════════════════════════════════════════════════════
+        # Phase 2: 并发执行子任务（最大并发12）
+        # 注意：同 file_path 的任务串行执行（后一个读取前一个的输出再追加/修改）
+        # 不同 file_path 的任务可以并发
+        # ════════════════════════════════════════════════════════
         total_subtasks = len(sorted_subtasks)
 
-        for subtask_idx, st in enumerate(sorted_subtasks):
-            if st["index"] in completed_indices: continue
+        # 按 file_path 分组，组内按 index 排序保持顺序
+        from collections import OrderedDict
+        file_groups: dict[str, list[dict]] = OrderedDict()
+        for st in sorted_subtasks:
+            fp = st["file_path"]
+            file_groups.setdefault(fp, []).append(st)
 
-            sname, idx, file_path = st["name"], st["index"], st["file_path"]
+        concurrency_limit = asyncio.Semaphore(12)
+
+        async def _execute_one(st: dict, existing_file_content: str = "") -> dict:
+            """单个子任务：Writer 编写 → Tester 检验，最多5轮
+            existing_file_content: 该文件已有的代码（同 file_path 的前置任务生成）"""
+            nonlocal completed_indices
+            if st["index"] in completed_indices:
+                return {"index": st["index"], "name": st["name"], "status": "passed"}
+
+            idx, file_path = st["index"], st["file_path"]
+            sname = st["name"]
+            sname_short = sname.split("]")[-1].strip() or sname
             abs_file_path = os.path.join(src_dir, file_path)
-            await broadcast(project_id, {"type": "progress", "message": f"🚀 [{sname}] 开始执行（{subtask_idx+1}/{total_subtasks}）"})
 
-            writer = random.choice(writer_agents) if writer_agents else None
-            tester = random.choice(tester_agents) if tester_agents else None
-            if not writer:
-                all_results.append({"index": idx, "name": sname, "status": "failed", "error": "没有可用Writer"})
-                continue
+            # 等依赖文件就绪
+            deps = st.get("dependencies", [])
+            if deps:
+                for dep_fp in deps:
+                    dep_abs = os.path.join(src_dir, dep_fp)
+                    for _ in range(300):
+                        if os.path.exists(dep_abs):
+                            break
+                        await asyncio.sleep(2)
+                    if not os.path.exists(dep_abs):
+                        await broadcast(project_id, {"type": "task_update", "index": idx, "name": sname_short, "writerAgent": "", "status": "failed", "attempts": 0, "message": f"依赖 {dep_fp} 未生成"})
+                        return {"index": idx, "name": sname, "status": "failed", "error": f"依赖 {dep_fp} 未生成"}
 
-            code, tester_conclusion, tester_detail = "", "", ""
-            attempts = 0
+            async with concurrency_limit:
+                _update_task_status(bg_db, st.get("task_id"), "running", progress=20)
 
-            while attempts < 5:
-                attempts += 1
-                await broadcast(project_id, {"type": "progress", "message": f"✍️ [{sname}] {writer.name} 编写（第{attempts}轮）..."})
+                writer = random.choice(writer_agents) if writer_agents else None
+                tester = None
+                if writer and tester_agents:
+                    available_testers = [a for a in tester_agents if a.id != writer.id]
+                    tester = random.choice(available_testers) if available_testers else random.choice(tester_agents)
+                elif not writer and tester_agents:
+                    tester = random.choice(tester_agents)
+                if not writer:
+                    _update_task_status(bg_db, st.get("task_id"), "failed", progress=0)
+                    await broadcast(project_id, {"type": "task_update", "index": idx, "name": sname_short, "writerAgent": "", "status": "failed", "attempts": 0, "message": "没有可用Writer"})
+                    return {"index": idx, "name": sname, "status": "failed", "error": "没有可用Writer"}
 
-                dep_codes = []
-                for dep in st.get("dependencies", []):
-                    dp = os.path.join(src_dir, dep)
-                    if os.path.exists(dp):
-                        with open(dp, "r", encoding="utf-8") as f: dep_codes.append((dep, f.read()[:3000]))
+                # 立即广播 Writer/Tester Agent 名称
+                await broadcast(project_id, {
+                    "type": "task_update", "index": idx, "name": sname_short,
+                    "writerAgent": writer.name,
+                    "testerAgent": tester.name if tester else "",
+                    "status": "writing", "attempts": 0,
+                })
 
-                last_fb = tester_detail if attempts > 1 and "通过" not in tester_conclusion else ""
-                wp = SwarmService.build_code_writer_prompt(file_path=file_path, file_description=st.get("description", ""), requirement=requirement, design_doc=design_doc, tdd_cases=tdd_cases, core_goal=core_goal, writer_name=writer.name, attempt=attempts, last_feedback=last_fb, dependency_codes=dep_codes, dep_graph=dep_graph, code_plan=code_plan)
+                code, tester_conclusion, tester_detail = "", "", ""
+                writer_attempts = 0
+                tester_attempts = 0
+                max_writer_attempts = 3
+                max_tester_attempts = 3
 
-                code = await _call_agent(writer, wp, slug=slug, docs_dir=docs_dir, project_id=project_id, proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal, timeout=600)
+                # ── Phase 2W: Writer 编写（最多3轮）──
+                while writer_attempts < max_writer_attempts and not code.strip():
+                    writer_attempts += 1
+                    await broadcast(project_id, {"type": "progress", "message": f"✍️ [{sname_short}] {writer.name} 编写（第{writer_attempts}轮）..."})
+                    await broadcast(project_id, {
+                        "type": "task_update", "index": idx, "name": sname_short,
+                        "writerAgent": writer.name, "attempts": writer_attempts, "status": "writing",
+                    })
 
-                for _si in range(3):
-                    if not code.strip():
-                        code = await _call_agent(writer, wp + "\n\n【⛔ 输出为空】必须重新输出完整代码。", slug=slug, docs_dir=docs_dir, project_id=project_id, proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal)
-                        continue
-                    code = SwarmService.clean_generated_code(code)
-                    if SwarmService.validate_code_syntax(code)[0]: break
-                    code = await _call_agent(writer, wp + f"\n\n【⛔ 语法错误】{SwarmService.validate_code_syntax(code)[1]}\n请重新输出修正后的代码。", slug=slug, docs_dir=docs_dir, project_id=project_id, proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal)
+                    dep_codes = []
+                    for dep in deps:
+                        dp = os.path.join(src_dir, dep)
+                        if os.path.exists(dp):
+                            with open(dp, "r", encoding="utf-8") as f:
+                                dep_codes.append((dep, f.read()[:3000]))
+                    if existing_file_content:
+                        dep_codes.insert(0, ("当前文件已有代码（请追加/修改，不要删除已有内容）", existing_file_content[:5000]))
 
+                    wp = SwarmService.build_code_writer_prompt(
+                        file_path=file_path, abs_file_path=abs_file_path,
+                        docs_dir=docs_dir,
+                        file_description=st.get("description", ""),
+                        requirement=requirement, design_doc=design_doc,
+                        tdd_cases=tdd_cases, core_goal=core_goal,
+                        writer_name=writer.name, attempt=writer_attempts,
+                        dependency_codes=dep_codes,
+                        dep_graph=dep_graph, code_plan=code_plan,
+                    )
+
+                    code = await _call_agent(writer, wp, slug=slug, docs_dir=docs_dir,
+                        project_id=project_id, proj_name=proj_name, proj_desc=proj_desc,
+                        core_goal=core_goal, timeout=600)
+                    await broadcast(project_id, {
+                        "type": "task_update", "index": idx, "name": sname_short,
+                        "writerAgent": writer.name, "writerPrompt": wp[:5000],
+                        "attempts": writer_attempts, "status": "writing",
+                    })
+                    _log_agent_call(bg_db, st.get("task_id", ""), writer.name, writer.agent_type,
+                        "writer", wp[:2000], code[:2000], file_path, writer_attempts,
+                        passed=bool(code.strip()), duration=0)
+
+                    for _si in range(3):
+                        if not code.strip():
+                            code = await _call_agent(writer, wp + "\n\n【⛔ 输出为空】必须重新输出完整代码。",
+                                slug=slug, docs_dir=docs_dir, project_id=project_id,
+                                proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal)
+                            _log_agent_call(bg_db, st.get("task_id", ""), writer.name, writer.agent_type,
+                                "writer_retry_empty", wp[:1000], "⛔ 输出为空", file_path, writer_attempts, passed=False)
+                            continue
+                        code = SwarmService.clean_generated_code(code)
+                        if SwarmService.validate_code_syntax(code)[0]:
+                            break
+                        code = await _call_agent(writer,
+                            wp + f"\n\n【⛔ 语法错误】{SwarmService.validate_code_syntax(code)[1]}\n请重新输出修正后的代码。",
+                            slug=slug, docs_dir=docs_dir, project_id=project_id,
+                            proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal)
+                        _log_agent_call(bg_db, st.get("task_id", ""), writer.name, writer.agent_type,
+                            "writer_syntax_fix", SwarmService.validate_code_syntax(code)[1][:500], code[:2000],
+                            file_path, writer_attempts, passed=False)
+
+                # 所有 writer 尝试后，检查是否成功
                 if not code.strip():
                     for alt_w in writer_agents:
                         if alt_w.id == writer.id: continue
-                        code = await _call_agent(alt_w, wp, slug=slug, docs_dir=docs_dir, project_id=project_id, proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal)
-                        if code.strip(): writer = alt_w; break
+                        logger.info(f"[Step9] 🔄 Writer切换: {writer.name}→{alt_w.name} file={file_path} attempt={writer_attempts}")
+                        code = await _call_agent(alt_w, wp, slug=slug, docs_dir=docs_dir,
+                            project_id=project_id, proj_name=proj_name, proj_desc=proj_desc,
+                            core_goal=core_goal)
+                        _log_agent_call(bg_db, st.get("task_id", ""), alt_w.name, alt_w.agent_type,
+                            "writer_alt", wp[:2000], code[:2000], file_path, writer_attempts,
+                            passed=bool(code.strip()))
+                        if code.strip():
+                            writer = alt_w
+                            break
 
                 if not code.strip():
-                    all_results.append({"index": idx, "name": sname, "status": "failed", "error": "未生成有效代码", "attempts": attempts, "writer": writer.name})
-                    break
+                    _update_task_status(bg_db, st.get("task_id"), "failed", progress=0)
+                    await broadcast(project_id, {"type": "task_update", "index": idx, "name": sname_short, "status": "failed", "attempts": writer_attempts, "writerAgent": writer.name})
+                    return {"index": idx, "name": sname, "status": "failed", "error": "Writer未能生成代码", "attempts": writer_attempts, "writer": writer.name}
 
+                # ── 保存文件 ──
                 os.makedirs(os.path.dirname(abs_file_path), exist_ok=True)
-                with open(abs_file_path, "w", encoding="utf-8") as f: f.write(code)
-                await broadcast(project_id, {"type": "progress", "message": f"📦 [{sname}] 代码已保存"})
+                with open(abs_file_path, "w", encoding="utf-8") as f:
+                    f.write(code)
+                await broadcast(project_id, {"type": "progress", "message": f"📦 [{sname_short}] 代码已保存"})
 
                 if not tester:
-                    all_results.append({"index": idx, "name": sname, "file_path": abs_file_path, "status": "passed", "attempts": attempts, "writer": writer.name, "tester": ""})
-                    await broadcast(project_id, {"type": "progress", "message": f"✅ [{sname}] 代码已生成（无Tester自动通过）"})
-                    break
+                    _update_task_status(bg_db, st.get("task_id"), "accepted", progress=100)
+                    await broadcast(project_id, {"type": "progress", "message": f"✅ [{sname_short}] 代码已生成（无Tester自动通过）"})
+                    await broadcast(project_id, {
+                        "type": "task_update", "index": idx, "name": sname_short,
+                        "writerAgent": writer.name, "testerAgent": "",
+                        "attempts": writer_attempts, "status": "passed",
+                    })
+                    return {"index": idx, "name": sname, "file_path": abs_file_path, "status": "passed", "attempts": writer_attempts, "writer": writer.name, "tester": ""}
 
-                await broadcast(project_id, {"type": "progress", "message": f"🔍 [{sname}] {tester.name} 检验（第{attempts}轮）..."})
-                tp = SwarmService.build_code_tester_prompt(file_path=file_path, file_description=st.get("description", ""), code_content=code, requirement=requirement, design_doc=design_doc, tdd_cases=tdd_cases, tester_name=tester.name, attempt=attempts, last_feedback=tester_detail if attempts > 1 else "")
-                test_result = await _call_agent(tester, tp, slug=slug, docs_dir=docs_dir, project_id=project_id, proj_name=proj_name, proj_desc=proj_desc, core_goal=core_goal, timeout=300)
+                # ════════════════════════════════════
+                # Phase 2T: Tester 循环（最多3轮，可切换 Tester）
+                # ════════════════════════════════════
+                # 检查代码是否太短
+                if not code.strip() or len(code.strip()) < 100:
+                    if os.path.exists(abs_file_path):
+                        try:
+                            with open(abs_file_path, "r", encoding="utf-8") as _cr:
+                                code = _cr.read()
+                        except Exception:
+                            pass
+                if not code.strip() or len(code.strip()) < 100:
+                    logger.warning(f"[Step9] ⏭ 跳过Tester: file={file_path} code_len={len(code.strip())} 代码无效")
+                    _update_task_status(bg_db, st.get("task_id"), "failed", progress=0)
+                    await broadcast(project_id, {"type": "progress", "message": f"⏭ [{sname_short}] 代码无效，跳过检验"})
+                    return {"index": idx, "name": sname, "status": "failed", "error": "代码无效", "attempts": writer_attempts, "writer": writer.name}
 
-                test_passed = False
-                tester_detail = test_result[:500]
-                try:
-                    brace_s = test_result.find('{')
-                    brace_e = test_result.rfind('}') + 1
-                    if brace_s != -1 and brace_e > brace_s:
-                        parsed = _json.loads(test_result[brace_s:brace_e])
-                        test_passed = bool(parsed.get("passed", False) and int(parsed.get("score", 0)) >= 90)
-                        tester_detail = parsed.get("detail", test_result[:500])
-                        tester_conclusion = "通过" if test_passed else "未通过"
-                except Exception:
-                    test_passed = "通过" in test_result[:200] and "未通过" not in test_result[:200]
+                tester_conclusion, tester_detail = "", ""
+                for tester_attempts in range(1, max_tester_attempts + 1):
+                    await broadcast(project_id, {"type": "progress", "message": f"🔍 [{sname_short}] {tester.name} 检验（第{tester_attempts}轮）..."})
+                    await broadcast(project_id, {
+                        "type": "task_update", "index": idx, "name": sname_short,
+                        "testerAgent": tester.name, "attempts": tester_attempts, "status": "testing",
+                    })
+                    tp = SwarmService.build_code_tester_prompt(
+                        file_path=file_path, abs_file_path=abs_file_path,
+                        docs_dir=docs_dir,
+                        file_description=st.get("description", ""),
+                        code_content=code, requirement=requirement, design_doc=design_doc,
+                        tdd_cases=tdd_cases, tester_name=tester.name, attempt=tester_attempts,
+                        last_feedback=tester_detail if tester_attempts > 1 else "",
+                    )
+                    test_result = await _call_agent(tester, tp, slug=slug, docs_dir=docs_dir,
+                        project_id=project_id, proj_name=proj_name, proj_desc=proj_desc,
+                        core_goal=core_goal, timeout=300)
+                    _log_agent_call(bg_db, st.get("task_id", ""), tester.name, tester.agent_type,
+                        "tester", tp[:2000], test_result[:3000], file_path, tester_attempts, passed=False, duration=0)
+
+                    test_passed = False
+                    tester_score = 0
+                    tester_dims = []
+                    score_match = _re.search(r'SCORE:\s*(\d+)', test_result)
+                    if score_match:
+                        tester_score = int(score_match.group(1))
+                    try:
+                        brace_s = test_result.find('[')
+                        brace_e = test_result.rfind(']') + 1
+                        if brace_s != -1 and brace_e > brace_s:
+                            parsed = _json.loads(test_result[brace_s:brace_e])
+                            if isinstance(parsed, list):
+                                tester_dims = parsed
+                                test_passed = all(bool(d.get("passed", False)) for d in parsed) and tester_score >= 90
+                                failed_dims = [d for d in parsed if not d.get("passed")]
+                                tester_detail = "；".join(f"{d.get('label','?')}: {d.get('detail','')}" for d in failed_dims) if failed_dims else "全部维度通过"
+                            else:
+                                raise ValueError("不是数组")
+                        else:
+                            raise ValueError("未找到 JSON 数组")
+                    except Exception:
+                        # 对话式回复 → 切换 Tester 再试
+                        if not score_match and '[' not in test_result[:200]:
+                            if tester_agents:
+                                alt_testers = [a for a in tester_agents if a.id != tester.id and (not writer or a.id != writer.id)]
+                                if alt_testers:
+                                    old_tester = tester
+                                    tester = random.choice(alt_testers)
+                                    logger.info(f"[Step9] 🔄 Tester切换: {old_tester.name}→{tester.name} file={file_path}")
+                                    await broadcast(project_id, {"type": "progress", "message": f"🔄 [{sname_short}] Tester切换: {old_tester.name}→{tester.name}"})
+                        test_passed = False
+                        tester_detail = test_result[:500]
+
+                    # 构建结构化报告
+                    report_lines = [f"得分: {tester_score}/100"]
+                    if tester_dims:
+                        for d in tester_dims:
+                            icon = "✅" if d.get("passed") else "❌"
+                            report_lines.append(f"{icon} {d.get('label','?')}: {d.get('detail','无')}")
+                    report_lines.append(f"结论: {'✅ 通过' if test_passed else '❌ 未通过'}")
+                    report_lines.append(f"不合格项: {len([d for d in tester_dims if not d.get('passed')])} 项")
+                    tester_report = "\n".join(report_lines)
                     tester_conclusion = "通过" if test_passed else "未通过"
 
-                if test_passed:
-                    all_results.append({"index": idx, "name": sname, "file_path": abs_file_path, "status": "passed", "attempts": attempts, "writer": writer.name, "tester": tester.name, "tester_conclusion": tester_conclusion})
-                    await broadcast(project_id, {"type": "progress", "message": f"✅ [{sname}] 通过 {tester.name} 检验（第{attempts}轮）"})
-                    break
-                else:
-                    await broadcast(project_id, {"type": "progress", "message": f"⚠️ [{sname}] 未通过检验，修复中（第{attempts}轮）"})
+                    logger.info(f"[Step9] 🔍 Tester 结论: agent={tester.name} file={file_path} attempt={tester_attempts} score={tester_score} passed={test_passed}")
 
-            if attempts >= 5 and not any(r.get("index") == idx and r.get("status") == "passed" for r in all_results):
-                all_results.append({"index": idx, "name": sname, "status": "failed", "error": f"5轮均未通过", "attempts": attempts, "writer": writer.name, "tester": tester.name if tester else ""})
+                    if test_passed:
+                        _update_task_status(bg_db, st.get("task_id"), "accepted", progress=100)
+                        await broadcast(project_id, {"type": "progress", "message": f"✅ [{sname_short}] 通过 {tester.name} 检验（第{tester_attempts}轮）"})
+                        await broadcast(project_id, {
+                            "type": "task_update", "index": idx, "name": sname_short,
+                            "testerAgent": tester.name, "testerReport": tester_report,
+                            "attempts": tester_attempts, "status": "passed",
+                        })
+                        return {"index": idx, "name": sname, "file_path": abs_file_path, "status": "passed", "attempts": tester_attempts, "writer": writer.name, "tester": tester.name, "tester_conclusion": tester_conclusion}
+
+                    await broadcast(project_id, {"type": "progress", "message": f"⚠️ [{sname_short}] 未通过检验，重试中（第{tester_attempts}轮）"})
+                    await broadcast(project_id, {
+                        "type": "task_update", "index": idx, "name": sname_short,
+                        "testerAgent": tester.name, "testerReport": tester_report,
+                        "attempts": tester_attempts, "status": "testing",
+                    })
+
+                # Tester 3 轮均未通过
+                _update_task_status(bg_db, st.get("task_id"), "failed", progress=0)
+                await broadcast(project_id, {"type": "task_update", "index": idx, "name": sname_short, "status": "failed", "attempts": tester_attempts, "writerAgent": writer.name})
+                return {"index": idx, "name": sname, "status": "failed", "error": "Tester未通过", "attempts": tester_attempts, "writer": writer.name, "tester": tester.name if tester else ""}
+
+        # ── 分批并发：按依赖 + file_path 分组 ──
+        # 同 file_path 的任务串行执行（后一个拿到前一个的输出），不同文件并发
+        completed_actual: set[int] = set(completed_indices)
+        remaining = [st for st in sorted_subtasks if st["index"] not in completed_actual]
+        await broadcast(project_id, {"type": "progress", "message": f"🚀 并发启动 {len(remaining)} 个子任务（最大并发12，同文件串行）..."})
+
+        # 按 file_path 分组，每组内保持原始顺序
+        path_task_map: dict[str, list[dict]] = {}
+        for st in sorted_subtasks:
+            path_task_map.setdefault(st["file_path"], []).append(st)
+
+        while remaining:
+            batch = []
+            still_blocked = []
+            for st in remaining:
+                deps = st.get("dependencies", [])
+                dep_ok = True
+                for dep_fp in deps:
+                    found = any(_st["index"] in completed_actual
+                                for _st in sorted_subtasks if _st["file_path"] == dep_fp)
+                    if not found:
+                        dep_ok = False
+                        break
+                if dep_ok:
+                    # 同 file_path 的前一个任务必须已完成才能执行当前任务
+                    prev_ok = True
+                    group = path_task_map.get(st["file_path"], [])
+                    for prev_st in group:
+                        if prev_st["index"] == st["index"]:
+                            break
+                        if prev_st["index"] not in completed_actual:
+                            prev_ok = False
+                            break
+                    if prev_ok:
+                        batch.append(st)
+                    else:
+                        still_blocked.append(st)
+                else:
+                    still_blocked.append(st)
+
+            if not batch:
+                if still_blocked:
+                    await asyncio.sleep(3)
+                    remaining = still_blocked
+                    continue
+                break
+            remaining = still_blocked
+
+            # 执行本批次：同 file_path 的任务串行执行（传递已有内容）
+            # 先把 batch 按 file_path 分组，组内串行，组间并发
+            batch_groups: dict[str, list[dict]] = {}
+            for st in batch:
+                batch_groups.setdefault(st["file_path"], []).append(st)
+
+            async def _run_file_group(group_sts: list[dict]) -> list[dict]:
+                """串行执行同一 file_path 的一组任务，传递已有内容"""
+                group_results = []
+                file_content = ""
+                # 如果文件已存在（之前轮次生成），读取出来
+                first_abs = os.path.join(src_dir, group_sts[0]["file_path"])
+                if os.path.exists(first_abs):
+                    try:
+                        with open(first_abs, "r", encoding="utf-8") as _f:
+                            file_content = _f.read()
+                    except Exception:
+                        pass
+                for st_item in group_sts:
+                    r = await _execute_one(st_item, existing_file_content=file_content)
+                    if r:
+                        group_results.append(r)
+                        if r.get("status") == "passed":
+                            completed_actual.add(r["index"])
+                            # 读取刚生成的代码作为下一次的已有内容
+                            item_abs = os.path.join(src_dir, st_item["file_path"])
+                            if os.path.exists(item_abs):
+                                try:
+                                    with open(item_abs, "r", encoding="utf-8") as _f:
+                                        file_content = _f.read()
+                                except Exception:
+                                    pass
+                return group_results
+
+            # 不同 file_path 的组并发执行
+            group_coros = [_run_file_group(g) for g in batch_groups.values()]
+            group_results_list = await asyncio.gather(*group_coros)
+            for gr in group_results_list:
+                for r in gr:
+                    if r:
+                        all_results.append(r)
 
         # ══════════════════════════════════════════════
         # Phase 3: hourong 5% 随机抽检
@@ -525,6 +948,11 @@ async def run_step9_swarm(
                                 for er in all_results:
                                     if er.get("index") == sidx: er["status"] = "failed"; er["spot_check_failed"] = True; break
                                 completed_indices.discard(sidx)
+                                # 更新数据库任务状态
+                                for _st in sorted_subtasks:
+                                    if _st.get("index") == sidx:
+                                        _update_task_status(bg_db, _st.get("task_id"), "failed", progress=50, result_summary="hourong抽检未通过")
+                                        break
                             else:
                                 spot_check_detail += f"\n✅ [{sname}] 抽检通过"
                             break

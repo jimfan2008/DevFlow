@@ -84,6 +84,8 @@ node_modules/
 # Database files (binary, large, not source code)
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 
